@@ -19,7 +19,6 @@ import { SafetyModal } from "../../components/safetyModal";
 import { SingleStudentForm } from "../../components/singleStudentForm";
 import StudentPreviewModal from "../../components/StudentPreviewModal";
 import type { Clase } from "../../interfaces/claseInterface";
-import type { TeacherInfo } from "../../interfaces/teacherInterface";
 import type {
   createEnrollmentInterface,
   EnrollGroupRow,
@@ -41,16 +40,14 @@ export function CourseDetailPage() {
   const { fetchClassById, actualClass, updateClass, softDeleteClass } = useClasses();
   const { students, fetchStudentsByClass } = useStudents();
   const { enrollSingleStudent, enrollGroupStudents } = useEnrollment();
-  const { getCourseByID } = useCourses();
-  const { getTeacherInfoById } = useTeacher();
+  const { actualCourse, getCourseByID } = useCourses();
+  const { teacherInfo, fetchTeacherInfoById } = useTeacher();
   const user = useUserStore((s) => s.user);
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [safetyModalOpen, setSafetyModalOpen] = useState(false);
   const [singleStudentFormOpen, setSingleStudentFormOpen] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
-
-  const [teacherInfo, setTeacherInfo] = useState<TeacherInfo | null>(null);
 
   const [parsedStudents, setParsedStudents] = useState<
     Array<
@@ -90,43 +87,46 @@ export function CourseDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    const loadTeacherInfo = async () => {
-      if (actualClass?.courseId) {
-        try {
-          const courseID = actualClass.courseId;
-          const courseRes = await getCourseByID(courseID);
-          if (!courseRes.success) return
+    const loadCourseInfo = async () => {
+      if (!actualClass?.courseId) return
 
-          const teacherId = courseRes.data.teacherId;
-          if (!teacherId) return;
-
-          const teacherRes = await getTeacherInfoById(teacherId);
-          if (teacherRes && teacherRes.success) {
-            const teacher = teacherRes.data
-            if (teacher) setTeacherInfo(teacher);
-          }
-        } catch (error) {
-          console.error("Error al obtener información del docente:", error);
-          setTeacherInfo(null);
-        }
-      } else {
-        setTeacherInfo(null);
+      const courseID = actualClass.courseId;
+      const courseRes = await getCourseByID(courseID);
+      if (courseRes.state == "error") {
+        message.error(courseRes.message)
+        return
       }
     };
-    loadTeacherInfo();
+    loadCourseInfo();
   }, [actualClass]);
+
+  useEffect(() => {
+    const loadTeacherInfo = async () => {
+      if (!actualCourse) return
+
+      const teacherId = actualCourse.teacherId;
+      if (!teacherId) return;
+
+      const teacherRes = await fetchTeacherInfoById(teacherId);
+      if (teacherRes.state == "error") {
+        message.error(teacherRes.message)
+        return
+      }
+    }
+    loadTeacherInfo();
+  }, [actualCourse])
 
   const handleEditClass = async (values: Clase) => {
     const data = await updateClass(values);
-    if (data.success) {
+    if (data.state == "success") {
       message.success(data.message)
+    } else if (data.state == "info") {
+      message.info(data.message)
     } else {
-      message.error("Error al actualizar el curso");
-      return
+      message.error(data.message)
     }
 
     setEditModalOpen(false);
-    if (id) await fetchClassById(id);
   };
 
   const handleDeleteCourse = () => setSafetyModalOpen(true);
@@ -194,26 +194,31 @@ export function CourseDetailPage() {
     }));
 
     setSending(true);
-    try {
-      const result = await enrollGroupStudents({
-        classId: id,
-        studentRows: payloadRows,
-      });
-      message.success(
-        `Procesado: ${result.totalRows} · Éxito: ${result.successRows} · Ya inscritos: ${result.existingRows} · Errores: ${result.errorRows}`
-      );
+
+    const result = await enrollGroupStudents({
+      classId: id,
+      studentRows: payloadRows
+    });
+    if (result.state == "success") {
+      console.log(result.data)
+      const totalRows = result.data.totalRows;
+      const successRows = result.data.successRows;
+      const existingRows = result.data.existingRows;
+      const errorRows = result.data.errorRows;
+
+      message.success(`Procesadas ${totalRows} filas`)
+      message.info(`Éxito: ${successRows} · Ya inscritos: ${existingRows} · Errores: ${errorRows}`)
 
       setPreviewModalOpen(false);
       setParsedStudents([]);
       setDuplicates([]);
       fetchClassById(id);
-    } catch (error: any) {
-      message.error(
-        error?.message || "Error al inscribir el grupo de estudiantes"
-      );
-    } finally {
-      setSending(false);
+
+    } else {
+      message.error(result.message);
     }
+
+    setSending(false);
   };
 
   const studentsColumns = [
@@ -472,7 +477,6 @@ export function CourseDetailPage() {
                             className: 'color: white '
                           }}
                           onUpload={async (file, onProgress) => {
-                            debugger
                             const students = await processFile(file, onProgress);
                             return students;
                           }}
