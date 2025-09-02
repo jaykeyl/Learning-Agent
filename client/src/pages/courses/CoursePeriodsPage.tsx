@@ -191,6 +191,7 @@ export function CoursePeriodsPage() {
                   status="default"
                   style={{ marginBottom: "16px" }}
                   onClick={() => goToPeriod(period.id)}
+                  key={period.id}
                 >
                   <CustomCard.Header
                     icon={<ReadOutlined />}

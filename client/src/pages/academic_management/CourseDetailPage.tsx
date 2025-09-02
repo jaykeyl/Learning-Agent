@@ -481,7 +481,7 @@ export function CourseDetailPage() {
                             return students;
                           }}
                           fileConfig={{
-                            accept: ".csv,.xlsx",
+                            accept: ".csv,.xlsx,.xls",
                             maxSize: 1 * 1024 * 1024,
                             validationMessage: "Solo se permiten archivos .xlsx o .csv de hasta 1MB"
                           }}

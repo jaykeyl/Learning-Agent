@@ -118,6 +118,7 @@ export function TeacherCoursePage() {
                   status="default"
                   style={{ marginBottom: "16px" }}
                   onClick={() => goToCourse(course.id)}
+                  key={course.id}
                 >
                   <CustomCard.Header
                     icon={<SolutionOutlined />}
@@ -136,7 +137,7 @@ export function TeacherCoursePage() {
                     <Button
                       onClick={(e) => goToMaterials(course.id, e)}
                     >
-                      Materias
+                      Materiales
                     </Button>
                   </CustomCard.Actions>
                 </CustomCard>
