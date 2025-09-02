@@ -286,7 +286,7 @@ export class PrismaDocumentChunkRepositoryAdapter
           MAX(LENGTH(content)) as max_length,
           AVG(LENGTH(content))::int as avg_length,
           SUM(LENGTH(content)) as total_length
-        FROM "DocumentChunk" 
+        FROM "document_chunks" 
         WHERE "documentId" = ${documentId}
       `;
 

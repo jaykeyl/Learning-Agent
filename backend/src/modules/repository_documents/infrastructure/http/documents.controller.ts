@@ -11,7 +11,10 @@ import {
   UploadedFile,
   BadRequestException,
   Body,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
+import type { AuthenticatedRequest } from '../http/middleware/auth.middleware';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ListDocumentsUseCase } from '../../application/queries/list-documents.usecase';
 import { DeleteDocumentUseCase } from '../../application/commands/delete-document.usecase';
@@ -23,7 +26,6 @@ import {
   DocumentListItemDto,
 } from './dtos/list-documents.dto';
 import {
-  DeleteDocumentParamDto,
   DeleteDocumentResponseDto,
   DeleteDocumentErrorDto,
 } from './dtos/delete-document.dto';
@@ -50,6 +52,7 @@ export class DocumentsController {
       const documents = result.docs.map(
         (doc) =>
           new DocumentListItemDto(
+            doc.id,
             doc.fileName,
             doc.originalName,
             doc.mimeType,
@@ -106,12 +109,12 @@ export class DocumentsController {
     }
   }
 
-  @Delete(':filename')
+  @Delete(':id')
   async deleteDocument(
-    @Param() params: DeleteDocumentParamDto,
+    @Param('id') documentId: string,
   ): Promise<DeleteDocumentResponseDto> {
     try {
-      const result = await this.deleteDocumentUseCase.execute(params.filename);
+      const result = await this.deleteDocumentUseCase.execute(documentId);
 
       if (!result.success) {
         // Documento no encontrado
@@ -120,7 +123,7 @@ export class DocumentsController {
             new DeleteDocumentErrorDto(
               'Document Not Found',
               result.message,
-              params.filename,
+              documentId,
             ),
             HttpStatus.NOT_FOUND,
           );
@@ -131,7 +134,7 @@ export class DocumentsController {
           new DeleteDocumentErrorDto(
             'Delete Failed',
             result.message,
-            params.filename,
+            documentId,
           ),
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
@@ -139,7 +142,7 @@ export class DocumentsController {
 
       return new DeleteDocumentResponseDto(
         result.message,
-        params.filename,
+        documentId,
         result.deletedAt!,
       );
     } catch (error) {
@@ -157,33 +160,36 @@ export class DocumentsController {
         new DeleteDocumentErrorDto(
           'Internal Server Error',
           `Error interno del servidor al eliminar documento: ${errorMessage}`,
-          params.filename,
+          documentId,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
+
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadDocument(
     @UploadedFile() file: Express.Multer.File,
+    @Req() req: AuthenticatedRequest,
   ): Promise<UploadDocumentResponseDto> {
     try {
       if (!file) {
         throw new BadRequestException('No se ha proporcionado ningún archivo');
       }
 
-      // TODO: En producción, obtener el uploadedBy del token de autenticación
-      // Por ahora, usamos un ID de usuario hardcodeado para testing
-      const uploadedBy = 'user-123'; // Temporal para testing
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new BadRequestException('Usuario no autenticado');
+      }
 
       const document = await this.uploadDocumentUseCase.execute(
         file,
-        uploadedBy,
+        userId,
       );
 
       return {
-        id: document.id, // Devolver el ID del documento para usarlo en otros endpoints
+        id: document.id,
         fileName: document.fileName,
         originalName: document.originalName,
         mimeType: document.mimeType,
@@ -192,7 +198,6 @@ export class DocumentsController {
         uploadedAt: document.uploadedAt,
       };
     } catch (error) {
-      // Si ya es una BadRequestException o HttpException, re-lanzarla
       if (
         error instanceof BadRequestException ||
         error instanceof HttpException
@@ -217,18 +222,19 @@ export class DocumentsController {
     }
   }
 
-  @Get('download/:filename')
+  @Get('download/:id')
   async downloadDocument(
-    @Param('filename') filename: string,
+    @Param('id') documentId: string,
   ): Promise<{ downloadUrl: string }> {
     try {
-      if (!filename) {
+      if (!documentId) {
         throw new BadRequestException(
-          'No se ha proporcionado el nombre de archivo',
+          'No se ha proporcionado el ID del documento',
         );
       }
 
-      const downloadUrl = await this.downloadDocumentUseCase.execute(filename);
+      const downloadUrl =
+        await this.downloadDocumentUseCase.execute(documentId);
       return { downloadUrl };
     } catch (error) {
       if (
