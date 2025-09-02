@@ -17,7 +17,6 @@ import PageTemplate from "../../components/PageTemplate";
 import { CursosForm } from "../../components/cursosForm";
 import { SafetyModal } from "../../components/safetyModal";
 import { SingleStudentForm } from "../../components/singleStudentForm";
-import { StudentUpload } from "../../components/studentUpload";
 import StudentPreviewModal from "../../components/StudentPreviewModal";
 import type { Clase } from "../../interfaces/claseInterface";
 import type { TeacherInfo } from "../../interfaces/teacherInterface";
@@ -30,6 +29,8 @@ import dayjs from "dayjs";
 import useStudents from "../../hooks/useStudents";
 import { useUserStore } from "../../store/userStore";
 import useCourses from "../../hooks/useCourses";
+import UploadButton from '../../components/shared/UploadButton';
+import { processFile } from "../../utils/enrollGroupByFile";
 
 const { Text } = Typography;
 const { TabPane } = Tabs;
@@ -465,24 +466,44 @@ export function CourseDetailPage() {
                   <div style={{ textAlign: "center", padding: "2rem" }}>
                     <Empty description="No hay estudiantes inscritos en este curso">
                       <div style={{ marginTop: "24px" }}>
-                        <StudentUpload
-                          disabled={false}
-                          onStudentsParsed={(parsed, info) => {
-                            setParsedStudents(parsed);
-                            if (info?.fileName) setFileName(info.fileName);
-
-                            const seen = new Set<string>();
-                            const dupSet = new Set<string>();
-                            for (const s of parsed) {
-                              const k = String(s.codigo || "")
-                                .trim()
-                                .toLowerCase();
-                              if (!k) continue;
-                              if (seen.has(k)) dupSet.add(String(s.codigo));
-                              else seen.add(k);
+                        <UploadButton
+                          buttonConfig={{
+                            variant: 'fill',
+                            className: 'color: white '
+                          }}
+                          onUpload={async (file, onProgress) => {
+                            debugger
+                            const students = await processFile(file, onProgress);
+                            return students;
+                          }}
+                          fileConfig={{
+                            accept: ".csv,.xlsx",
+                            maxSize: 1 * 1024 * 1024,
+                            validationMessage: "Solo se permiten archivos .xlsx o .csv de hasta 1MB"
+                          }}
+                          processingConfig={{
+                            steps: [
+                              { key: 'upload', title: 'Subir archivo', description: 'Subiendo archivo' },
+                              { key: 'parse', title: 'Parsear datos', description: 'Procesando información' },
+                            ],
+                            processingText: "Procesando tabla...",
+                            successText: "Tabla procesada correctamente"
+                          }}
+                          onUploadSuccess={(students) => {
+                            if (Array.isArray(students)) {
+                              setParsedStudents(students);
+                              setFileName("archivo.xlsx");
+                              const seen = new Set<string>();
+                              const dupSet = new Set<string>();
+                              for (const s of students) {
+                                const k = String(s.codigo || "").trim().toLowerCase();
+                                if (!k) continue;
+                                if (seen.has(k)) dupSet.add(String(s.codigo));
+                                else seen.add(k);
+                              }
+                              setDuplicates(Array.from(dupSet));
+                              setPreviewModalOpen(true);
                             }
-                            setDuplicates(Array.from(dupSet));
-                            setPreviewModalOpen(true);
                           }}
                         />
                       </div>
