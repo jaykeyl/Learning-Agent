@@ -15,7 +15,8 @@ export class GetCoursesByTeacherUseCase {
     async execute (teacherId: string): Promise<Course[]> {
         const teacher = await this.teacherRepo.findByUserId(teacherId);
         if (!teacher) {
-            throw new NotFoundError(`No Teacher with ID ${teacherId}`)
+            console.error(`No Teacher with ID ${teacherId}`)
+            throw new NotFoundError(`No se ha podido recuperar la información del Docente`)
         }
 
         return this.courseRepo.findByTeacherId(teacherId);

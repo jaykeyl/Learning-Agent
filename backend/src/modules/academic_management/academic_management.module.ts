@@ -16,7 +16,6 @@ import { ListStudentsUseCase } from './application/queries/list-student.usecase'
 import { EnrollmentPrismaRepository } from './infrastructure/persistence/enrollment.prisma.repository';
 import { GetClassesByStudentUseCase } from './application/queries/get-classes-by-student.usecase';
 import { GetStudentsByClassUseCase } from './application/queries/get-students-by-class.usecase';
-import { CreateEnrollmentUseCase } from './application/commands/create-enrollment.usecase';
 import { GetClassByIdUseCase } from './application/queries/get-class-by-id.usecase';
 import { EnrollSingleStudentUseCase } from './application/commands/enroll-single-student.usecase';
 import { EnrollGroupStudentUseCase } from './application/commands/enroll-group-students.usecase';
@@ -54,7 +53,6 @@ import { GetCourseByIdUseCase } from './application/queries/get-course-by-id.use
     CreateCourseUseCase,
     CreateClassUseCase,
     CreateStudentUseCase,
-    CreateEnrollmentUseCase,
     CreateUserUseCase,
     CreateStudentProfileUseCase,
     EnrollSingleStudentUseCase,

@@ -14,7 +14,8 @@ export class GetCourseByIdUseCase {
         const course = await this.courseRepo.findById(courseId);
 
         if(!course) {
-            throw new NotFoundError(`Course not found with Id ${course}`)
+            console.error(`Course not found with Id ${course}`)
+            throw new NotFoundError(`No se ha podido recuperar la información de la materia`)
         }
 
         return course.isActive ? course : null;

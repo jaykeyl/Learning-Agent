@@ -15,7 +15,8 @@ export class GetClassesByCourseUseCase {
     async execute (courseId: string): Promise<Classes[]> {
         const course = await this.courseRepo.findById(courseId);
         if (!course) {
-            throw new NotFoundError(`No Course with ID ${courseId}`);
+            console.error(`No Course with ID ${courseId}`);
+            throw new NotFoundError(`No se ha podido recuperar la información de la materia`);
         }
         
         return this.classRepo.findByCourseId(course.id);

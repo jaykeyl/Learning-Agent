@@ -22,16 +22,19 @@ export class CreateClassUseCase {
   }): Promise<Classes> {
     const teacher = await this.teacherRepo.findByUserId(input.teacherId)
     if (!teacher) {
-      throw new NotFoundError(`Teacher not found with id ${input.teacherId}`)
+      console.error(`Teacher not found with id ${input.teacherId}`)
+      throw new NotFoundError(`No se ha podido recuperar la información del Docente`)
     }
     
     const course = await this.courseRepo.findById(input.courseId)
     if (!course) {
-      throw new NotFoundError(`Course not found with id ${input.courseId}`)
+      console.error(`Course not found with id ${input.courseId}`)
+      throw new NotFoundError(`No se ha podido recupear la información de la materia`)
     }
 
     if (course.teacherId != teacher.userId) {
-      throw new ForbiddenError(`Course ${course.id} doesnt belongs to teacher ${teacher.userId}`)
+      console.error(`Course ${course.id} doesnt belongs to teacher ${teacher.userId}`)
+      throw new ForbiddenError(`El docente proporcionado no posee permisos sobre esta materia`)
     }
 
     const className = `${course.name}-${input.semester}`

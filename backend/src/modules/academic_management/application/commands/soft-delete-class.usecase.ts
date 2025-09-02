@@ -17,22 +17,26 @@ export class SoftDeleteClassUseCase {
     async execute(input: {teacherId: string, classId: string}): Promise<Classes> {
         const objClass = await this.classRepo.findById(input.classId)
         if (!objClass) {
-            throw new NotFoundError(`Class not found with id ${input.classId}`)
+            console.error(`Class not found with id ${input.classId}`)
+            throw new NotFoundError(`No se ha podido recuprar la información de la clase}`)
         }
 
         const course = await this.courseRepo.findById(objClass.courseId)
         if (!course) {
-            throw new NotFoundError(`Course not found with id ${objClass.courseId}`)
+            console.error(`Course not found with id ${objClass.courseId}`)
+            throw new NotFoundError(`No se ha podido recuperar la información de la materia`)
         }
         
         if (course.teacherId != input.teacherId) {
-            throw new ForbiddenError(`Class ${objClass.id}-${objClass.name} doesnt belongs to teacher ${input.teacherId}`)
+            console.error(`Class ${objClass.id}-${objClass.name} doesnt belongs to teacher ${input.teacherId}`)
+            throw new ForbiddenError(`No se ha podido recuperar la información del Docente`)
         }
 
         const enrollments = await this.enrollmentRepo.findByClassId(input.classId)
         const pendingEnrollments = enrollments.filter((e)=>e.isActive)
         if (pendingEnrollments.length > 0) {
-            throw new ConflictError(`Class ${objClass.id}-${objClass.name} has pending enrollments`)
+            console.error(`Class ${objClass.id}-${objClass.name} has pending enrollments`)
+            throw new ConflictError(`Esta clase aun tiene inscripciones pendientes`)
         }
 
         return this.classRepo.softDelete(input.classId)

@@ -19,16 +19,19 @@ export class UpdateClassUseCase {
 
         const objClass = await this.classRepo.findById(input.classId)
         if (!objClass) {
-            throw new NotFoundError(`Class not found with id ${input.classId}`)
+            console.error(`Class not found with id ${input.classId}`)
+            throw new NotFoundError(`No se ha podido recuperar la información de la clase`)
         }
 
         const course = await this.courseRepo.findById(objClass.courseId)
         if (!course) {
-            throw new NotFoundError(`Course not found with id ${objClass.courseId}`)
+            console.error(`Course not found with id ${objClass.courseId}`)
+            throw new NotFoundError(`No se ha podido recuperar la información de la materia`)
         }
             
         if (course.teacherId != input.teacherId) {
-            throw new ForbiddenError(`Class ${objClass.id}-${objClass.name} doesnt belongs to teacher ${input.teacherId}`)
+            console.error(`Class ${objClass.id}-${objClass.name} doesnt belongs to teacher ${input.teacherId}`)
+            throw new ForbiddenError(`El docente proporcionado no posee permisos sobre esta clase`)
         }
 
         const className = `${course.name}-${input.semester}`

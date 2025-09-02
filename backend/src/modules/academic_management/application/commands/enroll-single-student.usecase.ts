@@ -18,7 +18,8 @@ export class EnrollSingleStudentUseCase {
     async execute(input: { studentName: string; studentLastname: string; studentCode: string; classId: string }) {
         const ojbClass = await this.classesRepo.findById(input.classId);
         if (!ojbClass) {
-            throw new NotFoundError(`Class not found with ID ${input.classId}`)
+            console.error(`Class not found with ID ${input.classId}`)
+            throw new NotFoundError(`No se ha podido recupear la información de la clase`)
         }
         
         let student = await this.studentRepo.findByCode(input.studentCode);
@@ -30,7 +31,7 @@ export class EnrollSingleStudentUseCase {
 
         const existingEnrollments = await this.enrollmentRepo.findByStudentId(student.userId);
         if (existingEnrollments.some(enrollment => enrollment.classId === input.classId)) {
-            throw new AlreadyCreatedError(`Student is already enrolled in this class`)
+            throw new AlreadyCreatedError(`Este estudiante ya se encuentra inscrito en la clase`)
         }
 
         const enrollment = await this.enrollmentRepo.create(student.userId, input.classId);
@@ -46,13 +47,13 @@ export class EnrollSingleStudentUseCase {
         );
         if (!newUser) {
             console.error("Error creating new user on single enrollment endpoint")
-            throw new InternalServerError("Error creating user");
+            throw new InternalServerError("Error creando el usuario");
         }
 
         const newStudent = await this.studentRepo.create(newUser.id, studentCode);
         if (!newStudent) {
             console.error("Error creating new student on single enrollment endpoint")
-            throw new InternalServerError("Error creating student");
+            throw new InternalServerError("Error creando la cuenta del estudiante");
         }
         return newStudent;
     }

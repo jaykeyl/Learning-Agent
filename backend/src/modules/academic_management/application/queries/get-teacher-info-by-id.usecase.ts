@@ -15,12 +15,14 @@ export class GetTeacherInfoByIDUseCase {
     async execute(teacherID: string): Promise<TeacherInfoDTO> {
         const teacher = await this.teacherRepo.findByUserId(teacherID);
         if (!teacher) {
-            throw new NotFoundError(`Teacher not found with ID ${teacherID}`)
+            console.error(`Teacher not found with ID ${teacherID}`)
+            throw new NotFoundError(`No se ha podido recuperar la información del Docente`)
         }
 
         const user = await this.userRepo.findById(teacher.userId);
         if (!user) {
-            throw new NotFoundError(`User not found with ID ${teacher.userId}`);
+            console.error(`User not found with ID ${teacher.userId}`);
+            throw new NotFoundError(`No se ha podido recuperar la información del docente`);
         }
 
         const data = {

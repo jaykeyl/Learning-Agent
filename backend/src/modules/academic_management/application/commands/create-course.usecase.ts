@@ -14,7 +14,8 @@ export class CreateCourseUseCase {
     async execute (input: { teacherId: string; name: string }) {
         const teacher = await this.teacherRepo.findByUserId(input.teacherId);
         if (!teacher) {
-            throw new NotFoundError(`No Teacher with ID ${input.teacherId}`)
+            console.error(`No Teacher with ID ${input.teacherId}`)
+            throw new NotFoundError(`No se ha podido recuperar la información del Docente`)
         }
 
         return this.courseRepo.create(input.name, input.teacherId);

@@ -14,7 +14,8 @@ export class GetClassByIdUseCase {
         const objClass = await this.classesRepo.findById(classId);
 
         if (!objClass) {
-            throw new NotFoundError(`Class not found with Id ${classId}`)
+            console.error(`Class not found with Id ${classId}`)
+            throw new NotFoundError(`No se ha podido recuperar la información de la clase`)
         }
         
         if (objClass?.isActive) return objClass;

@@ -1,9 +1,11 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { ENROLLMENT_REPO, STUDENT_REPO, USER_REPO } from "../../tokens";
+import { ENROLLMENT_REPO, STUDENT_REPO, USER_REPO, CLASSES_REPO } from "../../tokens";
 import type { EnrollmentRepositoryPort } from "../../domain/ports/enrollment.repository.ports";
 import type { StudentRepositoryPort } from "../../domain/ports/student.repository.ports";
 import type { UserRepositoryPort } from "../../domain/ports/user.repository.ports";
+import type { ClassesRepositoryPort } from "../../domain/ports/classes.repository.ports";
 import { UserInfoDTO } from "../../infrastructure/http/dtos/response.user-info.dto";
+import { NotFoundError } from "src/shared/handler/errors";
 
 @Injectable()
 export class GetStudentsByClassUseCase {
@@ -11,9 +13,15 @@ export class GetStudentsByClassUseCase {
         @Inject(ENROLLMENT_REPO) private readonly enrollmentRepo: EnrollmentRepositoryPort,
         @Inject(STUDENT_REPO) private readonly studentRepo: StudentRepositoryPort,
         @Inject(USER_REPO) private readonly userRepo: UserRepositoryPort,
+        @Inject(CLASSES_REPO) private readonly classesRepo: ClassesRepositoryPort,
     ) {}
 
     async execute(classId: string): Promise<UserInfoDTO[]> {
+        const objClass = await this.classesRepo.findById(classId);
+        if (!objClass) {
+            console.error(`Class not found with id ${classId}`)
+            throw new NotFoundError(`No se ha podido recuperar la información de la clase`)
+        }
         const enrollmentIDs =  await this.enrollmentRepo.findByClassId(classId);
         const students = await this.findStudents(enrollmentIDs);
         return students;

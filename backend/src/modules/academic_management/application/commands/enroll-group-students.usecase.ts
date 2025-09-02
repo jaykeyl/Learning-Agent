@@ -19,7 +19,8 @@ export class EnrollGroupStudentUseCase {
     async execute(input: { classId: string, studentRows: EnrollGroupStudentRow[] }) {
         const ojbClass = await this.classesRepo.findById(input.classId);
         if (!ojbClass) {
-            throw new NotFoundError(`Class not found with ID ${input.classId}`)
+            console.error(`Class not found with ID ${input.classId}`)
+            throw new NotFoundError(`No se ha podido recupear la información de la clase`)
         }
 
         let totalRows = input.studentRows.length, errorRows = 0, existingRows = 0, successRows = 0
@@ -57,14 +58,14 @@ export class EnrollGroupStudentUseCase {
         );
         if (!newUser) {
             console.error("Error creating new user on single enrollment endpoint")
-            throw new InternalServerError("Error creating user");
+            throw new InternalServerError("Error creando al usuario");
         }
         
 
         const newStudent = await this.studentRepo.create(newUser.id, studentCode);
         if (!newStudent) {
             console.error("Error creating new student on single enrollment endpoint")
-            throw new InternalServerError("Error creating student");
+            throw new InternalServerError("Error creando la cuenta del estudiante");
         }
         return newStudent;
     }
