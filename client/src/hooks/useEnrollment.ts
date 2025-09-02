@@ -1,21 +1,40 @@
 import type { createEnrollmentInterface, EnrollGroupRequest, EnrollGroupResponse, } from "../interfaces/enrollmentInterface";
-import { enrollmentService } from "../services/enrollmentService";
+import { enrollmentService } from "../services/enrollment.service";
 
 const useEnrollment = () => {
-
+    //Endpoints POST
     const enrollSingleStudent = async (enrollData: createEnrollmentInterface) => {
-        const response = await enrollmentService.enrollStudentInClass(enrollData);
-        return response;
+        const res = await enrollmentService.enrollStudentInClass(enrollData);
+        const success = res.code == 201
+        return {
+            state: success ? "success" : "error",
+            message: success ? "Estudiante inscrito correctamente" : res.error
+        };
     }
 
-    const enrollGroupStudents = async (payload: EnrollGroupRequest): Promise<EnrollGroupResponse> => {
+    const enrollGroupStudents = async (payload: EnrollGroupRequest) => {
         const res = await enrollmentService.enrollGroupStudents(payload);
-        const data: EnrollGroupResponse = res.data;
-        return data
+        const success = res.code == 201
+
+        if (success) {
+            const data: EnrollGroupResponse = res.data;
+            return {
+                state: "success",
+                message: "Solicitud procesada correctamente",
+                data
+            }
+        } else {
+            return {
+                state: "error",
+                message: res.error ,
+                data: ""
+            }
+        }
     }
 
     return {
-        enrollSingleStudent, enrollGroupStudents
+        enrollSingleStudent,
+        enrollGroupStudents,
     }
 }
 

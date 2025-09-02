@@ -18,128 +18,95 @@ const useClasses = () => {
     prepareHook();
   }, [user]);
 
-  const fetchClassesByCourse = async (courseId: string) => {
-    if (!user) {
-      return {
-        success: false,
-        message: "Ha ocurrido un error, inténtelo de nuevo"
-      }
+  //Endpoints GET
+  const fetchClassById = async (classId: string) => {
+    const res = await classService.getClassById(classId);
+    const success = res.code == 200
+    if (success) {
+      setActualClass(res.data)
     }
-
-    const res = await classService.getClassesByCourseId(courseId);
-    if (res.code == 200) {
-      setClasses(res.data)
-      return {
-        success: true,
-        message: "Períodos recuperados exitosamente"
-      }
-    }
-  };
-
-  const fetchClassesByStudent = async (studentId: string) => {
-    if (!user) {
-      return {
-        success: false,
-        message: "Ha ocurrido un error, inténtelo de nuevo"
-      }
-    }
-
-    const res = await classService.getClassesByStudentId(studentId);
-    if (res.code == 200) {
-      setClasses(res.data)
-      return {
-        success: true,
-        message: "Clases recuperados exitosamente"
-      }
+    return {
+      state: success ? "success" : "error",
+      message: success ? "Clase recuperada exitosamente" : res.error
     }
   }
 
+  const fetchClassesByStudent = async (studentId: string) => {
+    const res = await classService.getClassesByStudentId(studentId);
+    const success = res.code == 200
+    if (success) {
+      setClasses(res.data)
+    }
+    return {
+      state: success ? "success" : "error",
+      message: success ? "Clases recuperadas exitosamente" : res.error
+    }
+  }
+
+  const fetchClassesByCourse = async (courseId: string) => {
+    const res = await classService.getClassesByCourseId(courseId);
+    const success = res.code == 200
+    if (success) {
+      setClasses(res.data)
+    }
+    return {
+      state: success ? "success" : "error",
+      message: success ? "Períodos recuperados exitosamente" : res.error
+    }
+  };
+
+  //Endpoints POST
   const createClass = async (data: Omit<CreateClassDTO, 'teacherId'>) => {
     if (!user) {
       return {
-        success: false,
-        message: "Ha ocurrido un error, inténtelo de nuevo"
+        state: "error",
+        message: "No se ha cargado la información del usuario"
       }
     }
 
     const newClass = { ...data, teacherId: user.id }
-    const res = await classService.createClass(newClass);
 
-    if (res.code == 201) {
-      return {
-        success: true,
-        message: "Período creado exitosamente"
-      }
-    } else {
-      return {
-        success: false,
-        message: res.error
-      }
+    const res = await classService.createClass(newClass);
+    const success = res.code == 201
+    return {
+      state: success ? "success" : "error",
+      message: success ? "Período creado exitosamente" : res.error
     }
   };
 
-  const fetchClassById = async (classId: string) => {
-    const res = await classService.getClassById(classId);
-    if (res.code == 200) {
-      setActualClass(res.data)
-      return {
-        success: true,
-        message: "Clase recuperada exitosamente"
-      }
-    } else {
-      return {
-        success: false,
-        message: res.error
-      }
-    }
-  }
-
+  //Endpoints PUT
   const updateClass = async (values: Clase) => {
-    if (!values.id || !user) {
-      return {
-        success: false,
-        message: "Ha ocurrido un error, inténtelo de nuevo"
-      }
-    }
     const res = await classService.updateClass(values.id, values);
-    if (res.code == 201) {
+    const success = res.code == 201
+    if (success) {
       setActualClass(res.data)
-      return {
-        success: true,
-        message: "Clase actualizada exitosamente"
-      }
-    } else {
-      return {
-        success: false,
-        message: res.error
-      }
+    }
+    return {
+      state: success ? "success" : "error",
+      message: success ? "Clase actualizada exitosamente" : res.error
     }
   }
 
   const softDeleteClass = async (classId: string) => {
     if (!classId || !user) {
       return {
-        success: false,
+        success: "error",
         message: "Ha ocurrido un error, inténtelo de nuevo"
       }
     }
+
     const res = await classService.softDeleteClase(classId, user.id);
-    if (res.code == 201) {
+    const success = res.code == 201
+    if (success) {
       setActualClass(res.data)
       return {
-        success: true,
+        state: "success",
         message: "Clase eliminada exitosamente"
       }
-      //TODO aun falta añadir todos los errores posibles o ponerlos bien en back (?)
-    } else if (res.code == 409) {
-      return {
-        success: false,
-        message: "Esta clase aun tiene inscripciones pendientes"
-      }
     } else {
-      console.log(res)
+      const state = res.code == 409 ? "info" : "error"
       return {
-        success: false,
+        state,
         message: res.error
       }
     }

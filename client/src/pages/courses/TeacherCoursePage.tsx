@@ -12,7 +12,7 @@ import AccessDenied from "../../components/shared/AccessDenied";
 export function TeacherCoursePage() {
   const user = useUserStore((s) => s.user);
   const fetchUser = useUserStore((s) => s.fetchUser);
-  const { courses, createCourse } = useCourses();
+  const { courses, createCourse, fetchCoursesByTeacher } = useCourses();
   const [modalOpen, setModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredCourses, setFilteredCourses] = useState<Course[]>(courses);
@@ -20,6 +20,8 @@ export function TeacherCoursePage() {
 
   useEffect(() => {
     fetchUser();
+    if (!user) return
+    fetchCoursesByTeacher(user.id)
   }, [fetchUser]);
 
   useEffect(() => {

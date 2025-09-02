@@ -4,6 +4,7 @@ import { courseService } from "../services/course.service";
 import type { Course } from "../interfaces/courseInterface";
 
 const useCourses = () => {
+    const [actualCourse, setActualCourse] = useState<Course>()
     const [courses, setCourses] = useState<Course[]>([]);
     const user = useUserStore((s) => s.user);
     const fetchUser = useUserStore((s) => s.fetchUser);
@@ -13,47 +14,66 @@ const useCourses = () => {
             if (!user) {
                 await fetchUser();
             }
-            await fetchCourses();
         };
-
         prepareHook();
     }, [user]);
 
+    //Endpoints GET
     const getCourseByID = async (courseId: string) => {
         const res = await courseService.getCourseById(courseId);
-        if (res.code == 200) {
-            return {
-                success: true,
-                data: res.data
-            }
-        } else {
-            return {
-                sucess: false
-            }
+        const success = res.code == 200
+        if (success) {
+            setActualCourse(res.data)
+        }
+        return {
+            state: success ? "success" : "error",
+            message: success ? "Materia recuperada exitosamente" : res.error
         }
     }
 
-    const fetchCourses = async () => {
-        if (!user) return
-        const data = await courseService.getCourseByTeacher(user.id)
-        setCourses(data);
+    const fetchCoursesByTeacher = async (teacherId: string) => {
+        const res = await courseService.getCourseByTeacher(teacherId);
+        const success = res.code == 200
+        if (success) {
+            setCourses(res.data)
+        }
+        return {
+            state: success ? "success" : "error",
+            message: success ? "Materias recuperadas exitosamente" : res.error
+        }
     }
 
+    //Endpoints POST
     const createCourse = async (name: string) => {
-        if (!user) return
+        if (!user) {
+            return {
+                state: "error",
+                message: "No se ha cargado la información del usuario"
+            }
+        }
+
         const req = {
             name,
             teacherId: user.id
         }
-        await courseService.createCourse(req);
-        await fetchCourses();
+
+        const res = await courseService.createCourse(req);
+        const success = res.code == 201
+        if (success && user){
+            await fetchCoursesByTeacher(user.id)
+        }
+        return {
+            state: success ? "success" : "error",
+            message: success ? "Materia creada correctamente" : res.error
+        }
     }
 
     return {
+        actualCourse,
         courses,
         getCourseByID,
-        fetchCourses,
-        createCourse,
+        fetchCoursesByTeacher,
+        createCourse
     }
 }
 

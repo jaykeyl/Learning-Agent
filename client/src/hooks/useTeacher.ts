@@ -1,28 +1,26 @@
-import { teacherService } from "../services/teacherService";
+import { teacherService } from "../services/teacher.service";
 import type { TeacherInfo } from "../interfaces/teacherInterface";
+import { useState } from "react";
 
 const useTeacher = () => {
-    const getTeacherInfoById = async (teacherId: string) => {
-        try {
-            const res = await teacherService.getTeacherInfoById(teacherId)
-            if (res.code == 200) {
-                const teacher: TeacherInfo = res.data
-                return {
-                    success: true,
-                    data: teacher
-                }
-            } else {
-                return {
-                    success: false
-                }
-            }
-        } catch (error) {
-            console.error("Error al obtener información del docente",error)
+    const [teacherInfo, setTeacherInfo] = useState<TeacherInfo>();
+
+    //Endpoints GET
+    const fetchTeacherInfoById = async (teacherId: string) => {
+        const res = await teacherService.getTeacherInfoById(teacherId)
+        const success = res.code == 200
+        if (success) {
+            setTeacherInfo(res.data)
+        }
+        return {
+            state: success ? "success" : "error",
+            message: success ? "Información del docente recuperada" : res.error
         }
     };
 
     return {
-        getTeacherInfoById,
+        teacherInfo,
+        fetchTeacherInfoById,
     }
 }
 
