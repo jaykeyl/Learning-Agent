@@ -1,13 +1,14 @@
-import { Button, Card, Col, Empty, Row, Space, Input } from "antd";
+import { Button, Empty, Space, Input } from "antd";
 import PageTemplate from "../../components/PageTemplate";
 import { useEffect, useState } from "react";
 import useCourses from "../../hooks/useCourses";
 import type { Course } from "../../interfaces/courseInterface";
 import { useNavigate } from "react-router-dom";
 import { CreateCourseForm } from "./CreateCourseForm";
-import { PlusOutlined } from "@ant-design/icons";
+import { PlusOutlined, SolutionOutlined } from "@ant-design/icons";
 import { useUserStore } from "../../store/userStore";
 import AccessDenied from "../../components/shared/AccessDenied";
+import CustomCard from "../../components/shared/CustomCard";
 
 export function TeacherCoursePage() {
   const user = useUserStore((s) => s.user);
@@ -66,92 +67,6 @@ export function TeacherCoursePage() {
     createCourse(values.name);
   };
 
-  const renderGrid = (items: Course[]) =>
-    items.length ? (
-      <Row gutter={[16, 16]}>
-        {items.map((course) => (
-          <Col xs={24} sm={12} md={8} lg={8} key={course.id}>
-            <Card
-              hoverable
-              onClick={() => goToCourse(course.id)}
-              style={{
-                width: "100%",
-                height: 180,
-                textAlign: "center",
-                borderRadius: 20,
-                padding: "12px",
-                display: "flex",
-                flexDirection: "column",
-              }}
-              bodyStyle={{
-                padding: 0,
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                flexGrow: 1,
-              }}
-            >
-              {/* Contenedor flexible para el título */}
-              <div
-                style={{
-                  flex: "1 1 auto",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: 0,
-                  marginBottom: "12px",
-                }}
-              >
-                <h1
-                  style={{
-                    fontSize: "20px",
-                    fontWeight: "bold",
-                    lineHeight: "1.3",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    margin: 0,
-                    maxHeight: "calc(2 * 1.3em)",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {course.name}
-                </h1>
-              </div>
-
-              {/* Contenedor para los botones */}
-              <div
-                style={{
-                  flex: "0 0 auto",
-                  height: "82px",
-                }}
-              >
-                <Space direction="vertical" style={{ width: "100%" }}>
-                  <Button
-                    type="primary"
-                    style={{ width: "100%" }}
-                    onClick={(e) => goToExams(course.id, e)}
-                  >
-                    Exámenes
-                  </Button>
-                  <Button
-                    style={{ width: "100%" }}
-                    onClick={(e) => goToMaterials(course.id, e)}
-                  >
-                    Materiales
-                  </Button>
-                </Space>
-              </div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-    ) : (
-      <Empty description="No hay materías todavía." />
-    );
-
   return (
     <>
       {user?.roles.includes("docente") ? (
@@ -197,7 +112,38 @@ export function TeacherCoursePage() {
               )}
             </div>
 
-            {renderGrid(filteredCourses)}
+            {filteredCourses.length > 0 ? (
+              <>{filteredCourses.map((course) => (
+                <CustomCard
+                  status="default"
+                  style={{ marginBottom: "16px" }}
+                  onClick={() => goToCourse(course.id)}
+                >
+                  <CustomCard.Header
+                    icon={<SolutionOutlined />}
+                    title={course.name}
+                  />
+                  <CustomCard.Description>
+                    {`Vea a detalle los periodos que ha dictado en ${course.name}`}
+                  </CustomCard.Description>
+                  <CustomCard.Actions>
+                    <Button
+                      type="primary"
+                      onClick={(e) => goToExams(course.id, e)}
+                    >
+                      Exámenes
+                    </Button>
+                    <Button
+                      onClick={(e) => goToMaterials(course.id, e)}
+                    >
+                      Materias
+                    </Button>
+                  </CustomCard.Actions>
+                </CustomCard>
+              ))}</>
+            ) : (
+              <Empty description="No hay materías todavía." />
+            )}
           </div>
         </PageTemplate>
       ) : (

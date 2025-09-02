@@ -101,6 +101,8 @@ interface RootProps {
   style?: CSSProperties;
   /** Componentes hijos (Header, Description, Body, Actions) */
   children: ReactNode;
+  /** Acción realizada al darle click a la card */
+  onClick?: ()=>void;
 }
 
 /**
@@ -360,7 +362,7 @@ const Root: React.FC<RootProps> & {
   Description: typeof Description;
   Body: typeof Body;
   Actions: typeof Actions;
-} = ({ status = "default", width = 580, padding = 24, className, style, children }) => {
+} = ({ status = "default", width = 580, padding = 24, className, style, children, onClick }) => {
   // Extraer componentes hijos usando el sistema de identificación
   const allChildren = React.Children.toArray(children);
   const header = allChildren.find((child) => isComponentType(child, componentIds.header));
@@ -386,6 +388,13 @@ const Root: React.FC<RootProps> & {
     default: PALETTE.secondary,
   }[status];
 
+  const hoverable = !!onClick
+  if (!hoverable) {
+    style = {
+      boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+      ...style
+    }
+  }
   return (
     <Card
       className={className}
@@ -393,13 +402,14 @@ const Root: React.FC<RootProps> & {
         width: cardWidth,
         height: cardHeight,
         borderRadius: 14,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
         background: "#fff",
         position: "relative",
         overflow: "hidden",
         ...style,
       }}
       bodyStyle={{ padding: 0, height: "100%" }}
+      onClick={onClick}
+      hoverable={hoverable}
     >
       {/* Borde izquierdo de color según status */}
       <div 
