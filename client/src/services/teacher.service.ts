@@ -1,7 +1,7 @@
 import apiClient from "../api/apiClient";
 
 export const teacherService = {
-
+  //Endpoints GET
     async getTeacherInfoById(teacherId: string) {
         try {
             const res = await apiClient.get(`academic/teacher/${teacherId}`);
