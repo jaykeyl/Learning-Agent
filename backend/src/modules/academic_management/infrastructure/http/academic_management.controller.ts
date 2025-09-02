@@ -146,7 +146,11 @@ export class AcademicManagementController {
       const classesData = await this.getClassesByStudent.execute(studentId);
       return responseSuccess("Sin implementar", classesData, description, path)
     } catch (error) {
-      return responseInternalServerError(error.message, "Sin implementar", description, path)
+      if (error instanceof NotFoundError) {
+        return responseNotFound(error.message, "Sin implementar", description, path)
+      } else {
+        return responseInternalServerError(error.message, "Sin implementar", description, path)
+      }
     }
   }
 
