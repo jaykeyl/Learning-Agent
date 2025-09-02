@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
-import { Button, Card, Col, Empty, Row, Input, message } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { Button,  Empty, Input, message } from "antd";
+import { PlusOutlined, ReadOutlined } from "@ant-design/icons";
 import { courseService } from "../../services/course.service";
 import PageTemplate from "../../components/PageTemplate";
 import { CreatePeriodForm } from "../../components/CreatePeriodForm";
@@ -11,6 +11,7 @@ import type { Clase, CreateClassDTO } from "../../interfaces/claseInterface";
 import { useUserStore } from "../../store/userStore";
 import dayjs from "dayjs";
 import AccessDenied from "../../components/shared/AccessDenied";
+import CustomCard from "../../components/shared/CustomCard";
 
 export function CoursePeriodsPage() {
   const { courseId } = useParams<{ courseId: string }>();
@@ -86,67 +87,6 @@ export function CoursePeriodsPage() {
 
   const handleModalCancel = () => {
     setModalOpen(false);
-  };
-
-  const renderPeriodCards = (items: Clase[]) => {
-    return items.length ? (
-      <Row gutter={[16, 16]}>
-        {items.map((period) => (
-          <Col xs={24} sm={12} md={8} lg={6} key={period.id}>
-            <Card
-              hoverable
-              onClick={() => goToPeriod(period.id)}
-              style={{
-                height: 160,
-                textAlign: "center",
-                cursor: "pointer",
-                borderRadius: 8,
-              }}
-              styles={{
-                body: {
-                  padding: "20px 16px",
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                }
-              }}
-            >
-              <div style={{ marginBottom: "8px" }}>
-                <h2 style={{
-                  fontSize: "18px",
-                  fontWeight: "bold",
-                  margin: 0,
-                  lineHeight: "1.2"
-                }}>
-                  {period.semester}
-                </h2>
-              </div>
-
-              <div style={{
-                fontSize: "13px",
-                lineHeight: "1.4"
-              }}>
-                <div style={{ marginBottom: "2px" }}>
-                  Inicio: {dayjs(period.dateBegin).format("DD/MM/YYYY")}
-                </div>
-                <div>
-                  Fin: {dayjs(period.dateEnd).format("DD/MM/YYYY")}
-                </div>
-              </div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-    ) : (
-      <Empty
-        description="No hay períodos creados para esta materia"
-        style={{
-          margin: "40px 0",
-          padding: "20px",
-        }}
-      />
-    );
   };
 
   if (loading) {
@@ -245,8 +185,39 @@ export function CoursePeriodsPage() {
               )}
             </div>
 
-            {/* Grid de períodos */}
-            {renderPeriodCards(filteredPeriods)}
+            {filteredPeriods.length > 0 ? (
+              <>{filteredPeriods.map((period) => (
+                <CustomCard
+                  status="default"
+                  style={{ marginBottom: "16px" }}
+                  onClick={() => goToPeriod(period.id)}
+                >
+                  <CustomCard.Header
+                    icon={<ReadOutlined />}
+                    title={period.semester}
+                  />
+                  <CustomCard.Description>
+                    {`Consulte la información de ${period.name}`}
+                  </CustomCard.Description>
+                  <CustomCard.Body>
+                    <div style={{ marginBottom: "2px" }}>
+                      Inicio: {dayjs(period.dateBegin).format("DD/MM/YYYY")}
+                    </div>
+                    <div>
+                      Fin: {dayjs(period.dateEnd).format("DD/MM/YYYY")}
+                    </div>
+                  </CustomCard.Body>
+                </CustomCard>
+              ))}</>
+            ) : (
+              <Empty
+                description="No hay períodos creados para esta materia"
+                style={{
+                  margin: "40px 0",
+                  padding: "20px",
+                }}
+              />
+            )}
 
             {/* Modal para crear período */}
             {course && (
