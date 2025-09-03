@@ -1,7 +1,8 @@
-import { Controller, Post, Body, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, Inject } from '@nestjs/common';
 import { QuestionResponse } from './dtoChat/question-response';
-import { ChatInterviewService } from '../../domain/services/deepseek/chat.service';
 import { ChatAnswer } from './dtoChat/generate-advice';
+import { DEEPSEEK_PORT } from 'src/modules/deepseek/tokens';
+import type { DeepseekPort } from 'src/modules/deepseek/domain/ports/deepseek.port';
 
 interface CoachingResponse {
   generated_question: string;
@@ -11,14 +12,17 @@ interface CoachingResponse {
 
 @Controller('chatint')
 export class ChatIntController {
-  constructor(private readonly chatInterviewService: ChatInterviewService) {}
+  constructor(
+    @Inject(DEEPSEEK_PORT)
+    private readonly deepseekPort: DeepseekPort,
+  ) {}
 
   // Get a new question
   @Get('question')
   async generateQuestion(
     @Query('topico') topico: string,
   ): Promise<QuestionResponse> {
-    return this.chatInterviewService.generateQuestion(topico);
+    return this.deepseekPort.generateQuestion(topico);
   }
 
   // Get advice for an answer
@@ -27,6 +31,11 @@ export class ChatIntController {
     @Body() chatAnswer: ChatAnswer,
   ): Promise<CoachingResponse> {
     console.log('answer:', chatAnswer);
-    return this.chatInterviewService.generateAdvise(chatAnswer);
+    const respDs = await this.deepseekPort.generateAdvise(
+      chatAnswer.question,
+      chatAnswer.answer,
+      chatAnswer.topic,
+    );
+    return respDs;
   }
 }
