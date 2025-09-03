@@ -7,7 +7,7 @@ import { DocumentsModule } from './modules/repository_documents/documents.module
 import { AcademicManagementModule } from './modules/academic_management/academic_management.module';
 import { ExamsModule } from './modules/exams/exams.module';
 import { AiConfigService } from './core/ai/ai.config';
-import { InterviewModule } from './modules/testChat/interview.module';
+import { InterviewModule } from './modules/interviewChat/interview.module';
 import { ReinforcementModule } from './modules/reinforcement/reinforcement.module';
 
 @Module({
