@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { DocumentStoragePort } from '../../domain/ports/document-storage.port';
 import type { DocumentRepositoryPort } from '../../domain/ports/document-repository.port';
 import { DocumentListResponse } from '../../domain/value-objects/upload-document.vo';
-import { DocumentListItem } from '../../domain/entities/document-list-item.entity';
+import { DocumentListItem } from '../../domain/entities/document-list-item';
 
 @Injectable()
 export class ListDocumentsUseCase {

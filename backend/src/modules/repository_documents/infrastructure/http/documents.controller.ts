@@ -183,10 +183,7 @@ export class DocumentsController {
         throw new BadRequestException('Usuario no autenticado');
       }
 
-      const document = await this.uploadDocumentUseCase.execute(
-        file,
-        userId,
-      );
+      const document = await this.uploadDocumentUseCase.execute(file, userId);
 
       return {
         id: document.id,
