@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ENROLLMENT_REPO, STUDENT_REPO, USER_REPO, CLASSES_REPO } from "../../tokens";
 import type { EnrollmentRepositoryPort } from "../../domain/ports/enrollment.repository.ports";
 import type { StudentRepositoryPort } from "../../domain/ports/student.repository.ports";
@@ -9,6 +9,7 @@ import { NotFoundError } from "src/shared/handler/errors";
 
 @Injectable()
 export class GetStudentsByClassUseCase {
+    private readonly logger = new Logger(GetStudentsByClassUseCase.name)
     constructor(
         @Inject(ENROLLMENT_REPO) private readonly enrollmentRepo: EnrollmentRepositoryPort,
         @Inject(STUDENT_REPO) private readonly studentRepo: StudentRepositoryPort,
@@ -19,7 +20,7 @@ export class GetStudentsByClassUseCase {
     async execute(classId: string): Promise<UserInfoDTO[]> {
         const objClass = await this.classesRepo.findById(classId);
         if (!objClass) {
-            console.error(`Class not found with id ${classId}`)
+            this.logger.error(`Class not found with id ${classId}`)
             throw new NotFoundError(`No se ha podido recuperar la información de la clase`)
         }
         const enrollmentIDs =  await this.enrollmentRepo.findByClassId(classId);
