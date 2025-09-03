@@ -5,16 +5,16 @@ const useEnrollment = () => {
     //Endpoints POST
     const enrollSingleStudent = async (enrollData: createEnrollmentInterface) => {
         const res = await enrollmentService.enrollStudentInClass(enrollData);
-        const success = res.code == 201
+        const success = res?.code == 201
         return {
             state: success ? "success" : "error",
-            message: success ? "Estudiante inscrito correctamente" : res.error
+            message: success ? "Estudiante inscrito correctamente" : res?.error
         };
     }
 
     const enrollGroupStudents = async (payload: EnrollGroupRequest) => {
         const res = await enrollmentService.enrollGroupStudents(payload);
-        const success = res.code == 201
+        const success = res?.code == 201
 
         if (success) {
             const data: EnrollGroupResponse = res.data;
@@ -26,7 +26,7 @@ const useEnrollment = () => {
         } else {
             return {
                 state: "error",
-                message: res.error ,
+                message: res?.error ,
                 data: ""
             }
         }

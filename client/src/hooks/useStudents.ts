@@ -20,13 +20,13 @@ const useStudents = () => {
     //Endpoints GET
     const fetchStudentsByClass = async (classId: string) => {
         const res = await studentService.getStudentsByClassId(classId);
-        const success = res.code == 200
+        const success = res?.code == 200
         if (success) {
             setStudents(res.data);  
         } 
         return {
             state: success ? "success" : "error",
-            message: success ? "Estudiantes recuperados" : res.error
+            message: success ? "Estudiantes recuperados" : res?.error
         }
     }
 

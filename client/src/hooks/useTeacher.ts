@@ -8,13 +8,13 @@ const useTeacher = () => {
     //Endpoints GET
     const fetchTeacherInfoById = async (teacherId: string) => {
         const res = await teacherService.getTeacherInfoById(teacherId)
-        const success = res.code == 200
+        const success = res?.code == 200
         if (success) {
             setTeacherInfo(res.data)
         }
         return {
             state: success ? "success" : "error",
-            message: success ? "Información del docente recuperada" : res.error
+            message: success ? "Información del docente recuperada" : res?.error
         }
     };
 

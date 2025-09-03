@@ -21,37 +21,37 @@ const useClasses = () => {
   //Endpoints GET
   const fetchClassById = async (classId: string) => {
     const res = await classService.getClassById(classId);
-    const success = res.code == 200
+    const success = res?.code == 200
     if (success) {
       setActualClass(res.data)
     }
     return {
       state: success ? "success" : "error",
-      message: success ? "Clase recuperada exitosamente" : res.error
+      message: success ? "Clase recuperada exitosamente" : res?.error
     }
   }
 
   const fetchClassesByStudent = async (studentId: string) => {
     const res = await classService.getClassesByStudentId(studentId);
-    const success = res.code == 200
+    const success = res?.code == 200
     if (success) {
       setClasses(res.data)
     }
     return {
       state: success ? "success" : "error",
-      message: success ? "Clases recuperadas exitosamente" : res.error
+      message: success ? "Clases recuperadas exitosamente" : res?.error
     }
   }
 
   const fetchClassesByCourse = async (courseId: string) => {
     const res = await classService.getClassesByCourseId(courseId);
-    const success = res.code == 200
+    const success = res?.code == 200
     if (success) {
       setClasses(res.data)
     }
     return {
       state: success ? "success" : "error",
-      message: success ? "Períodos recuperados exitosamente" : res.error
+      message: success ? "Períodos recuperados exitosamente" : res?.error
     }
   };
 
@@ -67,23 +67,23 @@ const useClasses = () => {
     const newClass = { ...data, teacherId: user.id }
 
     const res = await classService.createClass(newClass);
-    const success = res.code == 201
+    const success = res?.code == 201
     return {
       state: success ? "success" : "error",
-      message: success ? "Período creado exitosamente" : res.error
+      message: success ? "Período creado exitosamente" : res?.error
     }
   };
 
   //Endpoints PUT
   const updateClass = async (values: Clase) => {
     const res = await classService.updateClass(values.id, values);
-    const success = res.code == 201
+    const success = res?.code == 201
     if (success) {
       setActualClass(res.data)
     }
     return {
       state: success ? "success" : "error",
-      message: success ? "Clase actualizada exitosamente" : res.error
+      message: success ? "Clase actualizada exitosamente" : res?.error
     }
   }
 
@@ -96,7 +96,7 @@ const useClasses = () => {
     }
 
     const res = await classService.softDeleteClase(classId, user.id);
-    const success = res.code == 201
+    const success = res?.code == 201
     if (success) {
       setActualClass(res.data)
       return {
@@ -104,10 +104,10 @@ const useClasses = () => {
         message: "Clase eliminada exitosamente"
       }
     } else {
-      const state = res.code == 409 ? "info" : "error"
+      const state = res?.code == 409 ? "info" : "error"
       return {
         state,
-        message: res.error
+        message: res?.error
       }
     }
   }

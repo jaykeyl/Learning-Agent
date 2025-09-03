@@ -21,25 +21,25 @@ const useCourses = () => {
     //Endpoints GET
     const getCourseByID = async (courseId: string) => {
         const res = await courseService.getCourseById(courseId);
-        const success = res.code == 200
+        const success = res?.code == 200
         if (success) {
             setActualCourse(res.data)
         }
         return {
             state: success ? "success" : "error",
-            message: success ? "Materia recuperada exitosamente" : res.error
+            message: success ? "Materia recuperada exitosamente" : res?.error
         }
     }
 
     const fetchCoursesByTeacher = async (teacherId: string) => {
         const res = await courseService.getCourseByTeacher(teacherId);
-        const success = res.code == 200
+        const success = res?.code == 200
         if (success) {
             setCourses(res.data)
         }
         return {
             state: success ? "success" : "error",
-            message: success ? "Materias recuperadas exitosamente" : res.error
+            message: success ? "Materias recuperadas exitosamente" : res?.error
         }
     }
 
@@ -58,13 +58,13 @@ const useCourses = () => {
         }
 
         const res = await courseService.createCourse(req);
-        const success = res.code == 201
+        const success = res?.code == 201
         if (success && user){
             await fetchCoursesByTeacher(user.id)
         }
         return {
             state: success ? "success" : "error",
-            message: success ? "Materia creada correctamente" : res.error
+            message: success ? "Materia creada correctamente" : res?.error
         }
     }
 
