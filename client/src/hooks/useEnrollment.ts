@@ -26,8 +26,13 @@ const useEnrollment = () => {
         } else {
             return {
                 state: "error",
-                message: res?.error ,
-                data: ""
+                message: res?.error,
+                data: {
+                    totalRows: 0,
+                    errorRows: 0,
+                    existingRows: 0,
+                    successRows: 0
+                }
             }
         }
     }
