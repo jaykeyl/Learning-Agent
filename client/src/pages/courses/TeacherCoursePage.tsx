@@ -2,7 +2,7 @@ import { Button, Empty, Space, Input, message } from "antd";
 import PageTemplate from "../../components/PageTemplate";
 import { useCallback, useEffect, useState } from "react";
 import useCourses from "../../hooks/useCourses";
-import type { Course } from "../../interfaces/courseInterface";
+import type { Course, CreateCourseDTO } from "../../interfaces/courseInterface";
 import { useNavigate } from "react-router-dom";
 import { CreateCourseForm } from "./CreateCourseForm";
 import { PlusOutlined, SolutionOutlined } from "@ant-design/icons";
@@ -75,7 +75,7 @@ export function TeacherCoursePage() {
     navigate(`/materials/${id}`);
   };
 
-  const handleAddCourse = async (values: any) => {
+  const handleAddCourse = async (values: CreateCourseDTO) => {
     if (!values) {
       message.error("No se pueden enviar datos vacíos")
       return

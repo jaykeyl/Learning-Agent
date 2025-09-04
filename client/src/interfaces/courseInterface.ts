@@ -4,3 +4,7 @@ export interface Course {
     teacherId: string;
     isActive?: boolean;
 }
+
+export interface CreateCourseDTO {
+    name: string
+}

@@ -3,11 +3,12 @@ import { useUserStore } from "../../store/userStore";
 import { Button, Form, Input, Modal } from "antd";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import type { CreateCourseDTO } from "../../interfaces/courseInterface";
 
 interface CreateCourseFormProps {
     open: boolean;
     onClose: () => void;
-    onSubmit: (values: any) => void;
+    onSubmit: (values: CreateCourseDTO) => void;
 }
 
 export const CreateCourseForm = ({ open, onClose, onSubmit }: CreateCourseFormProps) => {
