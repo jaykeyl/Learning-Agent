@@ -26,6 +26,7 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
     analysis: '',
     openEnded: '',
   });
+  
 
   const totalQuestions = getTotalQuestions();
 
@@ -148,30 +149,32 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
   };
 
   return (
-    <form id="exam-form" onSubmit={onSubmit} noValidate className="card" style={{
-      background: token.colorBgContainer,
-      borderColor: token.colorBorder,
-      borderWidth: 2,
-      borderStyle: 'solid',
-      color: token.colorText,
-      padding:0,
-      
-      
-    }}>
+    <form
+      id="exam-form"
+      onSubmit={onSubmit}
+      noValidate
+      className="card max-w-3xl w-full mx-auto rounded-xl shadow-sm"
+      style={{
+        background: token.colorBgContainer,
+        borderColor: token.colorBorder,
+        borderWidth: 2,
+        borderStyle: 'solid',
+        color: token.colorText,
+      }}
+    >
       <div className="card-content">
-        <div style={{ padding:12 }}>
-          <div className="steps-container" style={{ display: 'flex', alignItems:'center', gap: 20, marginBottom: 15 }}>
+        <div className="p-4 sm:p-5 md:p-6" >
+          <div className="steps-container flex flex-wrap items-center  justify-center gap-3 sm:gap- mb-3 sm:mb-4">
             {steps.map((s, i) => (
               <div
                 key={i}
-                className="step-item"
+                className="step-item-center px-3 sm:px-4 py-2 transition-all rounded-md text-center"
                 style={{
                   fontWeight: step === i ? 700 : 400,
                   color: step === i ? token.colorPrimary : token.colorTextTertiary,
                   borderBottom: `2px solid ${step === i ? token.colorPrimary : token.colorBorder}`,
-                  padding: '20px 20px',
-                  transition: 'all 0.2s',
-                  fontSize: 17,
+                  fontSize: 'clamp(0.9rem, 1vw + 0.5rem, 1.1rem)',
+
                 }}
               >
                 {s}
@@ -180,59 +183,91 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
           </div>
         </div>
 
-        <div className="form-grid">
+        <div className="form-grid grid grid-cols-1 sm:grid-cols-2 sm:gap-5 lg:gap-6 px-4 sm:px-5 md:px-6 pb-4 sm:pb-0">
           {step === 0 && (
             <>
-              <div className="form-group inline">
-                <label htmlFor="subject">Materia *</label>
+              <div className="form-group sm:col-span-2">
+                <label htmlFor="subject" className="block text-sm font-medium mb-1">
+                  Materia *
+                </label>
                 <input
                   id="subject"
                   name="subject"
                   type="text"
                   maxLength={30}
-                  className="input-hover subject-hover input-short"
+                  className="
+                    w-full rounded-lg
+                    border-2 px-3 py-2
+                    text-[clamp(0.95rem,0.7vw+0.75rem,1.05rem)]
+                    outline-none transition
+                    focus:ring-2
+                  "
                   placeholder="Ej: Algorítmica 1"
                   value={values.subject || ''}
                   onChange={(e) => onChange('subject', e.target.value)}
-                  autoComplete="off" 
+                  autoComplete="off"
                   style={{
                     background: token.colorBgContainer,
                     color: token.colorText,
                     borderColor: token.colorBorder,
-                    borderWidth: 2,
-                    borderStyle: 'solid',
+                    boxShadow: 'none',
                   }}
+                  onFocus={(e) => (e.currentTarget.style.boxShadow = `0 0 0 2px ${token.colorPrimary}`)}
+                  onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
                 />
-                {touched.subject && errors.subject && <small className="error">{errors.subject}</small>}
-                <small className="help">Máx. 30 caracteres</small>
+                {touched.subject && errors.subject && (
+                  <small className="error block mt-1 text-xs text-red-500">{errors.subject}</small>
+                )}
+                <small className="help block mt-1 text-xs opacity-70">Máx. 30 caracteres</small>
               </div>
 
               <div className="form-group">
-                <label htmlFor="difficulty">Dificultad *</label>
+                <label htmlFor="difficulty" className="block text-sm font-medium mb-1">
+                  Dificultad *
+                </label>
                 <select
                   id="difficulty"
                   name="difficulty"
-                  className="input-hover subject-hover input-short"
+                  className="
+                    w-full rounded-lg
+                    border-2 px-3 py-2
+                    text-[clamp(0.95rem,0.7vw+0.75rem,1.05rem)]
+                    outline-none transition
+                    focus:ring-2
+                  "
                   value={values.difficulty || ''}
                   onChange={(e) => onChange('difficulty', e.target.value)}
                   style={{
                     background: token.colorBgContainer,
                     color: token.colorText,
                     borderColor: token.colorBorder,
-                    borderWidth: 2,
-                    borderStyle: 'solid',
+                    boxShadow: 'none',
                   }}
+                  onFocus={(e) => (e.currentTarget.style.boxShadow = `0 0 0 2px ${token.colorPrimary}`)}
+                  onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
                 >
-                  <option value="" style={{ background: token.colorBgContainer, color: token.colorText }}>Selecciona…</option>
-                  <option value="fácil" style={{ background: token.colorBgContainer, color: token.colorText }}>Fácil</option>
-                  <option value="medio" style={{ background: token.colorBgContainer, color: token.colorText }}>Medio</option>
-                  <option value="difícil" style={{ background: token.colorBgContainer, color: token.colorText }}>Difícil</option>
+                  <option value="" style={{ background: token.colorBgContainer, color: token.colorText }}>
+                    Selecciona…
+                  </option>
+                  <option value="fácil" style={{ background: token.colorBgContainer, color: token.colorText }}>
+                    Fácil
+                  </option>
+                  <option value="medio" style={{ background: token.colorBgContainer, color: token.colorText }}>
+                    Medio
+                  </option>
+                  <option value="difícil" style={{ background: token.colorBgContainer, color: token.colorText }}>
+                    Difícil
+                  </option>
                 </select>
-                {touched.difficulty && errors.difficulty && <small className="error">{errors.difficulty}</small>}
+                {touched.difficulty && errors.difficulty && (
+                  <small className="error block mt-1 text-xs text-red-500">{errors.difficulty}</small>
+                )}
               </div>
 
-              <div className="form-group centered span-2">
-                <label htmlFor="attempts">N.º de intentos *</label>
+              <div className="form-group sm:col-span-1">
+                <label htmlFor="attempts" className="block text-sm font-medium mb-1">
+                  N.º de intentos *
+                </label>
                 <input
                   id="attempts"
                   name="attempts"
@@ -240,43 +275,63 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   min={1}
                   step={1}
                   placeholder="1"
-                  className="input-hover subject-hover input-short"
+                  className="
+                    w-full rounded-lg
+                    border-2 px-3 py-2
+                    text-[clamp(0.95rem,0.7vw+0.75rem,1.05rem)]
+                    outline-none transition
+                    focus:ring-2
+                  "
                   value={values.attempts || ''}
                   onChange={(e) => onChange('attempts', e.target.value)}
                   style={{
                     background: token.colorBgContainer,
                     color: token.colorText,
                     borderColor: token.colorBorder,
-                    borderWidth: 2,
-                    borderStyle: 'solid',
+                    boxShadow: 'none',
                   }}
+                  onFocus={(e) => (e.currentTarget.style.boxShadow = `0 0 0 2px ${token.colorPrimary}`)}
+                  onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
                 />
-                {touched.attempts && errors.attempts && <small className="error">{errors.attempts}</small>}
+                {touched.attempts && errors.attempts && (
+                  <small className="error block mt-1 text-xs text-red-500">{errors.attempts}</small>
+                )}
               </div>
             </>
           )}
 
           {step === 1 && (
-            <div className="form-group question-types-container" style={{
-              gridColumn: '1/3',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              width: '100%',
-            }}>
-              <label style={{ fontWeight: 700, textAlign: 'center', width: '100%' }}>
+            <div
+              className="form-group question-types-container sm:col-span-11 w-full"
+              style={{
+                gridColumn: '1/4',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                width: '100%',
+              }}
+            >
+              <label className="w-full text-center font-bold text-[clamp(1rem,1.2vw+0.6rem,1.15rem)] my-0">
                 Cantidad de preguntas por tipo *
               </label>
 
               <div
-                className="question-types-grid"
+                className="
+                  question-types-grid
+                  grid grid-cols-1 gap-4 w-full
+                  sm:grid-cols-2
+                  lg:grid-cols-4
+                  rounded-lg p-4
+                "
                 style={{
                   background: token.colorBgContainer,
                   borderRadius: 8,
                 }}
               >
-                <div className="question-type">
-                  <label htmlFor="multipleChoice" className="question-type-label" style={{ display: 'block', marginBottom: 10 }}>
+                <div className="question-type rounded-lg border p-3"
+                  style={{ borderColor: token.colorBorder, borderWidth: 2, borderStyle: 'solid' }}
+                >
+                  <label htmlFor="multipleChoice" className="question-type-label block mb-2 font-medium w-full text-center">
                     Opción Múltiple
                   </label>
                   <input
@@ -286,7 +341,11 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     min={0}
                     step={1}
                     placeholder="0"
-                    className="input-hover"
+                    className="
+                      input-hover w-full rounded-lg border-2 px-1 py-1
+                      text-[clamp(0.95rem,0.7vw+0.75rem,1.05rem)]
+                      outline-none transition focus:ring-2 
+                    "
                     value={values.multipleChoice || ''}
                     onChange={(e) => onChange('multipleChoice', e.target.value)}
                     style={{
@@ -299,8 +358,10 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   />
                 </div>
 
-                <div className="question-type" >
-                  <label htmlFor="trueFalse" className="question-type-label" style={{ display: 'block', marginBottom: 10 }}>
+                <div className="question-type rounded-lg border p-3"
+                  style={{ borderColor: token.colorBorder, borderWidth: 2, borderStyle: 'solid' }}
+                >
+                  <label htmlFor="trueFalse" className="question-type-label block mb-2 font-medium w-full text-center">
                     Verdadero o Falso
                   </label>
                   <input
@@ -310,7 +371,11 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     min={0}
                     step={1}
                     placeholder="0"
-                    className="input-hover"
+                    className="
+                      input-hover w-full rounded-lg border-2 px-3 py-2
+                      text-[clamp(0.95rem,0.7vw+0.75rem,1.05rem)]
+                      outline-none transition focus:ring-2
+                    "
                     value={values.trueFalse || ''}
                     onChange={(e) => onChange('trueFalse', e.target.value)}
                     style={{
@@ -323,8 +388,10 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   />
                 </div>
 
-                <div className="question-type">
-                  <label htmlFor="analysis" className="question-type-label" style={{ display: 'block', marginBottom: 10 }}>
+                <div className="question-type rounded-lg border p-3"
+                  style={{ borderColor: token.colorBorder, borderWidth: 2, borderStyle: 'solid' }}
+                >
+                  <label htmlFor="analysis" className="question-type-label block mb-2 font-medium w-full text-center">
                     Análisis
                   </label>
                   <input
@@ -334,7 +401,11 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     min={0}
                     step={1}
                     placeholder="0"
-                    className="input-hover"
+                    className="
+                      input-hover w-full rounded-lg border-2 px-3 py-2
+                      text-[clamp(0.95rem,0.7vw+0.75rem,1.05rem)]
+                      outline-none transition focus:ring-2
+                    "
                     value={values.analysis || ''}
                     onChange={(e) => onChange('analysis', e.target.value)}
                     style={{
@@ -347,8 +418,10 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   />
                 </div>
 
-                <div className="question-type" >
-                  <label htmlFor="openEnded" className="question-type-label" style={{ display: 'block', marginBottom: 10 }}>
+                <div className="question-type rounded-lg border p-3"
+                  style={{ borderColor: token.colorBorder, borderWidth: 2, borderStyle: 'solid' }}
+                >
+                  <label htmlFor="openEnded" className="question-type-label block mb-2 font-medium ">
                     Ejercicio Abierto
                   </label>
                   <input
@@ -358,7 +431,11 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     min={0}
                     step={1}
                     placeholder="0"
-                    className="input-hover"
+                    className="
+                      input-hover w-full rounded-lg border-2 px-3 py-2
+                      text-[clamp(0.95rem,0.7vw+0.75rem,1.05rem)]
+                      outline-none transition focus:ring-2
+                    "
                     value={values.openEnded || ''}
                     onChange={(e) => onChange('openEnded', e.target.value)}
                     style={{
@@ -372,7 +449,10 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                 </div>
               </div>
 
-              <div style={{ width: '100%', marginTop: 16, fontWeight: 600, textAlign: 'center', color: token.colorText }}>
+              <div
+                className="w-full my-0 font-semibold text-center"
+                style={{ color: token.colorText }}
+              >
                 Total de preguntas: <span>{totalQuestions}</span>
               </div>
             </div>
@@ -381,7 +461,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
           {step === 2 && (
             <>
               <div className="form-group">
-                <label htmlFor="timeMinutes">Tiempo (min) *</label>
+                <label htmlFor="timeMinutes" className="block text-sm font-medium mb-1">
+                  Tiempo (min) *
+                </label>
                 <input
                   id="timeMinutes"
                   name="timeMinutes"
@@ -390,7 +472,11 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   max={240}
                   step={1}
                   placeholder="45"
-                  className="input-hover"
+                  className="
+                    input-hover w-full rounded-lg border-2 px-3 py-2
+                    text-[clamp(0.95rem,0.7vw+0.75rem,1.05rem)]
+                    outline-none transition focus:ring-2
+                  "
                   value={values.timeMinutes || ''}
                   onChange={(e) => onChange('timeMinutes', e.target.value)}
                   style={{
@@ -401,17 +487,25 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     borderStyle: 'solid',
                   }}
                 />
-                {touched.timeMinutes && errors.timeMinutes && <small className="error">{errors.timeMinutes}</small>}
+                {touched.timeMinutes && errors.timeMinutes && (
+                  <small className="error block mt-1 text-xs text-red-500">{errors.timeMinutes}</small>
+                )}
               </div>
 
-              <div className="form-group">
-                <label htmlFor="reference">Material de referencia (opcional)</label>
+              <div className="form-group sm:col-span-2">
+                <label htmlFor="reference" className="block text-sm font-medium mb-1">
+                  Material de referencia (opcional)
+                </label>
                 <textarea
                   id="reference"
                   name="reference"
                   rows={3}
                   placeholder="..."
-                  className="input-hover"
+                  className="
+                    input-hover w-full rounded-lg border-2 px-3 py-2
+                    text-[clamp(0.95rem,0.7vw+0.75rem,1.05rem)]
+                    outline-none transition focus:ring-2
+                  "
                   value={values.reference || ''}
                   onChange={(e) => onChange('reference', e.target.value)}
                   style={{
@@ -422,26 +516,27 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     borderStyle: 'solid',
                   }}
                 />
-                <small className="help">Máx. 1000 caracteres</small>
-                {touched.reference && errors.reference && <small className="error">{errors.reference}</small>}
+                <small className="help block mt-1 text-xs opacity-70">Máx. 1000 caracteres</small>
+                {touched.reference && errors.reference && (
+                  <small className="error block mt-1 text-xs text-red-500">{errors.reference}</small>
+                )}
               </div>
             </>
           )}
         </div>
       </div>
 
-      <div
-        className="actions-row button-hover"
+      <div className="actions-row button-hover border-t flex justify-between items-center flex-wrap gap-3 px-4 " 
         style={{
           alignItems: 'center',
           marginTop: 20,
           position: 'relative',
           minHeight: 10,
-          padding:20,
+          padding: 20,
           borderTop: `1px solid ${token.colorBorderSecondary}`,
         }}
       >
-        <div style={{ display: 'flex', gap: 15,padding:5}}>
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 px-1 py-1">
           {step > 0 && (
             <Button type="default" onClick={() => setStep((s) => s - 1)}>
               Anterior
@@ -459,34 +554,33 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
           >
             Limpiar
           </Button>
+        </div>
+         <div className="flex flex-wrap items-center gap-3 sm:gap-4 px-1 py-1">
           {step < 2 && (
             <Button
               type="primary"
-              className="float-button-animation next-fixed"
               disabled={sending || !validStep()}
               onClick={(e) => {
                 e.preventDefault();
                 if (validStep()) setStep((s) => s + 1);
               }}
-              style={{ marginRight: 8 }}
             >
               Siguiente
             </Button>
           )}
-        </div>
-        <div style={{ justifyContent:'flex-start',padding:20}}>
-        {step === 2 && onGenerateAI && (
-          <Button
+          {step === 2 && onGenerateAI && (
+            <Button
             type="primary"
             disabled={sending || !validStep()}
             onClick={() => {
-              if (validStep()) onGenerateAI();
-            }}
-            style={{ marginRight: 8 }}
-          >
-            Generar preguntas con IA
-          </Button>
-        )}
+              if (validStep()) {
+                onGenerateAI?.();
+              }
+             }}
+             >
+              Generar preguntas con IA
+              </Button>
+            )}
         </div>
       </div>
     </form>

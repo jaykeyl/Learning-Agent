@@ -6,6 +6,7 @@ import type { GeneratedQuestion } from '../../services/exams.service';
 import { useExamsStore } from '../../store/examsStore';
 import { useNavigate } from 'react-router-dom';
 
+
 const { Title, Text } = Typography;
 
 export type AiResultsProps = {
@@ -74,7 +75,7 @@ export default function AiResults({
     try {
       await onSave();
       addFromQuestions({ title: subject || 'Examen', questions, publish: true });
-      navigate('/exams');
+       navigate('/exams', { replace: true })
     } finally {
       setSaveLoading(false);
     }
@@ -100,16 +101,16 @@ export default function AiResults({
   const handleDragEnd = () => setDragIndex(null);
 
   return (
-    <div className="ai-results-wrap" style={{ background: token.colorBgContainer, borderRadius: token.borderRadiusLG }}>
-      <div className="ai-results card-like" style={{ color: token.colorText }}>
-        <Title level={3} className="!mb-4" style={{ color: token.colorTextHeading }}>
-          Revisar Examen: <span style={{ color: token.colorPrimary }}>{subject}</span>
+    <div className="ai-results-wrap" style={{ background: token.colorBgContainer, borderRadius: token.borderRadiusLG,color: token.colorText }}>
+      <div className="ai-results card-like" style={{  background: token.colorBgContainer}}>
+        <Title level={3} className="!mb-4 -full text-center" style={{ background: token.colorBgContainer, }}>
+          Revisar Examen: <span style={{ color: token.colorText }}>{subject}</span>
         </Title>
 
-        <div className="flex flex-wrap gap-6 p-4 rounded-md mb-4" style={examInfoStyle}>
+        <div className="flex flex-wrap justify-center items-center gap-4 p-5 rounded-md my-2 text-center" style={examInfoStyle}>
           <div className="flex flex-col">
-            <Text type="secondary">Materia</Text>
-            <Text strong style={{ color: token.colorPrimary }}>{subject}</Text>
+            <Text type="secondary" >Materia</Text>
+            <Text strong style={{ color: token.colorText }}>{subject}</Text>
           </div>
           <div className="flex flex-col">
             <Text type="secondary">Total</Text>
@@ -131,7 +132,7 @@ export default function AiResults({
           )}
         </div>
 
-        <div className="flex flex-wrap gap-3 mb-6">
+        <div className="flex flex-wrap justify-center gap-3 mb-6">
           <Card size="small" style={{ background: token.colorFillQuaternary, borderColor: token.colorBorderSecondary }}>
             <Text strong>MC:</Text> <Text>{mc}</Text>
           </Card>

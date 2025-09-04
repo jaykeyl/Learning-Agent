@@ -210,7 +210,7 @@ export default function ExamTable({ data, onEdit }: Props) {
       <Table
         rowKey="id"
         className="shadow-sm rounded-lg"
-        style={{ background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}` }}
+        style={{ background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}` ,padding:10 }}
         columns={columns}
         dataSource={data}
         pagination={{ pageSize: 8, showSizeChanger: false }}

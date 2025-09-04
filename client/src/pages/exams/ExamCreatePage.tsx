@@ -7,6 +7,7 @@ import type { ExamFormHandle } from '../../components/exams/ExamForm';
 import { Toast, useToast } from '../../components/shared/Toast';
 import { readJSON } from '../../services/storage/localStorage';
 import PageTemplate from '../../components/PageTemplate';
+import GlobalScrollbar from '../../components/GlobalScrollbar'; 
 import './ExamCreatePage.css';
 import { generateQuestions, type GeneratedQuestion } from '../../services/exams.service';
 import AiResults from './AiResults';
@@ -14,12 +15,10 @@ import AiResults from './AiResults';
 const layoutStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  padding: '5px 100px',
 };
 
 function normalizeToQuestions(res: any): GeneratedQuestion[] {
   if (Array.isArray(res)) return res as GeneratedQuestion[];
-
   const buckets = res?.data?.questions;
   if (res?.ok && buckets && typeof buckets === 'object') {
     const types = ['multiple_choice', 'true_false', 'open_analysis', 'open_exercise'] as const;
@@ -38,7 +37,6 @@ function normalizeToQuestions(res: any): GeneratedQuestion[] {
     });
     return out;
   }
-
   return [];
 }
 
@@ -90,18 +88,15 @@ export default function ExamsCreatePage() {
     const snap = formRef.current?.getSnapshot?.();
     const draft = readJSON('exam:draft');
     const data = snap?.values?.subject ? snap.values : draft;
-
     if (!data) {
       pushToast('Completa y guarda el formulario primero.', 'warn');
       return;
     }
-
     setAiMeta({
       subject: data.subject ?? 'Tema general',
       difficulty: data.difficulty ?? 'medio',
       reference: data.reference ?? '',
     });
-
     const dto = buildAiInputFromForm(data);
     if (dto.totalQuestions <= 0) {
       setAiOpen(true);
@@ -109,19 +104,16 @@ export default function ExamsCreatePage() {
       setAiError('La suma de la distribución debe ser al menos 1.');
       return;
     }
-
     setAiOpen(true);
     setAiLoading(true);
     setAiError(null);
-
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
     try {
       const res = await generateQuestions(dto as any);
       const list = normalizeToQuestions(res);
       setAiQuestions(list);
-      if (!list.length) {
-        setAiError('No se generaron preguntas. Revisa el backend y/o el DTO.');
-      }
-    } catch (e) {
+      if (!list.length) setAiError('No se generaron preguntas. Revisa el backend y/o el DTO.');
+    } catch {
       setAiError('Error inesperado generando preguntas.');
     } finally {
       setAiLoading(false);
@@ -218,19 +210,19 @@ export default function ExamsCreatePage() {
     <PageTemplate
       title="Exámenes"
       subtitle="Creador de exámenes"
-      user={{
-        name: 'Nora Watson',
-        role: 'Sales Manager',
-        avatarUrl: 'https://i.pravatar.cc/128?img=5',
-      }}
       breadcrumbs={[
         { label: 'Home', href: '/' },
         { label: 'Exámenes', href: '/exams' },
         { label: 'Crear' },
+        { label: 'Gestión de Exámenes', href: '/exams' },
       ]}
     >
-      <div className="pantalla-scroll">
-        <section className="card subtle">
+      <GlobalScrollbar /> 
+      <div>
+        <section
+          className="card subtle readable-card"
+          style={{ display: aiOpen ? 'none' : 'block' }}
+        >
           <div style={layoutStyle}>
             <ExamForm
               ref={formRef}
@@ -241,7 +233,7 @@ export default function ExamsCreatePage() {
         </section>
 
         {aiOpen && (
-          <section className="card subtle" style={{ width: '100%', margin: '0 auto' }}>
+          <section className="card subtle readable-card">
             <AiResults
               subject={aiMeta.subject}
               difficulty={aiMeta.difficulty}

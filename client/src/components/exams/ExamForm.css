@@ -183,11 +183,9 @@ small.error {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 14px;
+  gap: 30px;
   width: 100%;
   max-width: 600px;
-  margin: 0 auto;
-  padding: 12px 0;
   border-radius: 8px;
 }
 
