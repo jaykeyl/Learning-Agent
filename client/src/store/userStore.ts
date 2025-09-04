@@ -21,6 +21,7 @@ export const useUserStore = create<UserState>((set, _get) => ({
   fetchUser: async () => {
     try {
       const res = await apiClient.get("/auth/me");
+      debugger;
       set({ user: res.data });
     } catch (e) {
       console.error("Error fetching user (store):", e);

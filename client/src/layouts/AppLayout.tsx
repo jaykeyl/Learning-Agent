@@ -37,10 +37,10 @@ function buildNavItems(roles: string[] | undefined): NavItem[] {
     },
   ];
 
-  const isTeacher = roles?.includes("docente");
+  const isProfessor = roles?.includes("docente");
   const isStudent = roles?.includes("estudiante");
 
-  const teacherOnly: NavItem[] = [
+  const professorOnly: NavItem[] = [
     {
       key: "/courses",
       icon: <SolutionOutlined />,
@@ -63,7 +63,7 @@ function buildNavItems(roles: string[] | undefined): NavItem[] {
 
   return [
     ...common.slice(0, 1),
-    ...(isTeacher ? teacherOnly : []),
+    ...(isProfessor ? professorOnly : []),
     ...(isStudent ? studentOnly : []),
     ...common.slice(1),
   ];
@@ -137,17 +137,17 @@ export default function AppLayout() {
                 },
               }}
             > */}
-              <Menu
-                mode="inline"
-                selectedKeys={[selectedKey]}
-                items={navItems}
-                className="px-3"
-                style={{
-                  borderInlineEnd: 0,
-                  flex: 1,
-                  overflowY: "auto",
-                }}
-              />
+            <Menu
+              mode="inline"
+              selectedKeys={[selectedKey]}
+              items={navItems}
+              className="px-3"
+              style={{
+                borderInlineEnd: 0,
+                flex: 1,
+                overflowY: "auto",
+              }}
+            />
             {/* </ConfigProvider> */}
 
             <div className="px-5 pt-6 pb-2 mt-auto mb-2">
@@ -168,9 +168,15 @@ export default function AppLayout() {
                     className="ring-2 ring-white shadow"
                   />
                 </div>
-                <div className="mt-3 font-semibold">{user?.name ?? ""} {user?.lastname ?? ""}</div>
+                <div className="mt-3 font-semibold">
+                  {user?.name ?? ""} {user?.lastname ?? ""}
+                </div>
                 <div className="text-xs text-slate-500">
-                  {user?.roles?.includes("docente") ? "Docente" : user?.roles?.includes("estudiante") ? "Estudiante" : ""}
+                  {user?.roles?.includes("docente")
+                    ? "Docente"
+                    : user?.roles?.includes("estudiante")
+                    ? "Estudiante"
+                    : ""}
                 </div>
               </div>
             </div>

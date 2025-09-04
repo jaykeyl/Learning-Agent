@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../../core/prisma/prisma.service';
 import type { ExamQuestionRepositoryPort, InsertPosition } from '../../domain/ports/exam-question.repository.port';
 import type { ExamQuestion, NewExamQuestion } from '../../domain/entities/exam-question.entity';
@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 @Injectable()
 export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(ExamQuestionPrismaRepository.name);
 
   async existsExam(examId: string): Promise<boolean> {
     const c = await this.prisma.exam.count({ where: { id: examId } });
@@ -18,6 +19,7 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
   }
 
   async addToExam(examId: string, q: NewExamQuestion, position: InsertPosition): Promise<ExamQuestion> {
+    this.logger.log(`addToExam -> examId=${examId}, kind=${q.kind}, position=${position}`);
     return this.prisma.$transaction(async (tx) => {
       const count = await tx.examQuestion.count({ where: { examId } });
 
@@ -25,6 +27,7 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
       if (position === 'start') insertionOrder = 1;
       else if (position === 'end') insertionOrder = count + 1;
       else if (position === 'middle') insertionOrder = Math.floor(count / 2) + 1;
+      this.logger.log(`addToExam -> computed insertionOrder=${insertionOrder} (existing=${count})`);
 
       if (insertionOrder <= count) {
         await tx.examQuestion.updateMany({
@@ -45,6 +48,7 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
           order: insertionOrder,
         },
       });
+      this.logger.log(`addToExam -> question created id=${created.id}`);
 
       // sincroniza contadores + totalQuestions en el mismo commit
       const data: Prisma.ExamUpdateArgs['data'] = { totalQuestions: { increment: 1 } };
@@ -54,6 +58,7 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
       else if (q.kind === 'OPEN_EXERCISE') data.openExerciseCount = { increment: 1 };
 
       await tx.exam.update({ where: { id: examId }, data });
+      this.logger.log(`addToExam -> counters updated for examId=${examId}`);
 
       return {
         id: created.id,
@@ -90,6 +95,7 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
   }
 
   async update(id: string, patch: { text?: string; options?: string[]; correctOptionIndex?: number; correctBoolean?: boolean; expectedAnswer?: string; }) {
+    this.logger.log(`update -> id=${id}`);
     const data: any = {};
     if (patch.text != null) data.text = patch.text;
     if (patch.options != null) (data as any).options = patch.options as any; // JSON
@@ -98,6 +104,7 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
     if (patch.expectedAnswer != null) data.expectedAnswer = patch.expectedAnswer;
 
     const updated = await this.prisma.examQuestion.update({ where: { id }, data });
+    this.logger.log(`update <- id=${updated.id}`);
 
     return {
       id: updated.id,
