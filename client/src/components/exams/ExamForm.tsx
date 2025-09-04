@@ -69,7 +69,6 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
     setValue(name as any, v);
     setTouched((prev) => ({ ...prev, [name]: true }));
 
-    // Validación personalizada para intentos
     if (name === 'attempts') {
       const errorMsg = validateAttempts(value);
       setErrors((prev) => ({ ...prev, attempts: errorMsg }));
