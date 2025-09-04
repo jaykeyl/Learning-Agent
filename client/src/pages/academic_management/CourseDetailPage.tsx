@@ -138,10 +138,15 @@ export function CourseDetailPage() {
         return;
       }
       const res = await softDeleteClass(id);
-      if (!res.success) {
-        message.error(res.message);//AQUI
-        return;
+      if (res.state == "error") {
+        message.error(res.message)
+        return
       }
+      if (res.state == "info") {
+        message.info(res.message)
+        return
+      }
+
       message.success(res.message);
       setTimeout(() => {
         if (user?.roles.includes("docente")) {

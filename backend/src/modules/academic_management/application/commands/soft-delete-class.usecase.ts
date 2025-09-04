@@ -37,7 +37,7 @@ export class SoftDeleteClassUseCase {
         const pendingEnrollments = enrollments.filter((e)=>e.isActive)
         if (pendingEnrollments.length > 0) {
             this.logger.error(`Class ${objClass.id}-${objClass.name} has pending enrollments`)
-            throw new ConflictError(`Esta clase aun tiene inscripciones pendientes`)
+            throw new ConflictError(`No se pudo eliminar este período. Elimine a los estudiantes inscritos e intente de nuevo.`)
         }
 
         return this.classRepo.softDelete(input.classId)
