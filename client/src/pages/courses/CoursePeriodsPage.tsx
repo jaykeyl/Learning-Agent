@@ -2,23 +2,21 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
 import { Button,  Empty, Input, message } from "antd";
 import { PlusOutlined, ReadOutlined } from "@ant-design/icons";
-import { courseService } from "../../services/course.service";
 import PageTemplate from "../../components/PageTemplate";
 import { CreatePeriodForm } from "../../components/CreatePeriodForm";
 import useClasses from "../../hooks/useClasses";
-import type { Course } from "../../interfaces/courseInterface";
 import type { Clase, CreateClassDTO } from "../../interfaces/claseInterface";
 import { useUserStore } from "../../store/userStore";
 import dayjs from "dayjs";
 import AccessDenied from "../../components/shared/AccessDenied";
 import CustomCard from "../../components/shared/CustomCard";
+import useCourses from "../../hooks/useCourses";
 
 export function CoursePeriodsPage() {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const user = useUserStore((s) => s.user);
 
-  const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [creatingPeriod, setCreatingPeriod] = useState(false);
@@ -26,31 +24,34 @@ export function CoursePeriodsPage() {
   const [filteredPeriods, setFilteredPeriods] = useState<Clase[]>([]);
 
   const { classes, createClass, fetchClassesByCourse } = useClasses();
+  const { actualCourse, getCourseByID } = useCourses();
 
-  const loadCourseAndPeriods = useCallback(async () => {
-    if (!courseId) return;
-
+  const fetchCoursePeriods = useCallback(async () => {
+    if (!courseId) return
     setLoading(true);
-    try {
-      // Cargar información del curso
-      const courseResponse = await courseService.getCourseById(courseId);
-      setCourse(courseResponse.data);
-
-      // Cargar períodos del curso - esto actualizará el estado del hook
-      await fetchClassesByCourse(courseId);
-    } catch (error) {
-      message.error("Error al cargar la información del curso");
-      console.error("Error loading course and periods:", error);
-    } finally {
-      setLoading(false);
+    
+    const courseRes = await getCourseByID(courseId)
+    if (courseRes.state == "error") {
+      setLoading(false)
+      message.error(courseRes.message)
+      return
     }
-  }, [courseId]);
+
+    const periodsRes = await fetchClassesByCourse(courseId);
+    if (periodsRes.state == "error") {
+      setLoading(false)
+      message.error(periodsRes.message)
+      return
+    }
+
+    setLoading(false)
+  }, [courseId])
 
   useEffect(() => {
     if (courseId) {
-      loadCourseAndPeriods();
+      fetchCoursePeriods();
     }
-  }, [courseId, loadCourseAndPeriods]);
+  }, [courseId, fetchCoursePeriods]);
 
   useEffect(() => {
     const lower = searchTerm.trim().toLowerCase();
@@ -67,18 +68,18 @@ export function CoursePeriodsPage() {
   }, [searchTerm, classes]);
 
   const handleCreatePeriod = async (periodData: CreateClassDTO) => {
+    if (!courseId) return
+
     setCreatingPeriod(true);
-    try {
-      await createClass(periodData);
-      if (courseId) {
-        await fetchClassesByCourse(courseId);
-      }
-    } catch (error) {
-      // El error ya se maneja en el hook
-      console.error(error);
-    } finally {
+    const res = await createClass(periodData)
+    if (res.state == "error") {
+      message.error(res.message)
       setCreatingPeriod(false);
+      return
     }
+    message.success(res.message)
+    await fetchClassesByCourse(courseId)
+    setCreatingPeriod(false);
   };
 
   const goToPeriod = (periodId: string) => {
@@ -107,7 +108,7 @@ export function CoursePeriodsPage() {
     );
   }
 
-  if (!course) {
+  if (!actualCourse) {
     return (
       <PageTemplate
         title="Curso no encontrado"
@@ -132,12 +133,12 @@ export function CoursePeriodsPage() {
     <>
       {user?.roles.includes("docente") ? (
         <PageTemplate
-          title={course.name}
+          title={actualCourse.name}
           subtitle="Períodos en los que se dictó esta materia"
           breadcrumbs={[
             { label: "Home", href: "/" },
             { label: "Materias", href: "/courses" },
-            { label: course.name }
+            { label: actualCourse.name }
           ]}
         >
           <div
@@ -221,12 +222,12 @@ export function CoursePeriodsPage() {
             )}
 
             {/* Modal para crear período */}
-            {course && (
+            {actualCourse && (
               <CreatePeriodForm
                 open={modalOpen}
                 onClose={handleModalCancel}
                 onSubmit={handleCreatePeriod}
-                course={course}
+                course={actualCourse}
                 loading={creatingPeriod}
               />
             )}
