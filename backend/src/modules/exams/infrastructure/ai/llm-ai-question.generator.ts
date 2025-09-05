@@ -12,13 +12,28 @@ function stripFences(text: string): string {
 }
 
 function mapRawTypeToQuestionType(raw: unknown): QuestionType {
-  const t = String(raw ?? '').trim();
+  const t = String(raw ?? '').trim().toLowerCase();
   switch (t) {
-    case 'multiple_choice': return 'multiple_choice';
-    case 'true_false': return 'true_false';
-    case 'open_analysis': return 'open_analysis';
-    case 'open_exercise': return 'open_exercise';
-    default: return 'open_analysis';
+    case 'multiple_choice':
+    case 'multiple-choice':
+    case 'multiple choice':
+    case 'seleccion_multiple':
+      return 'multiple_choice';
+    case 'true_false':
+    case 'true-false':
+    case 'boolean':
+    case 'verdadero_falso':
+      return 'true_false';
+    case 'open_analysis':
+    case 'open-analysis':
+    case 'analysis':
+      return 'open_analysis';
+    case 'open_exercise':
+    case 'open-exercise':
+    case 'exercise':
+      return 'open_exercise';
+    default:
+      return 'open_analysis';
   }
 }
 
@@ -56,6 +71,12 @@ function parseJsonArrayLenient(text: string): any[] {
 
   throw new Error('AI response no es JSON válido (array esperado)');
 }
+
+const textOf = (q: any) =>
+  String(q?.text ?? q?.statement ?? q?.question ?? q?.prompt ?? q?.enunciado ?? q?.descripcion ?? q?.description ?? '')
+    .trim();
+const optsOf = (q: any) =>
+  (q?.options ?? q?.choices ?? q?.alternativas ?? q?.opciones ?? q?.answers) ?? [];
 
 @Injectable()
 export class LlmAiQuestionGenerator implements AIQuestionGeneratorPort {
@@ -105,10 +126,10 @@ export class LlmAiQuestionGenerator implements AIQuestionGeneratorPort {
       const oe  = Array.isArray(obj?.open_exercise) ? obj.open_exercise : [];
 
       const mapped = [
-        ...mcq.map((q: any) => new Question('multiple_choice', String(q?.text ?? '').trim(), q?.options ?? [])),
-        ...tf.map((q: any)  => new Question('true_false', String(q?.text ?? '').trim())),
-        ...oa.map((q: any)  => new Question('open_analysis', String(q?.text ?? '').trim())),
-        ...oe.map((q: any)  => new Question('open_exercise', String(q?.text ?? '').trim())),
+        ...mcq.map((q: any) => new Question('multiple_choice', textOf(q), optsOf(q))),
+        ...tf .map((q: any) => new Question('true_false',      textOf(q))),
+        ...oa .map((q: any) => new Question('open_analysis',   textOf(q))),
+        ...oe .map((q: any) => new Question('open_exercise',   textOf(q))),
       ];
       return mapped;
     }
@@ -116,8 +137,8 @@ export class LlmAiQuestionGenerator implements AIQuestionGeneratorPort {
     const list = parseJsonArrayLenient(contentText);
     return list.map((q: any) => {
       const type = mapRawTypeToQuestionType(q?.type);
-      const text = String(q?.text ?? '').trim();
-      const options = type === 'multiple_choice' ? (q?.options ?? []) : null;
+      const text = textOf(q);
+      const options = type === 'multiple_choice' ? optsOf(q) : null;
       return new Question(type, text, options);
     });
   }

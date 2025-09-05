@@ -22,6 +22,23 @@ const layoutStyle: CSSProperties = {
   padding: 'clamp(24px, 3.2vw, 40px) 16px',
 };
 
+const TEXT_KEYS = ['text', 'statement', 'question', 'prompt', 'enunciado', 'descripcion', 'description', 'body', 'content'];
+const OPT_KEYS = ['options', 'choices', 'alternativas', 'opciones', 'answers'];
+const pickTextLike = (q: any) => {
+  for (const k of TEXT_KEYS) {
+    const v = q?.[k];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return '';
+};
+const pickOptionsLike = (q: any) => {
+  for (const k of OPT_KEYS) {
+    const v = q?.[k];
+    if (Array.isArray(v) && v.length) return v.map(String);
+  }
+  return undefined;
+};
+
 function normalizeToQuestions(res: any): GeneratedQuestion[] {
   if (Array.isArray(res)) return res as GeneratedQuestion[];
   const buckets = res?.data?.questions;
@@ -34,8 +51,8 @@ function normalizeToQuestions(res: any): GeneratedQuestion[] {
         out.push({
           id: q.id ?? `${t}_${idx}_${Date.now()}`,
           type: t,
-          text: q.text ?? '',
-          options: q.options ?? undefined,
+          text: pickTextLike(q),
+          options: pickOptionsLike(q),
           include: q.include ?? true,
         } as GeneratedQuestion);
       });
