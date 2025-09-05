@@ -319,9 +319,7 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
                 />
                 {touched.attempts && errors.attempts && (
-                  (
                   <small className="error block mt-1 text-xs text-red-500">{errors.attempts}</small>
-                )
                 )}
               </div>
             </>

@@ -75,7 +75,7 @@ export default function AiResults({
     try {
       await onSave();
       addFromQuestions({ title: subject || 'Examen', questions, publish: true });
-      navigate('/exams', { replace: true })
+       navigate('/exams', { replace: true })
     } finally {
       setSaveLoading(false);
     }
