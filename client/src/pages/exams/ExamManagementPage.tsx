@@ -18,7 +18,7 @@ export default function ExamManagementPage() {
     <PageTemplate
           title="Exámenes"
           subtitle="Creador de exámenes"
-          breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Exámenes', href: '/exams' }, { label: 'Crear', href: '/exams/create' },{ label: 'Gestión de Exámenes',href: '/exams'}]}
+          breadcrumbs={[{ label: 'Home', href: '/' },{ label: 'Gestión de Exámenes'}]}
         >
       <GlobalScrollbar />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
