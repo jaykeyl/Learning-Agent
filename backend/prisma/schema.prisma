@@ -328,6 +328,27 @@ enum QuestionKind {
   OPEN_ANALYSIS
   OPEN_EXERCISE
 }
+// Estado de publicación del examen guardado
+enum ExamStorageStatus {
+  Guardado
+  Publicado
+}
+
+model SavedExam {
+  id        Int               @id @default(autoincrement())
+  title     String
+  content   Json
+  status    ExamStorageStatus @default(Guardado)
+
+  // FK “lógicas” (sin relación Prisma)
+  courseId  String
+  teacherId String
+
+  createdAt DateTime          @default(now())
+
+  @@index([courseId, createdAt])
+  @@index([teacherId, createdAt])
+}
 
 model ExamQuestion {
   id                 String       @id @default(cuid())
