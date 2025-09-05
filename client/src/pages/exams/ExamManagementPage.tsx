@@ -17,7 +17,7 @@ export default function ExamManagementPage() {
   return (
     <PageTemplate
           title="Exámenes"
-          subtitle="Creador de exámenes"
+          subtitle="Gestiona todos los exámenes que creaste"
           breadcrumbs={[{ label: 'Home', href: '/' },{ label: 'Gestión de Exámenes'}]}
         >
       <GlobalScrollbar />

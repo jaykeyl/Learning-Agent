@@ -213,10 +213,7 @@ export default function ExamsCreatePage() {
       breadcrumbs={[
         { label: 'Home', href: '/' },
         { label: 'Gestión de Exámenes', href: '/exams' },
-        { label: 'Crear examen' },        
-        { label: 'Exámenes', href: '/exams' },
-        { label: 'Crear' },
-        { label: 'Gestión de Exámenes', href: '/exams' },
+        { label: 'Crear examen' },
       ]}
     >
       <GlobalScrollbar /> 
