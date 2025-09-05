@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards, BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards, BadRequestException, ForbiddenException, } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from 'src/shared/guards/jwt-auth.guard';
-import { responseSuccess } from 'src/shared/handler/http.handler';
+import { responseSuccess, responseBadRequest, responseForbidden, responseInternalServerError, } from 'src/shared/handler/http.handler';
 import { SaveApprovedExamDto } from './dtos/save-approved-exam.dto';
 import { SaveApprovedExamUseCase } from '../../application/commands/save-approved-exam.usecase';
 import { ListCourseExamsUseCase } from '../../application/queries/list-course-exams.usecase';
@@ -21,7 +21,7 @@ export class ApprovedExamsController {
   async save(@Body() dto: SaveApprovedExamDto, @Req() req: Request) {
     const user = (req as any).user as { sub: string } | undefined;
     if (!user?.sub) {
-      throw new ForbiddenException('Acceso no autorizado');
+      return responseForbidden('Acceso no autorizado', cid(req), 'Falta token', pathOf(req));
     }
 
     try {
@@ -33,18 +33,31 @@ export class ApprovedExamsController {
         teacherId: user.sub,
       });
       return responseSuccess(cid(req), saved, 'Examen guardado', pathOf(req));
-    } catch (e) {
-      if (e instanceof BadRequestException || e instanceof ForbiddenException) throw e;
-      throw new InternalServerErrorException('Error guardando examen');
+    } catch (e: any) {
+      const msg = e?.message ?? 'Error guardando examen';
+      if (e instanceof ForbiddenException || msg.includes('autorizado')) {
+        return responseForbidden('Acceso no autorizado', cid(req), msg, pathOf(req));
+      }
+      if (e instanceof BadRequestException || msg.includes('Datos inválidos')) {
+        return responseBadRequest('Datos inválidos', cid(req), msg, pathOf(req));
+      }
+      return responseInternalServerError('Error interno', cid(req), msg, pathOf(req));
     }
   }
 
   @Get('courses/:courseId/exams')
   async byCourse(@Param('courseId') courseId: string, @Req() req: Request) {
     const user = (req as any).user as { sub: string } | undefined;
-    if (!user?.sub) throw new ForbiddenException('Acceso no autorizado');
+    if (!user?.sub) {
+      return responseForbidden('Acceso no autorizado', cid(req), 'Falta token', pathOf(req));
+    }
 
-    const data = await this.listUseCase.execute({ courseId, teacherId: user.sub });
-    return responseSuccess(cid(req), data, 'Exámenes del curso', pathOf(req));
+    try {
+      const data = await this.listUseCase.execute({ courseId, teacherId: user.sub });
+      return responseSuccess(cid(req), data, 'Exámenes del curso', pathOf(req));
+    } catch (e: any) {
+      const msg = e?.message ?? 'Error listando exámenes';
+      return responseInternalServerError('Error interno', cid(req), msg, pathOf(req));
+    }
   }
 }
