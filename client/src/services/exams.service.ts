@@ -8,6 +8,24 @@ export type GeneratedQuestion =
   | { id: string; type: 'open_analysis'; text: string; imageUrl?: string; options?: string[]; include: boolean }
   | { id: string; type: 'open_exercise'; text: string; include: boolean };
 
+const TEXT_KEYS = ['text', 'statement', 'question', 'prompt', 'enunciado', 'descripcion', 'description', 'body', 'content'];
+const OPT_KEYS = ['options', 'choices', 'alternativas', 'opciones', 'answers'];
+
+function pickTextLike(q: any): string {
+  for (const k of TEXT_KEYS) {
+    const v = q?.[k];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return '';
+}
+function pickOptionsLike(q: any): string[] | undefined {
+  for (const k of OPT_KEYS) {
+    const v = q?.[k];
+    if (Array.isArray(v) && v.length) return v.map(String);
+  }
+  return undefined;
+}
+
 function mockQuestions(): GeneratedQuestion[] {
   return [
     {
@@ -207,9 +225,9 @@ function orderByType(items: GeneratedQuestion[]) {
 
 function normalizeItem(q: any, ts: number, i: number, fallbackType?: GeneratedQuestion['type']): GeneratedQuestion {
   const type = String(q?.type ?? fallbackType ?? '').trim();
-  const text = String(q?.text ?? q?.prompt ?? '').trim();
+  const text = pickTextLike(q);
   const imageUrl = q?.imageUrl ?? q?.image_url ?? undefined;
-  const options = Array.isArray(q?.options ?? q?.choices) ? (q?.options ?? q?.choices) : undefined;
+  const options = pickOptionsLike(q);
 
   if (type === 'multiple_choice') {
     return { id: `q_${ts}_${i}`, type: 'multiple_choice', text, options: options ?? [], include: true };
@@ -220,7 +238,7 @@ function normalizeItem(q: any, ts: number, i: number, fallbackType?: GeneratedQu
   if (type === 'open_exercise' || type === 'exercise') {
     return { id: `q_${ts}_${i}`, type: 'open_exercise', text, include: true };
   }
-  return { id: `q_${ts}_${i}`, type: 'open_analysis', text, imageUrl, options, include: true };
+  return { id: `q_${ts}_${i}`, type: 'open_analysis', text, imageUrl, options: options ?? undefined, include: true };
 }
 
 export async function generateQuestions(input: Record<string, unknown>): Promise<GeneratedQuestion[]> {
