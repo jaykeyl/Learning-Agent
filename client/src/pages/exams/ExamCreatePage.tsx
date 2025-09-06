@@ -209,7 +209,7 @@ export default function ExamsCreatePage() {
   return (
     <PageTemplate
       title="Exámenes"
-      subtitle="Creación de exámenes"
+      subtitle="Creador de exámenes"
       breadcrumbs={[
         { label: 'Home', href: '/' },
         { label: 'Gestión de Exámenes', href: '/exams' },
