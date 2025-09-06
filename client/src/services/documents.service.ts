@@ -7,7 +7,6 @@ import type {
   UploadResponse 
 } from "../interfaces/documentInterface";
 
-// Interface para errores de HTTP
 interface HttpError {
   response?: {
     status: number;
@@ -16,7 +15,6 @@ interface HttpError {
   message?: string;
 }
 
-// Interface para la información del usuario
 interface UserInfo {
   id: string;
   email: string;
@@ -25,15 +23,14 @@ interface UserInfo {
   roles: string[];
 }
 
-// Función auxiliar para obtener el token de autenticación y verificar que el usuario esté autenticado
+import { readAuth } from "../utils/storage";
+
 const getAuthTokenAndVerifyUser = async (): Promise<{ token: string; user: UserInfo }> => {
-  const authData = localStorage.getItem("auth");
-  if (!authData) {
+  const parsedAuth = readAuth();
+  if (!parsedAuth || !parsedAuth.accessToken) {
     throw new Error('No hay datos de autenticación disponibles. Por favor, inicia sesión.');
   }
-  
   try {
-    const parsedAuth = JSON.parse(authData);
     const token = parsedAuth.accessToken;
     
     if (!token) {

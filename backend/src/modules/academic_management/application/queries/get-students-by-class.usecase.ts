@@ -31,6 +31,7 @@ export class GetStudentsByClassUseCase {
     async findStudents(enrollmentIDs: any[]): Promise<UserInfoDTO[]> {
         const students: UserInfoDTO[] = [];
         for (const enrollment of enrollmentIDs) {
+            if (!enrollment.isActive) continue;
             const student = await this.studentRepo.findByUserId(enrollment.studentId);
             if (!student) continue;
 

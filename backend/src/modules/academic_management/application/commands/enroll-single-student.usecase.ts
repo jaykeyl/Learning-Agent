@@ -30,9 +30,14 @@ export class EnrollSingleStudentUseCase {
             this.logger.log(student)
         }
 
-        const existingEnrollments = await this.enrollmentRepo.findByStudentId(student.userId);
-        if (existingEnrollments.some(enrollment => enrollment.classId === input.classId)) {
-            throw new AlreadyCreatedError(`Este estudiante ya se encuentra inscrito en la clase`)
+        const existingEnrollment = await this.enrollmentRepo.findByStudentAndClass(student.userId, input.classId);
+
+        if (existingEnrollment) {
+            if (!existingEnrollment.isActive) {
+                await this.enrollmentRepo.enableEnrollment(student.userId,input.classId);
+                return { ...existingEnrollment, isActive: true };
+            }
+            throw new AlreadyCreatedError(`Este estudiante ya se encuentra inscrito en la clase`);
         }
 
         const enrollment = await this.enrollmentRepo.create(student.userId, input.classId);

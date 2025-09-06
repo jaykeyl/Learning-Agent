@@ -1,5 +1,5 @@
 import apiClient from "../api/apiClient";
-import type { createEnrollmentInterface, EnrollGroupRequest, } from "../interfaces/enrollmentInterface";
+import type { createEnrollmentInterface, EnrollGroupRequest, SoftDeleteSingleEnrollmentDTO, } from "../interfaces/enrollmentInterface";
 
 export const enrollmentService = {
   //Endpoints POST
@@ -19,6 +19,17 @@ export const enrollmentService = {
       return response.data
     } catch (error) {
       console.error("Failed to enroll group of students", error);
+      throw error;
+    }
+  },
+
+  //Endpoints PUT
+  async softDeleteSingleEnrollment(classId: string, enrollData: Omit<SoftDeleteSingleEnrollmentDTO, "classId">) {
+    try {
+      const response = await apiClient.put(`/academic/students/remove/${classId}`, enrollData);
+      return response.data;
+    } catch (error) {
+      console.error("Failed to remove student from class", error);
       throw error;
     }
   },

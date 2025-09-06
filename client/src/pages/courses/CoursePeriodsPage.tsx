@@ -83,7 +83,7 @@ export function CoursePeriodsPage() {
   };
 
   const goToPeriod = (periodId: string) => {
-    navigate(`/classes/${periodId}`);
+    navigate(`/courses/${courseId}/periods/${periodId}`);
   };
 
   const handleModalCancel = () => {

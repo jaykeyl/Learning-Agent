@@ -5,6 +5,7 @@ import type { DocumentStoragePort } from '../../domain/ports/document-storage.po
 import type { DocumentRepositoryPort } from '../../domain/ports/document-repository.port';
 import { Document } from '../../domain/entities/document.entity';
 import { UploadDocumentRequest } from '../../domain/value-objects/upload-document.vo';
+import { url } from 'inspector';
 
 @Injectable()
 export class UploadDocumentUseCase {
@@ -17,6 +18,15 @@ export class UploadDocumentUseCase {
     file: Express.Multer.File,
     uploadedBy: string,
   ): Promise<Document> {
+    console.log(' Starting upload use case:', {
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      uploadedBy,
+      hasBuffer: !!file.buffer,
+      bufferLength: file.buffer?.length,
+    });
+
     // Validar que sea un PDF
     if (file.mimetype !== 'application/pdf') {
       throw new BadRequestException('Solo se permiten archivos PDF');
@@ -29,7 +39,6 @@ export class UploadDocumentUseCase {
 
     // Generar hash SHA-256 del archivo
     const fileHash = this.generateFileHash(file.buffer);
-
     // Verificar si ya existe un archivo con el mismo hash
     const existingDocument =
       await this.documentRepository.findByFileHash(fileHash);
@@ -48,26 +57,32 @@ export class UploadDocumentUseCase {
       file.size,
     );
 
-    const storageResult =
-      await this.storageAdapter.uploadDocument(uploadRequest);
+    try {
+      const storageResult =
+        await this.storageAdapter.uploadDocument(uploadRequest);
 
-    // Crear entidad de documento para base de datos
-    const document = Document.create(
-      documentId,
-      storageResult.fileName, // storedName
-      file.originalname, // originalName
-      file.mimetype,
-      file.size,
-      storageResult.url,
-      storageResult.fileName, // s3Key (mismo que fileName en este caso)
-      fileHash,
-      uploadedBy,
-    );
+      // Crear entidad de documento para base de datos
+      console.log(' Creating document entity...');
+      const document = Document.create(
+        documentId,
+        storageResult.fileName, // storedName
+        file.originalname, // originalName
+        file.mimetype,
+        file.size,
+        storageResult.url,
+        storageResult.fileName, // s3Key (mismo que fileName en este caso)
+        fileHash,
+        uploadedBy,
+      );
 
-    // Guardar en base de datos
-    const savedDocument = await this.documentRepository.save(document);
+      // Guardar en base de datos
+      const savedDocument = await this.documentRepository.save(document);
 
-    return savedDocument;
+      return savedDocument;
+    } catch (error) {
+      console.log(' Upload failed:', error);
+      throw error;
+    }
   }
 
   /**

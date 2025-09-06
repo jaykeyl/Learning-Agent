@@ -402,7 +402,6 @@ const Root: React.FC<RootProps> & {
         width: cardWidth,
         height: cardHeight,
         borderRadius: 14,
-        background: "#fff",
         position: "relative",
         overflow: "hidden",
         ...style,

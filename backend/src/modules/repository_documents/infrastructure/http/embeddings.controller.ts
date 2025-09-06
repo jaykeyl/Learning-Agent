@@ -15,6 +15,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
+import { ContextualLoggerService } from '../services/contextual-logger.service';
 import { GenerateDocumentEmbeddingsUseCase } from '../../application/use-cases/generate-document-embeddings.use-case';
 import { SearchDocumentsUseCase } from '../../application/use-cases/search-documents.use-case';
 
@@ -87,6 +88,7 @@ export class EmbeddingsController {
   constructor(
     private readonly generateEmbeddingsUseCase: GenerateDocumentEmbeddingsUseCase,
     private readonly searchDocumentsUseCase: SearchDocumentsUseCase,
+    private readonly contextualLogger: ContextualLoggerService,
   ) {}
 
   /**
@@ -176,7 +178,7 @@ export class EmbeddingsController {
   ) {
     try {
       this.logger.log(
-        `🚀 Iniciando generación de embeddings para documento: ${documentId}`,
+        ` Iniciando generación de embeddings para documento: ${documentId}`,
       );
       const startTime = Date.now();
 
@@ -311,10 +313,10 @@ export class EmbeddingsController {
   async searchDocuments(@Body() dto: SemanticSearchDto) {
     try {
       // Debug: Ver qué está llegando
-      this.logger.log(`📨 DTO recibido:`, JSON.stringify(dto, null, 2));
-      this.logger.log(`📊 Tipo de dto:`, typeof dto);
-      this.logger.log(`📊 Tipo de query:`, typeof dto?.query);
-      this.logger.log(`📊 Query value:`, dto?.query);
+      this.logger.log(` DTO recibido:`, JSON.stringify(dto, null, 2));
+      this.logger.log(` Tipo de dto:`, typeof dto);
+      this.logger.log(` Tipo de query:`, typeof dto?.query);
+      this.logger.log(` Query value:`, dto?.query);
 
       // Validación adicional de entrada
       if (!dto || !dto.query || typeof dto.query !== 'string') {
@@ -359,7 +361,7 @@ export class EmbeddingsController {
       }
 
       this.logger.log(
-        `✅ Búsqueda completada: ${result.result?.totalResults || 0} resultados en ${processingTime}ms`,
+        ` Búsqueda completada: ${result.result?.totalResults || 0} resultados en ${processingTime}ms`,
       );
 
       return {

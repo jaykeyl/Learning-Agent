@@ -2,7 +2,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { ClassMenu } from "../pages/academic_management/ClassesMenu";
 import { StudentsByClass } from "../pages/academic_management/StudentsByClass";
 import { Reinforcement } from "../pages/reinforcement/reinforcement";
-import Exam from "../pages/reinforcement/exam";
+import Test from "../pages/reinforcement/test";
 import Interview from "../pages/reinforcement/interview";
 import Login from "../pages/Login";
 import ForgotPasswordPage from "../pages/ForgotPassword";
@@ -40,14 +40,14 @@ export const AppRoutes = () => {
               <Route path="/exams/create" element={<ExamsCreatePage />} />
               <Route path="/exams" element={<ExamManagementPage />} />
               <Route path="/classes/:id/students" element={<StudentsByClass />} />
-              <Route path="/classes/:id" element={<CourseDetailPage />} />
+              <Route path="/courses/:courseId/periods/:id" element={<CourseDetailPage />} />
             </Route>
 
             {/* Students */}
             <Route element={<RoleRoute allowed={["estudiante"]} />}> 
               <Route path="/classes" element={<ClassMenu />} />
               <Route path="/reinforcement" element={<Reinforcement />} />
-              <Route path="/exam" element={<Exam />} />
+              <Route path="/test" element={<Test />} />
               <Route path="/interview" element={<Interview />} />
             </Route>
 

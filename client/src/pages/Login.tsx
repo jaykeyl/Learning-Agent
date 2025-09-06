@@ -36,7 +36,7 @@ export default function LoginPage({ onSubmit }: Props) {
   return (
     <div className="min-h-screen w-full bg-[var(--app-colorBgBase)] flex items-center justify-center">
       <div className="min-h-screen w-full grid grid-cols-1 md:grid-cols-12 bg-transparent">
-        <section className="md:col-span-4 flex flex-col items-center justify-center px-5 sm:px-10 md:px-12 lg:px-20 py-10">
+        <section className="md:col-span-5 flex flex-col items-center justify-center px-5 sm:px-10 md:px-12 lg:px-20 py-10">
           <div className="mb-8 mx-8">
             <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-[var(--app-colorText)]">
               Log in.
@@ -116,7 +116,7 @@ export default function LoginPage({ onSubmit }: Props) {
           <div className="h-full w-px bg-[var(--app-colorBorder)] mx-auto" />
         </div>
 
-        <section className="md:col-span-8 relative flex items-center justify-center">
+        <section className="max-md:hidden md:flex md:col-span-7 relative items-center justify-center">
           <div className="absolute inset-0 bg-gradient-to-br from-[var(--app-colorBgContainer)] to-[var(--app-colorBgElevated)]" />
           <div className="relative w-full h-full flex flex-col items-center justify-center px-8 lg:px-16 py-10 text-center">
             <p className="text-[var(--app-colorTextSecondary)] text-lg">Nice to see you again</p>
@@ -128,6 +128,7 @@ export default function LoginPage({ onSubmit }: Props) {
               src="/src/assets/login4.svg"
               alt="Welcome illustration"
               className="mt-8 w-[80%] max-w-2xl h-auto"
+              loading="lazy"
             />
 
             <div className="pointer-events-none absolute inset-0">
