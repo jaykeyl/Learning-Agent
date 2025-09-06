@@ -18,7 +18,7 @@ export type QuestionCardProps = {
   onDragOver?: (e: DragEvent<HTMLDivElement>) => void;
   onDrop?: () => void;
   isDragging?: boolean;
-  disabled?: boolean; 
+  disabled?: boolean;
 };
 
 export default function QuestionCard({
@@ -32,7 +32,7 @@ export default function QuestionCard({
   onDragOver,
   onDrop,
   isDragging,
-  disabled = false, 
+  disabled = false,
 }: QuestionCardProps) {
   const { token } = theme.useToken();
   const [editing, setEditing] = useState(false);
