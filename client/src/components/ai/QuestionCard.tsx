@@ -18,6 +18,7 @@ export type QuestionCardProps = {
   onDragOver?: (e: DragEvent<HTMLDivElement>) => void;
   onDrop?: () => void;
   isDragging?: boolean;
+  disabled?: boolean;
 };
 
 export default function QuestionCard({
@@ -31,6 +32,7 @@ export default function QuestionCard({
   onDragOver,
   onDrop,
   isDragging,
+  disabled = false,
 }: QuestionCardProps) {
   const { token } = theme.useToken();
   const [editing, setEditing] = useState(false);
@@ -152,7 +154,7 @@ export default function QuestionCard({
             <Space direction="vertical" className="w-full">
               {question.options.map((opt, i) => (
                 <div key={i} className="flex items-center gap-1 px-3 py-1 rounded-md">
-                  <Radio value={`${i}`} />
+                  <Radio value={`${i}`} disabled={disabled} />
                   <Text className="flex-1">{opt}</Text>
                 </div>
               ))}
@@ -164,11 +166,11 @@ export default function QuestionCard({
           <Radio.Group onChange={handleRadio} value={selected} className="w-full">
             <Space direction="vertical" className="w-full">
               <div className="flex items-center gap-1 px-3 py-0 rounded-md">
-                <Radio value="V" />
+                <Radio value="V" disabled={disabled} />
                 <Text className="flex-1">Verdadero</Text>
               </div>
               <div className="flex items-center gap-3 px-3 py-2 rounded-md">
-                <Radio value="F" />
+                <Radio value="F" disabled={disabled} />
                 <Text className="flex-1">Falso</Text>
               </div>
             </Space>
