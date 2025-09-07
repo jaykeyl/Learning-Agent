@@ -1,4 +1,3 @@
-// client/src/pages/exams/AiQuestionPage.tsx
 import { useRef, useState } from 'react';
 import { Typography, theme } from 'antd';
 import type { CSSProperties } from 'react';
@@ -180,7 +179,6 @@ export default function ExamsCreatePage() {
   };
 
   const onRegenerateOne = async (q: GeneratedQuestion) => {
-    // Si es manual, no regenerar (en UI también ocultamos el botón)
     if (q.id?.startsWith('manual_')) return;
 
     const snap = formRef.current?.getSnapshot?.();
@@ -251,12 +249,7 @@ export default function ExamsCreatePage() {
     <PageTemplate
       title="Exámenes"
       subtitle="Creador de exámenes"
-      breadcrumbs={[
-        { label: 'Home', href: '/' },
-        { label: 'Exámenes', href: '/exams' },
-        { label: 'Crear', href: '/exams/create' },
-        { label: 'Gestión de Exámenes', href: '/exams' },
-      ]}
+      breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Exámenes', href: '/exams' }, { label: 'Crear', href: '/exams/create' },{ label: 'Gestión de Exámenes',href: '/exams'},]}
     >
       <div
         className="pantalla-scroll w-full lg:max-w-6xl lg:mx-auto space-y-4 sm:space-y-6"

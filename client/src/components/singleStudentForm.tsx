@@ -14,12 +14,17 @@ export const SingleStudentForm = ({ open, onClose, onSubmit }: UploadStudentForm
   const validationSchema = Yup.object().shape({
     studentName: Yup.string()
       .required('Nombre requerido')
-      .max(30, "El nombre no puede tener más de 40 caracteres"),
+      .matches(/^[^!@$%^&*?{}|<>]*$/, "El nombre no puede contener caracteres especiales")
+      .matches(/^[^0-9]*$/, "El nombre no puede contener números")
+      .max(30, "El nombre no puede tener más de 30 caracteres"),
     studentLastname: Yup.string()
       .required('Apellido requerido')
-      .max(30, "El apellido no puede tener más de 40 caracteres"),
+      .matches(/^[^!@$%^&*?{}|<>]*$/, "El apellido no puede contener caracteres especiales")
+      .matches(/^[^0-9]*$/, "El apellido no puede contener números")
+      .max(30, "El apellido no puede tener más de 30 caracteres"),
     studentCode: Yup.string()
       .required('Código de estudiante requerido')
+      .matches(/^[^!@$%^&*?{}|<>]*$/, "El código no puede contener caracteres especiales")
       .max(8, "El código no puede tener más de 8 dígitos")
   });
 
@@ -30,6 +35,8 @@ export const SingleStudentForm = ({ open, onClose, onSubmit }: UploadStudentForm
       studentCode: '',
     },
     validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
     onSubmit: (values, { resetForm }) => {
       onSubmit(values);
       resetForm();
@@ -37,14 +44,19 @@ export const SingleStudentForm = ({ open, onClose, onSubmit }: UploadStudentForm
     }
   });
 
+  const handleCancel = () => {
+    formik.resetForm();
+    onClose();
+  }
+
   const handleSubmit = () => {
     formik.handleSubmit()
   }
 
   return (
-    <Modal open={open} onCancel={onClose} onOk={() => { }}
+    <Modal open={open} onCancel={handleCancel} onOk={() => { }}
       footer={[
-        <Button key="cancel" danger onClick={onClose}>
+        <Button key="cancel" danger onClick={handleCancel}>
           Cancelar
         </Button>,
         <Button type="primary" onClick={handleSubmit}>
@@ -59,21 +71,53 @@ export const SingleStudentForm = ({ open, onClose, onSubmit }: UploadStudentForm
           validateStatus={formik.errors.studentName && formik.touched.studentName ? 'error' : ''}
           help={formik.touched.studentName && formik.errors.studentName}
         >
-          <Input name="studentName" value={formik.values.studentName} onChange={formik.handleChange} onBlur={formik.handleBlur} />
+          <Input
+            name="studentName"
+            value={formik.values.studentName}
+            onChange={(e) => {
+              formik.handleChange(e);
+              if (!formik.touched.studentName) {
+                formik.setFieldTouched("studentName", true, false);
+              }
+            }}
+            onBlur={formik.handleBlur}
+          />
         </Form.Item>
         <Form.Item
           style={{ width: '100%' }}
           label="Apellido"
           validateStatus={formik.errors.studentLastname && formik.touched.studentLastname ? 'error' : ''}
-          help={formik.touched.studentLastname && formik.errors.studentLastname}>
-          <Input name="studentLastname" value={formik.values.studentLastname} onChange={formik.handleChange} onBlur={formik.handleBlur} />
+          help={formik.touched.studentLastname && formik.errors.studentLastname}
+        >
+          <Input
+            name="studentLastname"
+            value={formik.values.studentLastname}
+            onChange={(e) => {
+              formik.handleChange(e);
+              if (!formik.touched.studentLastname) {
+                formik.setFieldTouched("studentLastname", true, false);
+              }
+            }}
+            onBlur={formik.handleBlur}
+          />
         </Form.Item>
         <Form.Item
           style={{ width: '100%' }}
           label="Código UPB"
           validateStatus={formik.errors.studentCode && formik.touched.studentCode ? 'error' : ''}
-          help={formik.touched.studentCode && formik.errors.studentCode}>
-          <Input name="studentCode" value={formik.values.studentCode} onChange={formik.handleChange} onBlur={formik.handleBlur} />
+          help={formik.touched.studentCode && formik.errors.studentCode}
+        >
+          <Input
+            name="studentCode"
+            value={formik.values.studentCode}
+            onChange={(e) => {
+              formik.handleChange(e);
+              if (!formik.touched.studentCode) {
+                formik.setFieldTouched("studentCode", true, false);
+              }
+            }}
+            onBlur={formik.handleBlur}
+          />
         </Form.Item>
       </Form>
     </Modal>

@@ -7,7 +7,7 @@
     "dev": "vite",
     "json-server": "json-server --watch db-docs.json --port 3001",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=0",
     "preview": "vite preview"
   },
   "dependencies": {

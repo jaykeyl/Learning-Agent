@@ -1,4 +1,3 @@
-// client/src/pages/exams/ExamCreatePage.tsx
 import { useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import '../../components/exams/ExamForm.css';
@@ -8,11 +7,11 @@ import type { ExamFormHandle } from '../../components/exams/ExamForm';
 import { Toast, useToast } from '../../components/shared/Toast';
 import { readJSON } from '../../services/storage/localStorage';
 import PageTemplate from '../../components/PageTemplate';
-import GlobalScrollbar from '../../components/GlobalScrollbar';
+import GlobalScrollbar from '../../components/GlobalScrollbar'; 
 import './ExamCreatePage.css';
 import { generateQuestions, type GeneratedQuestion } from '../../services/exams.service';
 import AiResults from './AiResults';
-import { normalizeToQuestions, cloneQuestion, replaceQuestion, reorderQuestions } from './ai-utils';
+import { cloneQuestion, replaceQuestion, reorderQuestions } from './ai-utils';
 import { isValidGeneratedQuestion } from '../../utils/aiValidation';
 
 const layoutStyle: CSSProperties = {
@@ -20,10 +19,6 @@ const layoutStyle: CSSProperties = {
   flexDirection: 'column',
 };
 
-/** 
- * Repara preguntas inválidas devolviendo reemplazos válidos por tipo.
- * Se ejecuta tras generar en lote o al regenerar todo.
- */
 async function repairInvalidQuestions(
   list: GeneratedQuestion[],
   baseDto: any,
@@ -34,7 +29,6 @@ async function repairInvalidQuestions(
     const q = fixed[i];
     if (isValidGeneratedQuestion(q)) continue;
 
-    // DTO para una sola pregunta del mismo tipo
     const distribution = {
       multiple_choice: q.type === 'multiple_choice' ? 1 : 0,
       true_false: q.type === 'true_false' ? 1 : 0,
@@ -43,7 +37,6 @@ async function repairInvalidQuestions(
     };
     const oneDto = { ...baseDto, totalQuestions: 1, distribution };
 
-    // Hasta 3 intentos para reemplazar
     let replacement: GeneratedQuestion | undefined;
     for (let attempt = 0; attempt < 3; attempt++) {
       const res = await generateFn(oneDto);
@@ -59,6 +52,28 @@ async function repairInvalidQuestions(
     }
   }
   return fixed;
+}  
+function normalizeToQuestions(res: any): GeneratedQuestion[] {
+  if (Array.isArray(res)) return res as GeneratedQuestion[];
+  const buckets = res?.data?.questions;
+  if (res?.ok && buckets && typeof buckets === 'object') {
+    const types = ['multiple_choice', 'true_false', 'open_analysis', 'open_exercise'] as const;
+    const out: GeneratedQuestion[] = [];
+    types.forEach((t) => {
+      const arr = (buckets as any)[t] || [];
+      arr.forEach((q: any, idx: number) => {
+        out.push({
+          id: q.id ?? `${t}_${idx}_${Date.now()}`,
+          type: t,
+          text: q.text ?? '',
+          options: q.options ?? undefined,
+          include: q.include ?? true,
+        } as GeneratedQuestion);
+      });
+    });
+    return out;
+  }
+  return [];
 }
 
 export default function ExamsCreatePage() {
@@ -212,14 +227,14 @@ export default function ExamsCreatePage() {
   return (
     <PageTemplate
       title="Exámenes"
-      subtitle="Creación de exámenes"
+      subtitle="Creador de exámenes"
       breadcrumbs={[
         { label: 'Home', href: '/' },
         { label: 'Gestión de Exámenes', href: '/exams' },
         { label: 'Crear examen' },
       ]}
     >
-      <GlobalScrollbar />
+      <GlobalScrollbar /> 
       <div>
         <section
           className="card subtle readable-card"
@@ -277,9 +292,10 @@ export default function ExamsCreatePage() {
         )}
 
         {toasts.map((t) => (
-          <Toast key={t.id} {...t} onClose={() => removeToast(t.id)} />
-        ))}
-      </div>
-    </PageTemplate>
-  );
-}
+           <Toast key={t.id} {...t} onClose={() => removeToast(t.id)} />
+          ))}
+        </div>
+      </PageTemplate>
+    );
+  }
+

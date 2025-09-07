@@ -8,7 +8,7 @@ import Login from "../pages/Login";
 import ForgotPasswordPage from "../pages/ForgotPassword";
 import ExamsCreatePage from "../pages/exams/ExamCreatePage";
 import ExamManagementPage from "../pages/exams/ExamManagementPage";
-import UploadPdfPage from "../pages/UploadPdfPage";
+import UploadDocumentPage from "../pages/documents/UploadDocumentPage";
 import { CourseDetailPage } from "../pages/academic_management/CourseDetailPage";
 import PublicRoute from "./PublicRoute";
 import PrivateRoute from "./PrivateRoute";
@@ -51,7 +51,7 @@ export const AppRoutes = () => {
               <Route path="/interview" element={<Interview />} />
             </Route>
 
-            <Route path="/upload-pdf" element={<UploadPdfPage />} />
+            <Route path="/upload-pdf" element={<UploadDocumentPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Route>
