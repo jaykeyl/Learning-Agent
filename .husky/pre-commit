@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+set -e
+
+echo "Running frontend lint..."
+npm --prefix client run lint
+

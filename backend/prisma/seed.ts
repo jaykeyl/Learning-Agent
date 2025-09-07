@@ -195,6 +195,71 @@ async function main() {
     },
     ['Automatas', 'Programacion 1'],
   );
+
+  // ==============================
+  // Clases para Paul en Algoritmica (I-2024, II-2025 x2)
+  // ==============================
+  const paul = await prisma.user.findUnique({ where: { email: 'paul.landaeta@example.com' } });
+  if (paul) {
+    const algoritmica = await prisma.course.findFirst({ where: { name: 'Algoritmica', teacherId: paul.id } });
+    if (algoritmica) {
+      const mkClass = async (
+        name: string,
+        semester: string,
+        dateBegin: Date,
+        dateEnd: Date,
+      ) => {
+        const exists = await prisma.classes.findFirst({
+          where: { courseId: algoritmica.id, name, semester },
+        });
+        if (!exists) {
+          await prisma.classes.create({
+            data: { name, semester, dateBegin, dateEnd, courseId: algoritmica.id },
+          });
+        }
+      };
+
+      // I-2024
+      await mkClass(
+        'Algoritmica 3',
+        'I-2024',
+        new Date('2024-02-01T00:00:00.000Z'),
+        new Date('2024-06-30T00:00:00.000Z'),
+      );
+
+      // I-2023
+      await mkClass(
+        'Algoritmica 3',
+        'I-2023',
+        new Date('2023-02-01T00:00:00.000Z'),
+        new Date('2023-06-30T00:00:00.000Z'),
+      );
+
+      // I-2022
+      await mkClass(
+        'Algoritmica 3',
+        'I-2022',
+        new Date('2022-02-01T00:00:00.000Z'),
+        new Date('2022-06-30T00:00:00.000Z'),
+      );
+
+      // II-2025 (Grupo 1)
+      await mkClass(
+        'Algoritmica 3',
+        'II-2025',
+        new Date('2025-08-01T00:00:00.000Z'),
+        new Date('2025-12-15T00:00:00.000Z'),
+      );
+
+      // II-2025 (Grupo 2)
+      await mkClass(
+        'Algoritmica 3 - Grupo 2',
+        'II-2025',
+        new Date('2025-08-01T00:00:00.000Z'),
+        new Date('2025-12-15T00:00:00.000Z'),
+      );
+    }
+  }
 }
 
 main()
