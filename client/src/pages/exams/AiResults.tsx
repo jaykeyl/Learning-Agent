@@ -167,7 +167,7 @@ export default function AiResults({
                   index={i}
                   question={q}
                   onChange={onChange}
-                  onRegenerate={onRegenerateOne}
+                  onRegenerate={!q.id?.startsWith('manual_') ? onRegenerateOne : undefined}
                   disabled={q.type === 'multiple_choice' || q.type === 'true_false'}
                 />
               </div>

@@ -1,3 +1,4 @@
+// client/src/pages/exams/ExamCreatePage.tsx
 import { useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import '../../components/exams/ExamForm.css';
@@ -7,16 +8,58 @@ import type { ExamFormHandle } from '../../components/exams/ExamForm';
 import { Toast, useToast } from '../../components/shared/Toast';
 import { readJSON } from '../../services/storage/localStorage';
 import PageTemplate from '../../components/PageTemplate';
-import GlobalScrollbar from '../../components/GlobalScrollbar'; 
+import GlobalScrollbar from '../../components/GlobalScrollbar';
 import './ExamCreatePage.css';
 import { generateQuestions, type GeneratedQuestion } from '../../services/exams.service';
 import AiResults from './AiResults';
 import { normalizeToQuestions, cloneQuestion, replaceQuestion, reorderQuestions } from './ai-utils';
+import { isValidGeneratedQuestion } from '../../utils/aiValidation';
 
 const layoutStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
 };
+
+/** 
+ * Repara preguntas inválidas devolviendo reemplazos válidos por tipo.
+ * Se ejecuta tras generar en lote o al regenerar todo.
+ */
+async function repairInvalidQuestions(
+  list: GeneratedQuestion[],
+  baseDto: any,
+  generateFn: (dto: any) => Promise<any>,
+): Promise<GeneratedQuestion[]> {
+  const fixed = [...list];
+  for (let i = 0; i < fixed.length; i++) {
+    const q = fixed[i];
+    if (isValidGeneratedQuestion(q)) continue;
+
+    // DTO para una sola pregunta del mismo tipo
+    const distribution = {
+      multiple_choice: q.type === 'multiple_choice' ? 1 : 0,
+      true_false: q.type === 'true_false' ? 1 : 0,
+      open_analysis: q.type === 'open_analysis' ? 1 : 0,
+      open_exercise: q.type === 'open_exercise' ? 1 : 0,
+    };
+    const oneDto = { ...baseDto, totalQuestions: 1, distribution };
+
+    // Hasta 3 intentos para reemplazar
+    let replacement: GeneratedQuestion | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const res = await generateFn(oneDto);
+      const [candidate] = normalizeToQuestions(res);
+      if (candidate && isValidGeneratedQuestion(candidate)) {
+        replacement = candidate;
+        break;
+      }
+    }
+
+    if (replacement) {
+      fixed[i] = { ...replacement, id: q.id, include: q.include };
+    }
+  }
+  return fixed;
+}
 
 export default function ExamsCreatePage() {
   const { toasts, pushToast, removeToast } = useToast();
@@ -88,9 +131,10 @@ export default function ExamsCreatePage() {
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
     try {
       const res = await generateQuestions(dto as any);
-      const list = normalizeToQuestions(res).map(cloneQuestion);
-      setAiQuestions(list);
-      if (!list.length) setAiError('No se generaron preguntas. Revisa el backend y/o el DTO.');
+      const list = normalizeToQuestions(res);
+      const fixed = await repairInvalidQuestions(list, dto, (p) => generateQuestions(p as any));
+      setAiQuestions(fixed);
+      if (!fixed.length) setAiError('No se generaron preguntas. Revisa el backend y/o el DTO.');
     } catch {
       setAiError('Error inesperado generando preguntas.');
     } finally {
@@ -114,8 +158,9 @@ export default function ExamsCreatePage() {
     setAiError(null);
     try {
       const res = await generateQuestions(dto as any);
-      const list = normalizeToQuestions(res).map(cloneQuestion);
-      setAiQuestions(list);
+      const list = normalizeToQuestions(res);
+      const fixed = await repairInvalidQuestions(list, dto, (p) => generateQuestions(p as any));
+      setAiQuestions(fixed);
     } catch {
       setAiError('No se pudo regenerar el set completo.');
     } finally {
@@ -138,39 +183,24 @@ export default function ExamsCreatePage() {
       },
     };
     try {
-      const res = await generateQuestions(oneDto as any);
-      const [only] = normalizeToQuestions(res);
+      let only: GeneratedQuestion | undefined;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const res = await generateQuestions(oneDto as any);
+        const [candidate] = normalizeToQuestions(res);
+        if (candidate && isValidGeneratedQuestion(candidate)) {
+          only = candidate;
+          break;
+        }
+      }
       if (only) {
-        const replacement = cloneQuestion({ ...only, id: q.id, include: q.include } as GeneratedQuestion);
-        setAiQuestions(prev => replaceQuestion(prev, replacement));
+        setAiQuestions((prev) =>
+          prev.map((x) => (x.id === q.id ? { ...only, id: q.id, include: q.include } : x))
+        );
+      } else {
+        setAiError('No se pudo regenerar esa pregunta (intentos agotados).');
       }
     } catch {
       setAiError('No se pudo regenerar esa pregunta.');
-    }
-  };
-
-  const onAddManual = (type: GeneratedQuestion['type']) => {
-    const id = `manual_${Date.now()}`;
-    if (type === 'multiple_choice') {
-      setAiQuestions((prev) => ([
-        ...prev,
-        cloneQuestion({ id, type, text: 'Escribe aquí tu pregunta de opción múltiple…', options: ['Opción A','Opción B','Opción C','Opción D'], include: true } as GeneratedQuestion),
-      ]));
-    } else if (type === 'true_false') {
-      setAiQuestions((prev) => ([
-        ...prev,
-        cloneQuestion({ id, type, text: 'Enuncia aquí tu afirmación para Verdadero/Falso…', include: true } as GeneratedQuestion),
-      ]));
-    } else if (type === 'open_exercise') {
-      setAiQuestions((prev) => ([
-        ...prev,
-        cloneQuestion({ id, type, text: 'Describe aquí el enunciado del ejercicio abierto…', include: true } as GeneratedQuestion),
-      ]));
-    } else {
-      setAiQuestions((prev) => ([
-        ...prev,
-        cloneQuestion({ id, type, text: 'Escribe aquí tu consigna de análisis abierto…', include: true } as GeneratedQuestion),
-      ]));
     }
   };
 
@@ -189,7 +219,7 @@ export default function ExamsCreatePage() {
         { label: 'Crear examen' },
       ]}
     >
-      <GlobalScrollbar /> 
+      <GlobalScrollbar />
       <div>
         <section
           className="card subtle readable-card"
@@ -216,7 +246,30 @@ export default function ExamsCreatePage() {
               onChange={onChangeQuestion}
               onRegenerateAll={onRegenerateAll}
               onRegenerateOne={onRegenerateOne}
-              onAddManual={onAddManual}
+              onAddManual={(type) => {
+                const id = `manual_${Date.now()}`;
+                if (type === 'multiple_choice') {
+                  setAiQuestions((prev) => ([
+                    ...prev,
+                    cloneQuestion({ id, type, text: 'Escribe aquí tu pregunta de opción múltiple…', options: ['Opción A','Opción B','Opción C','Opción D'], include: true } as GeneratedQuestion),
+                  ]));
+                } else if (type === 'true_false') {
+                  setAiQuestions((prev) => ([
+                    ...prev,
+                    cloneQuestion({ id, type, text: 'Enuncia aquí tu afirmación para Verdadero/Falso…', include: true } as GeneratedQuestion),
+                  ]));
+                } else if (type === 'open_exercise') {
+                  setAiQuestions((prev) => ([
+                    ...prev,
+                    cloneQuestion({ id, type, text: 'Describe aquí el enunciado del ejercicio abierto…', include: true } as GeneratedQuestion),
+                  ]));
+                } else {
+                  setAiQuestions((prev) => ([
+                    ...prev,
+                    cloneQuestion({ id, type, text: 'Escribe aquí tu consigna de análisis abierto…', include: true } as GeneratedQuestion),
+                  ]));
+                }
+              }}
               onSave={onSave}
               onReorder={onReorderQuestion}
             />
