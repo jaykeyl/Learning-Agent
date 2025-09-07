@@ -1,9 +1,10 @@
-import { Button, Table, Tag, Tooltip, Typography, theme, Modal, DatePicker, Radio, message, Space, Popconfirm } from 'antd';
-import { EyeOutlined, EyeInvisibleOutlined, EditOutlined, UploadOutlined, FilePdfOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Button, Table, Tag, Tooltip, Typography, theme, Modal, DatePicker, Radio, message, Space, Popconfirm, Dropdown } from 'antd';
+import { EyeOutlined, EyeInvisibleOutlined, EditOutlined, UploadOutlined, FilePdfOutlined, DeleteOutlined, DownOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { Dayjs } from 'dayjs';
 import { useState } from 'react';
 import { useExamsStore, type ExamSummary, type ExamsState } from '../../store/examsStore';
+import { readJSON } from '../../services/storage/localStorage';
 
 const { Text } = Typography;
 
@@ -55,43 +56,169 @@ function StatusVisibility({ exam }: { exam: ExamSummary }) {
   );
 }
 
-function downloadExamPdf(exam: ExamSummary) {
+type PrintableQuestion = {
+  id: string;
+  n: number;
+  source: 'ai' | 'manual';
+  type: 'multiple_choice' | 'true_false' | 'open_analysis' | 'open_exercise';
+  text: string;
+  options?: string[];
+  correctOptionIndex?: number;
+  correctBoolean?: boolean;
+  expectedAnswer?: string;
+  answer?: string;
+};
+
+type PrintableExam = {
+  examId: string;
+  title: string;
+  subject: string;
+  teacher: string;
+  createdAt?: string;
+  questions: PrintableQuestion[];
+};
+
+type PrintMode = 'questions_only' | 'questions_answers';
+
+function escapeHtml(s: string) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function answerOf(q: PrintableQuestion): string | undefined {
+  if (q.answer && String(q.answer).trim()) return q.answer;
+  if (typeof q.correctBoolean === 'boolean') return q.correctBoolean ? 'Verdadero' : 'Falso';
+  if (typeof q.correctOptionIndex === 'number' && Array.isArray(q.options)) {
+    const i = q.correctOptionIndex;
+    if (i >= 0 && i < q.options.length) return q.options[i];
+  }
+  if (q.expectedAnswer && String(q.expectedAnswer).trim()) return q.expectedAnswer;
+  return undefined;
+}
+
+function renderQuestion(q: PrintableQuestion, withAnswers: boolean): string {
+  const text = escapeHtml(q.text);
+  let html = `<div class="q">
+    <div class="q-num">(${q.n})</div>
+    <div class="q-body">
+      <div class="q-text">${text}</div>`;
+
+  if (q.type === 'multiple_choice' && Array.isArray(q.options) && q.options.length) {
+    html += `<ol class="q-options">`;
+    q.options.forEach((opt) => {
+      html += `<li>${escapeHtml(opt)}</li>`;
+    });
+    html += `</ol>`;
+  }
+
+  if (withAnswers) {
+    const ans = answerOf(q);
+    html += `<div class="q-answer"><b>Respuesta:</b> ${ans ? escapeHtml(ans) : '—'}</div>`;
+  }
+
+  html += `</div></div>`;
+  return html;
+}
+
+function buildPlantillaHtml(data: PrintableExam, mode: PrintMode): string {
+  const withAnswers = mode === 'questions_answers';
+  const total = data.questions?.length ?? 0;
+
+  const questionsHtml = (data.questions || [])
+    .map(q => renderQuestion(q, withAnswers))
+    .join('');
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>${escapeHtml(data.title)}</title>
+  <style>
+    @page { size: A4; margin: 24mm 18mm 18mm 18mm; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #111; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+    .box { border: 1px solid #999; border-radius: 6px; padding: 6mm; }
+    .note { font-size: 9pt; color: #333; line-height: 1.35; white-space: pre-wrap; }
+    .student { margin-top: 6mm; }
+    .student .field { display: grid; grid-template-columns: 22mm 1fr; gap: 3mm; margin: 1.5mm 0; }
+    .q { display: grid; grid-template-columns: 8mm 1fr; gap: 3mm; margin: 5mm 0; page-break-inside: avoid; }
+    .q-num { font-weight: bold; }
+    .q-text { margin-bottom: 2mm; }
+    .q-options { margin: 0 0 2mm 18px; }
+    .q-answer { margin-top: 2mm; color: #0a4; }
+    .footer { margin-top: 10mm; font-size: 9pt; color: #444; }
+    .hdr { border-bottom: 2px solid #111; padding-bottom: 4mm; margin-bottom: 6mm; font-weight: 700;}
+  </style>
+</head>
+<body>
+  <div class="hdr">PRUEBA VÁLIDA PARA LA CALIFICACIÓN: &nbsp; parcial 1a &nbsp;&nbsp; parcial 2a &nbsp;&nbsp; final</div>
+
+  <div class="grid">
+    <div class="box">
+      <div><b>MATERIA:</b> ${escapeHtml(data.subject || '—')}</div>
+      <div><b>DOCENTE:</b> ${escapeHtml(data.teacher || '—')}</div>
+      <div><b>Título:</b> ${escapeHtml(data.title)}</div>
+      <div><b>Puntaje total de la prueba:</b> 100 puntos</div>
+      <div><b>Fecha:</b> ${escapeHtml(new Date(data.createdAt || Date.now()).toLocaleDateString('es-ES'))}</div>
+      <div><b>Tipo de impresión:</b> ${withAnswers ? 'Preguntas + Respuestas' : 'Solo preguntas'}</div>
+      <div><b>Cantidad de preguntas:</b> ${total}</div>
+    </div>
+    <div class="box note">
+      ACTÚA CON HONESTIDAD ACADÉMICA
+      El fraude académico en exámenes, trabajos, prácticas o cualquier otra actividad de la materia, ya sea por intención o ejecución, es sancionado con la reprobación automática de la materia.
+      Cualquier sanción por fraude académico implica la pérdida del derecho a acceder al cuadro de honor y a la graduación con honores. La reincidencia puede concluir con la expulsión de la Universidad.
+    </div>
+  </div>
+
+  <div class="student box">
+    <div><b>DATOS QUE DEBE COMPLETAR EL ESTUDIANTE:</b></div>
+    <div class="field"><div>Código:</div><div>______________________________</div></div>
+    <div class="field"><div>Nombre:</div><div>______________________________</div></div>
+  </div>
+
+  <div class="questions">
+    ${questionsHtml}
+  </div>
+
+  <div class="footer">Generado — Sistema de Gestión de Exámenes</div>
+
+  <script>window.onload = () => window.print()</script>
+</body>
+</html>`;
+}
+
+function openPrint(html: string) {
   const w = window.open('', '_blank');
   if (!w) return;
-  const html = `
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8"/>
-        <title>${exam.title}</title>
-        <style>
-          body{font-family:Arial,Helvetica,sans-serif;padding:24px}
-          h1{margin:0 0 8px 0}
-          .meta{color:#666;margin-bottom:16px}
-          .box{border:1px solid #ddd;border-radius:8px;padding:16px}
-          .row{margin:6px 0}
-        </style>
-      </head>
-      <body>
-        <h1>${exam.title}</h1>
-        <div class="meta">Creado: ${fmt(exam.createdAt)} • Preguntas: ${exam.totalQuestions}</div>
-        <div class="box">
-          <div class="row">Estado: ${exam.status}</div>
-          <div class="row">Visibilidad: ${exam.visibility}</div>
-          <div class="row">Fecha publicación/programación: ${fmt(exam.publishedAt)}</div>
-          <div class="row">Selección múltiple: ${exam.counts.multiple_choice}</div>
-          <div class="row">Verdadero/Falso: ${exam.counts.true_false}</div>
-          <div class="row">Análisis abierto: ${exam.counts.open_analysis}</div>
-          <div class="row">Ejercicio abierto: ${exam.counts.open_exercise}</div>
-        </div>
-        <script>window.onload=()=>window.print()</script>
-      </body>
-    </html>
-  `;
   w.document.open();
   w.document.write(html);
   w.document.close();
 }
+
+function loadPrintableExam(exam: ExamSummary): PrintableExam | null {
+  const stored = readJSON<PrintableExam>(`exam:content:${exam.id}`);
+  if (!stored || !Array.isArray(stored.questions) || stored.questions.length === 0) return null;
+  return {
+    examId: stored.examId || exam.id,
+    title: stored.title || exam.title,
+    subject: stored.subject || exam.className || '—',
+    teacher: stored.teacher || '—',
+    createdAt: stored.createdAt || exam.createdAt,
+    questions: stored.questions.map((q, i) => ({ ...q, n: q.n || i + 1 })),
+  };
+}
+
+function handleDownloadPdf(exam: ExamSummary, mode: PrintMode) {
+  const printable = loadPrintableExam(exam);
+  if (!printable) {
+    message.error('No se encontró el contenido del examen. Vuelve a guardarlo desde la pantalla de resultados.');
+    return;
+  }
+  const html = buildPlantillaHtml(printable, mode);
+  openPrint(html);
+}
+/* =========================== FIN helpers =========================== */
 
 export default function ExamTable({ data, onEdit }: Props) {
   const toggleVisibility = useExamsStore((s: ExamsState) => s.toggleVisibility);
@@ -168,40 +295,56 @@ export default function ExamTable({ data, onEdit }: Props) {
       title: <span style={{ display: 'block', textAlign: 'center', fontSize: token.fontSizeLG, fontWeight: 600 }}>Acciones</span>,
       key: 'actions',
       align: 'right',
-      render: (_, record) => (
-        <Space size={6} wrap={false} style={{ whiteSpace: 'nowrap' }}>
-          <Tooltip title="Editar">
-            <Button type="text" style={{ paddingInline: 6 }} icon={<EditOutlined style={{ fontSize: 18 }} />} onClick={() => onEdit?.(record)} aria-label="Editar" />
-          </Tooltip>
-          <Tooltip title="Publicar / Programar / Borrador">
-            <Button type="text" style={{ paddingInline: 6 }} icon={<UploadOutlined style={{ fontSize: 18 }} />} onClick={() => openPublishModal(record)} aria-label="Estado" />
-          </Tooltip>
-          <Tooltip title={record.visibility === 'visible' ? 'Hacer privado' : 'Hacer público'}>
-            <Button
-              type="text"
-              style={{ paddingInline: 6 }}
-              icon={record.visibility === 'visible' ? <EyeInvisibleOutlined style={{ fontSize: 18 }} /> : <EyeOutlined style={{ fontSize: 18 }} />}
-              onClick={() => toggleVisibility(record.id)}
-              aria-label="Visibilidad"
-            />
-          </Tooltip>
-          <Tooltip title="Descargar PDF">
-            <Button type="text" style={{ paddingInline: 6 }} icon={<FilePdfOutlined style={{ fontSize: 18 }} />} onClick={() => downloadExamPdf(record)} aria-label="Descargar PDF" />
-          </Tooltip>
-          <Popconfirm
-            title="Eliminar examen"
-            description="Esta acción no se puede deshacer."
-            okText="Eliminar"
-            cancelText="Cancelar"
-            okButtonProps={{ danger: true }}
-            onConfirm={() => { removeExam(record.id); message.success('Examen eliminado'); }}
-          >
-            <Tooltip title="Eliminar">
-              <Button type="text" danger style={{ paddingInline: 6 }} icon={<DeleteOutlined style={{ fontSize: 18 }} />} aria-label="Eliminar" />
+      render: (_, record) => {
+        const menuItems = [
+          { key: 'q', label: 'Descargar — Solo preguntas', onClick: () => handleDownloadPdf(record, 'questions_only') },
+          { key: 'qa', label: 'Descargar — Preguntas y respuestas', onClick: () => handleDownloadPdf(record, 'questions_answers') },
+        ];
+        return (
+          <Space size={6} wrap={false} style={{ whiteSpace: 'nowrap' }}>
+            <Tooltip title="Editar">
+              <Button type="text" style={{ paddingInline: 6 }} icon={<EditOutlined style={{ fontSize: 18 }} />} onClick={() => onEdit?.(record)} aria-label="Editar" />
             </Tooltip>
-          </Popconfirm>
-        </Space>
-      ),
+            <Tooltip title="Publicar / Programar / Borrador">
+              <Button type="text" style={{ paddingInline: 6 }} icon={<UploadOutlined style={{ fontSize: 18 }} />} onClick={() => openPublishModal(record)} aria-label="Estado" />
+            </Tooltip>
+            <Tooltip title={record.visibility === 'visible' ? 'Hacer privado' : 'Hacer público'}>
+              <Button
+                type="text"
+                style={{ paddingInline: 6 }}
+                icon={record.visibility === 'visible' ? <EyeInvisibleOutlined style={{ fontSize: 18 }} /> : <EyeOutlined style={{ fontSize: 18 }} />}
+                onClick={() => toggleVisibility(record.id)}
+                aria-label="Visibilidad"
+              />
+            </Tooltip>
+
+            <Dropdown
+              menu={{ items: menuItems.map(m => ({ key: m.key, label: m.label, onClick: m.onClick })) }}
+              placement="bottomRight"
+              trigger={['click']}
+            >
+              <Tooltip title="Descargar PDF">
+                <Button type="text" style={{ paddingInline: 6 }} icon={<FilePdfOutlined style={{ fontSize: 18 }} />} aria-label="Descargar PDF">
+                  <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
+                </Button>
+              </Tooltip>
+            </Dropdown>
+
+            <Popconfirm
+              title="Eliminar examen"
+              description="Esta acción no se puede deshacer."
+              okText="Eliminar"
+              cancelText="Cancelar"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => { removeExam(record.id); message.success('Examen eliminado'); }}
+            >
+              <Tooltip title="Eliminar">
+                <Button type="text" danger style={{ paddingInline: 6 }} icon={<DeleteOutlined style={{ fontSize: 18 }} />} aria-label="Eliminar" />
+              </Tooltip>
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
   ];
 
