@@ -1,4 +1,5 @@
-import { Table, Button, Space, Tooltip, theme as antTheme } from 'antd';
+import React from 'react';
+import { Table, Button, Space, Tooltip, theme as antTheme, Grid } from 'antd';
 import { DownloadOutlined, EyeOutlined, FileTextOutlined, BookOutlined } from '@ant-design/icons';
 import { useThemeStore } from '../../store/themeStore';
 import DeleteButton from '../safetyModal';
@@ -15,20 +16,25 @@ interface DocumentTableProps {
   onDeleteError?: (error: Error) => void;
 }
 
-export const DocumentTable = ({ 
-  documents, 
-  loading, 
-  onDelete, 
-  onDownload, 
+export const DocumentTable: React.FC<DocumentTableProps> = ({
+  documents,
+  loading,
+  onDelete,
+  onDownload,
   onPreview,
   onViewData,
   onDeleteSuccess,
-  onDeleteError 
-}: DocumentTableProps) => {
+  onDeleteError
+}) => {
   // Theme
   const theme = useThemeStore((state: { theme: string }) => state.theme);
   const isDark = theme === "dark";
   const { token } = antTheme.useToken();
+
+  // Breakpoints
+  const { useBreakpoint } = Grid;
+  const screens = useBreakpoint();
+  const showPreviewButton = Boolean(screens.lg);
 
   const columns = [
     {
@@ -43,6 +49,8 @@ export const DocumentTable = ({
       showSorterTooltip: {
         title: 'Ordenar por nombre de archivo'
       },
+      render: (text: string) =>
+        text.length > 25 ? `${text.substring(0, 25)}...` : text,
     },
     {
       title: (
@@ -82,25 +90,28 @@ export const DocumentTable = ({
       key: 'actions',
       render: (_: unknown, record: Document) => (
         <Space>
-          <Tooltip title="Ver PDF en pantalla completa">
-            <Button
-              type="link"
-              icon={<EyeOutlined />}
-              onClick={() => onPreview?.(record)}
-              style={{ 
-                color: isDark ? token.colorPrimary : '#1A2A80',
-                fontWeight: '500'
-              }}
-            >
-              Previsualizar
-            </Button>
-          </Tooltip>
+          {showPreviewButton && (
+            <Tooltip title="Ver PDF en pantalla completa">
+              <Button
+                type="link"
+                icon={<EyeOutlined />}
+                onClick={() => onPreview?.(record)}
+                style={{
+                  color: isDark ? token.colorPrimary : '#1A2A80',
+                  fontWeight: '500'
+                }}
+              >
+                Previsualizar
+              </Button>
+            </Tooltip>
+          )}
+
           <Tooltip title="Ver contenido extraído del documento">
             <Button
               type="link"
               icon={<BookOutlined />}
               onClick={() => onViewData?.(record)}
-              style={{ 
+              style={{
                 color: isDark ? token.colorSuccess : '#52C41A',
                 fontWeight: '500'
               }}
@@ -108,12 +119,13 @@ export const DocumentTable = ({
               Datos
             </Button>
           </Tooltip>
+
           <Tooltip title="Descargar archivo PDF">
             <Button
               type="link"
               icon={<DownloadOutlined />}
               onClick={() => onDownload?.(record)}
-              style={{ 
+              style={{
                 color: isDark ? token.colorInfo : '#3B38A0',
                 fontWeight: '500'
               }}
@@ -121,6 +133,7 @@ export const DocumentTable = ({
               Descargar
             </Button>
           </Tooltip>
+
           <DeleteButton
             onDelete={() => onDelete?.(record.id) || Promise.resolve()}
             resourceInfo={{
@@ -152,10 +165,10 @@ export const DocumentTable = ({
       dataSource={documents}
       loading={loading}
       rowKey="fileName"
-      pagination={{ 
+      pagination={{
         pageSize: 10,
         showQuickJumper: true,
-        showTotal: (total, range) => 
+        showTotal: (total, range) =>
           `${range[0]}-${range[1]} de ${total} documentos`,
         style: { marginTop: '16px' }
       }}

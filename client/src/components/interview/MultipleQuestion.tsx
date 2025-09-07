@@ -1,52 +1,48 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Typography, Checkbox, Button, Card, theme } from 'antd';
 import { RightOutlined, CodeOutlined } from '@ant-design/icons';
 import type { CheckboxValueType } from 'antd/lib/checkbox/Group';
 
 const { Paragraph } = Typography;
 
-interface Option {
-  label: string;
-  value: string;
-  code: string[];
-}
-
 interface MultipleQuestionProps {
   onNext: () => void;
+}
+interface TitleAndOption {
+  label: string;
+  answer: string;
+}
+interface DoubleOptionResponse {
+  question: string;
+  options: TitleAndOption[];
+  correctAnswer: number;
+  explanation: string;
 }
 
 export default function MultipleQuestion({ onNext }: MultipleQuestionProps) {
   const { token } = theme.useToken();
   const [selectedValues, setSelectedValues] = useState<CheckboxValueType[]>([]);
+  const [doubleOption , setDoubleOption] = useState<DoubleOptionResponse>();
+
 
   const handleCheckboxChange = (values: CheckboxValueType[]) => {
     setSelectedValues(values);
   };
 
-  const options: Option[] = [
-    {
-      label: 'O(n²)',
-      value: 'A',
-      code: [
-        'for (let i = 0; i < n; i++) {',
-        '  for (let j = 0; j < n; j++) {',
-        '    // operación',
-        '  }',
-        '}',
-      ],
-    },
-    {
-      label: 'O(n log n)',
-      value: 'B',
-      code: [
-        'function mergeSort(arr) {',
-        '  if (arr.length <= 1) return arr;',
-        '  const mid = Math.floor(arr.length / 2);',
-        '  return merge(mergeSort(left), mergeSort(right));',
-        '}',
-      ],
-    },
-  ];
+  useEffect(() => {
+    fetchQuestion();
+  }, []);
+  async function fetchQuestion() {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_URL}${import.meta.env.VITE_CHATINT_DOUBLEOPTION_URL}`
+      );
+      const doubleOp = await res.json() as DoubleOptionResponse;
+      setDoubleOption(doubleOp);
+    } catch (error) { 
+      console.log(error);
+    }
+  }
 
   return (
     <div
@@ -101,8 +97,7 @@ export default function MultipleQuestion({ onNext }: MultipleQuestionProps) {
               fontSize: token.fontSizeLG,
             }}
           >
-            ¿Cuál de las siguientes complejidades tiene mejor rendimiento promedio
-            al ordenar una lista grande de elementos?
+            {doubleOption?.question}
           </Paragraph>
         </div>
 
@@ -118,10 +113,10 @@ export default function MultipleQuestion({ onNext }: MultipleQuestionProps) {
             justifyContent: 'center',
           }}
         >
-          {options.map((opt) => {
-            const selected = selectedValues.includes(opt.value);
+          {doubleOption?.options.map((opt, i) => {
+            const selected = selectedValues.includes(opt);
             return (
-              <Checkbox key={opt.value} value={opt.value} style={{ margin: 0 }}>
+              <Checkbox key={i} value={opt.answer} style={{ margin: 0 }}>
                 <div
                   style={{
                     width: 320,
@@ -157,7 +152,7 @@ export default function MultipleQuestion({ onNext }: MultipleQuestionProps) {
                       color: token.colorText,
                     }}
                   >
-                    {opt.code.join('\n')}
+                    {opt.answer}
                   </pre>
                 </div>
               </Checkbox>

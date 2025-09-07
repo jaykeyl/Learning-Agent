@@ -35,6 +35,8 @@ export const CreateCourseForm = ({ open, onClose, onSubmit }: CreateCourseFormPr
             name: ""
         },
         validationSchema,
+        validateOnChange: true,
+        validateOnBlur: true,
         onSubmit: (values, { resetForm }) => {
             onSubmit(values);
             resetForm();
@@ -79,10 +81,8 @@ export const CreateCourseForm = ({ open, onClose, onSubmit }: CreateCourseFormPr
                 <Form.Item
                     style={{ width: "100%" }}
                     label="Nombre de la materia"
-                    validateStatus={
-                        formik.errors.name && formik.touched.name ? "error" : ""
-                    }
-                    help={formik.touched.name && formik.errors.name}
+                    validateStatus={formik.errors.name ? "error" : ""}
+                    help={formik.errors.name}
                 >
                     <Input
                         name="name"

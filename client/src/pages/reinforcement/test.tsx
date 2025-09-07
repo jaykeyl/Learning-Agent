@@ -5,16 +5,18 @@ import { TestModal } from "../../components/tests/TestModal";
 import { useStudentTest } from "../../hooks/useStudentTest";
 import TestQuestion from "../../components/tests/TestQuestion";
 import TrueOrFalseQuestion from "../../components/tests/TrueOrFalseQuestion";
+import { TestTimer } from "../../components/tests/Timer";
+
 
 export default function Test() {
   const navigate = useNavigate();
   const { isTestModalOpen, closeTestModal, startExam, questionCount } = useStudentTest();
   const [isExamStarted, setIsExamStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [questionType, setQuestionType] = useState<"multiple" | "truefalse">("multiple");
+  const [questionType, setQuestionType] = useState("multiple");
 
   const randomizeType = () => {
-    const types: Array<"multiple" | "truefalse"> = ["multiple", "truefalse"];
+    const types = ["multiple", "truefalse"];
     setQuestionType(types[Math.floor(Math.random() * types.length)]);
   };
 
@@ -32,6 +34,10 @@ export default function Test() {
     } else {
       navigate("/reinforcement");
     }
+  };
+
+  const handleTimeUp = () => {
+    navigate("/reinforcement");
   };
 
   return (
@@ -54,6 +60,10 @@ export default function Test() {
           onClose={closeTestModal}
           onSelectDifficulty={handleStartExam}
         />
+      )}
+
+      {isExamStarted && questionCount > 0 && (
+        <TestTimer questionCount={questionCount} onTimeUp={handleTimeUp} />
       )}
 
       {isExamStarted && questionType === "multiple" && (

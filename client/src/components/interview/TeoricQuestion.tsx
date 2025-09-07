@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Checkbox, Button, Typography, theme, Card } from 'antd';
 import { RightOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 
@@ -7,17 +7,32 @@ const { Paragraph } = Typography;
 interface TeoricQuestionProps {
   onNext: () => void;
 }
+interface MultipleSelectionResponse {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string;
+}
 
 export default function TeoricQuestion({ onNext }: TeoricQuestionProps) {
   const { token } = theme.useToken();
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
+  const [mulOption, setMulOption] = useState<MultipleSelectionResponse>();
 
-  const options = [
-    { label: 'O(log n)', value: 'log n' },
-    { label: 'O(n)', value: 'n' },
-    { label: 'O(n log n)', value: 'n log n' },
-    { label: 'O(n²)', value: 'n²' },
-  ];
+  useEffect(() => {
+    fetchQuestion();
+  }, []);
+  async function fetchQuestion() {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_URL}${import.meta.env.VITE_CHATINT_MULTOPTION_URL}`
+      );
+      const obj = await res.json() as MultipleSelectionResponse;
+      setMulOption(obj);
+    } catch (error) { 
+      console.log(error);
+    }
+  }
 
   return (
     <div
@@ -72,7 +87,7 @@ export default function TeoricQuestion({ onNext }: TeoricQuestionProps) {
               fontSize: token.fontSizeLG,
             }}
           >
-            ¿Cuál es la complejidad temporal de buscar un elemento en un array ordenado usando búsqueda binaria?
+             {mulOption?.question}
           </Paragraph>
         </div>
 
@@ -87,12 +102,12 @@ export default function TeoricQuestion({ onNext }: TeoricQuestionProps) {
           value={selectedValues}
           onChange={(checked) => setSelectedValues(checked as string[])}
         >
-          {options.map((option) => {
-            const selected = selectedValues.includes(option.value);
+          {mulOption?.options.map((option,i) => {
+            const selected = selectedValues.includes(option);
             return (
               <Checkbox
-                key={option.value}
-                value={option.value}
+                key={i}
+                value={option}
                 style={{ width: '100%', maxWidth: 320 }}
               >
                 <div
@@ -113,7 +128,7 @@ export default function TeoricQuestion({ onNext }: TeoricQuestionProps) {
                       color: token.colorText,
                     }}
                   >
-                    {option.label}
+                     {option}
                   </Paragraph>
                 </div>
               </Checkbox>
