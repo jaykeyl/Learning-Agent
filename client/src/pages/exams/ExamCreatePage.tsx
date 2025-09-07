@@ -11,6 +11,8 @@ import GlobalScrollbar from '../../components/GlobalScrollbar';
 import './ExamCreatePage.css';
 import AiResults from './AiResults';
 import { generateQuestions, createExamApproved, type GeneratedQuestion, quickSaveExam } from '../../services/exams.service';
+import { useSearchParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 const layoutStyle: CSSProperties = {
   display: 'flex',
@@ -53,6 +55,9 @@ export default function ExamsCreatePage() {
     difficulty: 'medio',
     reference: '',
   });
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  const courseId = params.get('courseId') || '';
 
   const buildAiInputFromForm = (raw: Record<string, any>) => {
     const difficultyMap: Record<string, 'fácil' | 'medio' | 'difícil'> = {

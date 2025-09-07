@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { Table, Button, message, Typography, Empty, Tabs } from "antd";
 import {
@@ -639,6 +639,12 @@ export function CourseDetailPage() {
                     onClick={goToExams}
                   >
                     Ir a exámenes
+                  </Button>
+                  <Button
+                    type="primary"
+                    onClick={() => navigate(`/exams/create?courseId=${courseId}`)}
+                  >
+                    Crear examen
                   </Button>
                 </div>
               </div>
