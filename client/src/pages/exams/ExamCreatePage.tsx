@@ -11,34 +11,12 @@ import GlobalScrollbar from '../../components/GlobalScrollbar';
 import './ExamCreatePage.css';
 import { generateQuestions, type GeneratedQuestion } from '../../services/exams.service';
 import AiResults from './AiResults';
+import { normalizeToQuestions, cloneQuestion, replaceQuestion, reorderQuestions } from './ai-utils';
 
 const layoutStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
 };
-
-function normalizeToQuestions(res: any): GeneratedQuestion[] {
-  if (Array.isArray(res)) return res as GeneratedQuestion[];
-  const buckets = res?.data?.questions;
-  if (res?.ok && buckets && typeof buckets === 'object') {
-    const types = ['multiple_choice', 'true_false', 'open_analysis', 'open_exercise'] as const;
-    const out: GeneratedQuestion[] = [];
-    types.forEach((t) => {
-      const arr = (buckets as any)[t] || [];
-      arr.forEach((q: any, idx: number) => {
-        out.push({
-          id: q.id ?? `${t}_${idx}_${Date.now()}`,
-          type: t,
-          text: q.text ?? '',
-          options: q.options ?? undefined,
-          include: q.include ?? true,
-        } as GeneratedQuestion);
-      });
-    });
-    return out;
-  }
-  return [];
-}
 
 export default function ExamsCreatePage() {
   const { toasts, pushToast, removeToast } = useToast();
@@ -110,7 +88,7 @@ export default function ExamsCreatePage() {
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
     try {
       const res = await generateQuestions(dto as any);
-      const list = normalizeToQuestions(res);
+      const list = normalizeToQuestions(res).map(cloneQuestion);
       setAiQuestions(list);
       if (!list.length) setAiError('No se generaron preguntas. Revisa el backend y/o el DTO.');
     } catch {
@@ -121,16 +99,11 @@ export default function ExamsCreatePage() {
   };
 
   const onChangeQuestion = (q: GeneratedQuestion) => {
-    setAiQuestions((prev) => prev.map((x) => (x.id === q.id ? q : x)));
+    setAiQuestions(prev => replaceQuestion(prev, q));
   };
 
   const onReorderQuestion = (from: number, to: number) => {
-    setAiQuestions(prev => {
-      const updated = [...prev];
-      const [moved] = updated.splice(from, 1);
-      updated.splice(to, 0, moved);
-      return updated;
-    });
+    setAiQuestions(prev => reorderQuestions(prev, from, to));
   };
 
   const onRegenerateAll = async () => {
@@ -141,7 +114,8 @@ export default function ExamsCreatePage() {
     setAiError(null);
     try {
       const res = await generateQuestions(dto as any);
-      setAiQuestions(normalizeToQuestions(res));
+      const list = normalizeToQuestions(res).map(cloneQuestion);
+      setAiQuestions(list);
     } catch {
       setAiError('No se pudo regenerar el set completo.');
     } finally {
@@ -167,9 +141,8 @@ export default function ExamsCreatePage() {
       const res = await generateQuestions(oneDto as any);
       const [only] = normalizeToQuestions(res);
       if (only) {
-        setAiQuestions((prev) =>
-          prev.map((x) => (x.id === q.id ? { ...only, id: q.id, include: q.include } : x))
-        );
+        const replacement = cloneQuestion({ ...only, id: q.id, include: q.include } as GeneratedQuestion);
+        setAiQuestions(prev => replaceQuestion(prev, replacement));
       }
     } catch {
       setAiError('No se pudo regenerar esa pregunta.');
@@ -181,22 +154,22 @@ export default function ExamsCreatePage() {
     if (type === 'multiple_choice') {
       setAiQuestions((prev) => ([
         ...prev,
-        { id, type, text: 'Escribe aquí tu pregunta de opción múltiple…', options: ['Opción A', 'Opción B', 'Opción C', 'Opción D'], include: true } as GeneratedQuestion,
+        cloneQuestion({ id, type, text: 'Escribe aquí tu pregunta de opción múltiple…', options: ['Opción A','Opción B','Opción C','Opción D'], include: true } as GeneratedQuestion),
       ]));
     } else if (type === 'true_false') {
       setAiQuestions((prev) => ([
         ...prev,
-        { id, type, text: 'Enuncia aquí tu afirmación para Verdadero/Falso…', include: true } as GeneratedQuestion,
+        cloneQuestion({ id, type, text: 'Enuncia aquí tu afirmación para Verdadero/Falso…', include: true } as GeneratedQuestion),
       ]));
     } else if (type === 'open_exercise') {
       setAiQuestions((prev) => ([
         ...prev,
-        { id, type, text: 'Describe aquí el enunciado del ejercicio abierto…', include: true } as GeneratedQuestion,
+        cloneQuestion({ id, type, text: 'Describe aquí el enunciado del ejercicio abierto…', include: true } as GeneratedQuestion),
       ]));
     } else {
       setAiQuestions((prev) => ([
         ...prev,
-        { id, type, text: 'Escribe aquí tu consigna de análisis abierto…', include: true } as GeneratedQuestion,
+        cloneQuestion({ id, type, text: 'Escribe aquí tu consigna de análisis abierto…', include: true } as GeneratedQuestion),
       ]));
     }
   };
