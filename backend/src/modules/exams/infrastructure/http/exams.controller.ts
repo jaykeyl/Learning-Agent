@@ -22,7 +22,7 @@ import { UpdateExamQuestionCommand } from '../../application/commands/update-exa
 import { UpdateExamQuestionCommandHandler } from '../../application/commands/update-exam-question.handler';
 import { ApproveExamCommand } from '../../application/commands/approve-exam.command';
 import { ApproveExamCommandHandler } from '../../application/commands/approve-exam.handler';
-
+import { PrismaService } from 'src/core/prisma/prisma.service';
 import {
   responseSuccess,
   responseBadRequest,
@@ -48,6 +48,7 @@ export class ExamsController {
     private readonly addExamQuestionHandler: AddExamQuestionCommandHandler,
     private readonly updateExamQuestionHandler: UpdateExamQuestionCommandHandler,
     private readonly approveExamHandler: ApproveExamCommandHandler,
+    private readonly prisma: PrismaService,
   ) {}
   private readonly logger = new Logger(ExamsController.name);
 
@@ -157,5 +158,75 @@ export class ExamsController {
     const res = await this.approveExamHandler.execute(new ApproveExamCommand(id));
     this.logger.log(`[${cid(req)}] approveExam <- id=${id}`);
     return responseSuccess(cid(req), res, 'Exam approved successfully', pathOf(req));
+  }
+
+  @Post('quick-save')
+  @HttpCode(200)
+  async quickSave(@Body() body: any, @Req() req: Request) {
+    const c = cid(req);
+    const title = String(body?.title ?? 'Examen');
+
+    let courseId: number | string | undefined = body?.courseId;
+    let teacherId: string | undefined = body?.teacherId;
+
+    if (!courseId) {
+      const firstCourse = await this.prisma.course.findFirst({
+        select: { id: true, teacherId: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!firstCourse) {
+        return responseBadRequest(
+          'No hay courseId y no existe ningún Curso en la base. Crea un curso o envía courseId.',
+          c,
+          'Bad Request',
+          pathOf(req),
+        );
+      }
+      courseId = firstCourse.id; 
+      if (!teacherId && firstCourse.teacherId) teacherId = String(firstCourse.teacherId);
+    }
+
+    const rawQuestions =
+      Array.isArray(body?.questions)
+        ? body.questions
+        : Array.isArray(body?.content?.questions)
+        ? body.content.questions
+        : [];
+
+    const used = new Set<string>();
+    const ts = Date.now();
+    const questions = rawQuestions.map((q: any, i: number) => {
+      const t = String(q?.type ?? 'open_analysis');
+      let id = String(q?.id ?? `q_${ts}_${t}_${i}`);
+      while (used.has(id)) id = `${id}_${Math.random().toString(36).slice(2,6)}`;
+      used.add(id);
+      return {
+        id,
+        type: t,
+        text: String(q?.text ?? ''),
+        options: Array.isArray(q?.options) ? q.options.map(String) : undefined,
+      };
+    });
+
+    const content =
+      body?.content && typeof body.content === 'object'
+        ? body.content
+        : {
+            subject: String(body?.subject ?? 'Tema general'),
+            difficulty: String(body?.difficulty ?? 'medio'),
+            createdAt: new Date().toISOString(),
+            questions,
+          };
+
+    const data: any = {
+      title,
+      status: 'Guardado',
+      content,
+      courseId,                         
+      ...(teacherId ? { teacherId } : {}),
+    };
+
+    const saved = await this.prisma.savedExam.create({ data });
+    return responseSuccess(c, { id: saved.id, title: saved.title }, 'Quick exam saved', pathOf(req));
   }
 }
