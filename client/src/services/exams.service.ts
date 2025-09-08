@@ -99,13 +99,13 @@ function buildQuestionsDto(input: Record<string, unknown> = {}) {
 
   return {
     subject,
-    difficulty,      
-    totalQuestions,  
+    difficulty,
+    totalQuestions,
     reference,
-    distribution,    
-    language: 'es',  
-    strict: true,    
-    instruction,     
+    distribution,
+    language: 'es',
+    strict: true,
+    instruction,
   };
 }
 
@@ -224,21 +224,24 @@ function orderByType(items: GeneratedQuestion[]) {
 }
 
 function normalizeItem(q: any, ts: number, i: number, fallbackType?: GeneratedQuestion['type']): GeneratedQuestion {
-  const type = String(q?.type ?? fallbackType ?? '').trim();
+  const rawType = String(q?.type ?? fallbackType ?? 'open_analysis').trim();
+  const type = (rawType === 'boolean' ? 'true_false' : rawType) as GeneratedQuestion['type'];
   const text = pickTextLike(q);
   const imageUrl = q?.imageUrl ?? q?.image_url ?? undefined;
   const options = pickOptionsLike(q);
 
+  const makeId = (idx: number) => `q_${ts}_${type}_${idx}`;
+
   if (type === 'multiple_choice') {
-    return { id: `q_${ts}_${i}`, type: 'multiple_choice', text, options: options ?? [], include: true };
+    return { id: makeId(i), type: 'multiple_choice', text, options: options ?? [], include: true };
   }
-  if (type === 'true_false' || type === 'boolean') {
-    return { id: `q_${ts}_${i}`, type: 'true_false', text, include: true };
+  if (type === 'true_false') {
+    return { id: makeId(i), type: 'true_false', text, include: true };
   }
-  if (type === 'open_exercise' || type === 'exercise') {
-    return { id: `q_${ts}_${i}`, type: 'open_exercise', text, include: true };
+  if (type === 'open_exercise') {
+    return { id: makeId(i), type: 'open_exercise', text, include: true };
   }
-  return { id: `q_${ts}_${i}`, type: 'open_analysis', text, imageUrl, options: options ?? undefined, include: true };
+  return { id: makeId(i), type: 'open_analysis', text, imageUrl, options: options ?? undefined, include: true };
 }
 
 export async function generateQuestions(input: Record<string, unknown>): Promise<GeneratedQuestion[]> {
@@ -316,4 +319,198 @@ export async function createExam(payload: any): Promise<any> {
   return (res as any)?.data ?? res;
 }
 
-export default { generateQuestions, createExam };
+export type CreateExamApprovedInput = {
+  courseId?: string;
+  title: string;
+  status?: 'Guardado' | 'Publicado';
+  content?: {
+    subject?: string;
+    difficulty?: string;
+    createdAt?: string;
+    questions: Array<{
+      id: string;
+      type: 'multiple_choice' | 'true_false' | 'open_analysis' | 'open_exercise';
+      text: string;
+      options?: string[];
+    }>;
+  };
+  questions?: Array<{
+    id: string;
+    type: 'multiple_choice' | 'true_false' | 'open_analysis' | 'open_exercise';
+    text: string;
+    options?: string[];
+  }>;
+};
+
+export async function createExamApproved(input: CreateExamApprovedInput) {
+  const body = input.content
+    ? {
+        title: input.title,
+        courseId: input.courseId,
+        status: input.status ?? 'Guardado',
+        content: input.content,
+      }
+    : {
+        title: input.title,
+        courseId: input.courseId,
+        status: input.status ?? 'Guardado',
+        content: {
+          subject: 'Tema general',
+          difficulty: 'medio',
+          createdAt: new Date().toISOString(),
+          questions: (input.questions ?? []).map((q) => ({
+            id: String(q.id),
+            type: q.type,
+            text: String(q.text ?? ''),
+            options: Array.isArray(q.options) ? q.options.map(String) : undefined,
+          })),
+        },
+      };
+
+  const { data } = await api.post('/exams/approved', body);
+  return data?.data ?? data;
+}
+
+export async function quickSaveExam(p: { title: string; questions: any[]; content?: any; courseId?: string; teacherId?: string }) {
+  const body = p.content
+    ? p
+    : {
+        title: p.title,
+        content: {
+          subject: 'Tema general',
+          difficulty: 'medio',
+          createdAt: new Date().toISOString(),
+          questions: (p.questions ?? []).map((q: any, i: number) => ({
+            id: String(q?.id ?? `q_${Date.now()}_${i}`),
+            type: String(q?.type),
+            text: String(q?.text ?? ''),
+            options: Array.isArray(q?.options) ? q.options.map(String) : undefined,
+          })),
+        },
+        ...(p.courseId ? { courseId: p.courseId } : {}),
+        ...(p.teacherId ? { teacherId: p.teacherId } : {}),
+      };
+
+  const { data } = await api.post('/exams/quick-save', body);
+  return data?.data ?? data;
+}
+
+export type CourseExamRow = {
+  id: number | string;
+  title: string;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function updateExamApproved(
+  examId: string | number,
+  patch: Record<string, unknown>
+) {
+  const { data } = await api.patch(`/exams/approved/${examId}`, patch);
+  return data?.data ?? data;
+}
+
+export async function setExamVisibility(
+  examId: string | number,
+  next: 'visible' | 'hidden'
+) {
+  try {
+    return await updateExamApproved(examId, { visibility: next });
+  } catch (_) {
+    return await updateExamApproved(examId, { isVisible: next === 'visible' });
+  }
+}
+
+export async function listCourseExams(courseId: string): Promise<CourseExamRow[]> {
+  const { data } = await api.get(`/courses/${courseId}/exams`);
+  const rows = data?.data ?? data ?? [];
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function exists(path: string) {
+  try {
+    const h = await api.head(path);
+    return h.status >= 200 && h.status < 300;
+  } catch (e: any) {
+    const st = e?.response?.status;
+    if (st === 405) {
+      try {
+        const g = await api.get(path);
+        return g.status >= 200 && g.status < 300;
+      } catch (ee: any) {
+        if (ee?.response?.status === 404) return false;
+        throw ee;
+      }
+    }
+    if (st === 404) return false;
+    throw e;
+  }
+}
+
+async function tryDelete(path: string) {
+  try {
+    const res = await api.delete(path);
+    return !res || (res.status >= 200 && res.status < 300);
+  } catch (err: any) {
+    if (err?.response?.status !== 404) throw err;
+    return false;
+  }
+}
+
+async function tryAllDeleteCombos(courseId: string, id: string) {
+  const bases = [
+    `/courses/${courseId}/exams/${id}`,
+    `/courses/${courseId}/approved-exams/${id}`,
+    `/exams/${id}`,
+    `/exams/approved/${id}`,
+    `/approved-exams/${id}`,
+  ];
+
+  for (const base of bases) {
+    const ok = await exists(base);
+    if (!ok) continue;
+
+    if (await tryDelete(base)) return true;
+    if (await tryDelete(`${base}/delete`)) return true;
+    if (await tryDelete(`${base}/soft-delete`)) return true;
+  }
+
+  return false;
+}
+
+export async function deleteExamByCandidates(courseId: string, candidates: Array<string | number>) {
+  const ids = Array.from(new Set((candidates || []).map((x) => String(x)).filter(Boolean)));
+
+  for (const id of ids) {
+    const ok = await tryAllDeleteCombos(courseId, id);
+    if (ok) return; 
+  }
+
+  const err = new Error(`No se encontró endpoint de borrado para ids: ${ids.join(', ')}`);
+  (err as any).response = { status: 404, data: { message: (err as any).message } };
+  throw err;
+}
+
+export async function deleteCourseExam(courseId: string, examId: string | number): Promise<void> {
+  await deleteExamByCandidates(courseId, [examId]);
+}
+
+export async function deleteExamAny(examId: string | number): Promise<void> {
+  const id = String(examId);
+  const bases = [`/exams/${id}`, `/exams/approved/${id}`, `/approved-exams/${id}`];
+
+  for (const b of bases) {
+    if (await exists(b)) {
+      if (await tryDelete(b)) return;
+      if (await tryDelete(`${b}/delete`)) return;
+      if (await tryDelete(`${b}/soft-delete`)) return;
+    }
+  }
+
+  const err = new Error(`No se encontró endpoint de borrado para id: ${id}`);
+  (err as any).response = { status: 404, data: { message: (err as any).message } };
+  throw err;
+}
+
+export default { generateQuestions, createExam, createExamApproved };
