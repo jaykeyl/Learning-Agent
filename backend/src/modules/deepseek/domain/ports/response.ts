@@ -30,3 +30,9 @@ export interface DoubleOptionResponse {
   correctAnswer: number;
   explanation: string;
 }
+
+export interface MultipleSelectionTestResponse {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+}

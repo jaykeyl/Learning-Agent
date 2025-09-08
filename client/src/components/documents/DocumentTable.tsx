@@ -14,6 +14,7 @@ interface DocumentTableProps {
   onViewData?: (doc: Document) => void;
   onDeleteSuccess?: () => void;
   onDeleteError?: (error: Error) => void;
+  isStudent?: boolean;
 }
 
 export const DocumentTable: React.FC<DocumentTableProps> = ({
@@ -25,6 +26,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   onViewData,
   onDeleteSuccess,
   onDeleteError
+  , isStudent
 }) => {
   // Theme
   const theme = useThemeStore((state: { theme: string }) => state.theme);
@@ -35,6 +37,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
   const showPreviewButton = Boolean(screens.lg);
+  const isSmallScreen = !screens.md;
 
   const columns = [
     {
@@ -100,19 +103,21 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
             </Tooltip>
           )}
 
-          <Tooltip title="Ver contenido extraído del documento">
-            <Button
-              type="link"
-              icon={<BookOutlined />}
-              onClick={() => onViewData?.(record)}
-              style={{
-                color: isDark ? token.colorSuccess : '#52C41A',
-                fontWeight: '500'
-              }}
-            >
-              Datos
-            </Button>
-          </Tooltip>
+          {!isStudent && (
+            <Tooltip title="Ver contenido extraído del documento">
+              <Button
+                type="link"
+                icon={<BookOutlined />}
+                onClick={() => onViewData?.(record)}
+                style={{
+                  color: isDark ? token.colorSuccess : '#52C41A',
+                  fontWeight: '500'
+                }}
+              >
+                Datos
+              </Button>
+            </Tooltip>
+          )}
 
           <Tooltip title="Descargar archivo PDF">
             <Button
@@ -128,26 +133,28 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
             </Button>
           </Tooltip>
 
-          <DeleteButton
-            onDelete={() => onDelete?.(record.id) || Promise.resolve()}
-            resourceInfo={{
-              name: record.originalName,
-              type: "Documento PDF",
-              icon: <FileTextOutlined />,
-              additionalInfo: `Tamaño: ${(record.size / 1024 / 1024).toFixed(2)} MB`
-            }}
-            buttonConfig={{
-              variant: "link",
-              showText: true,
-              size: "middle"
-            }}
-            modalConfig={{
-              message: "¿Estás seguro de que deseas eliminar este documento?",
-              confirmText: "Eliminar Documento"
-            }}
-            onDeleteSuccess={onDeleteSuccess}
-            onDeleteError={onDeleteError}
-          />
+          {!isStudent && (
+            <DeleteButton
+              onDelete={() => onDelete?.(record.id) || Promise.resolve()}
+              resourceInfo={{
+                name: record.originalName,
+                type: "Documento PDF",
+                icon: <FileTextOutlined />,
+                additionalInfo: `Tamaño: ${(record.size / 1024 / 1024).toFixed(2)} MB`
+              }}
+              buttonConfig={{
+                variant: "link",
+                showText: true,
+                size: "middle"
+              }}
+              modalConfig={{
+                message: "¿Estás seguro de que deseas eliminar este documento?",
+                confirmText: "Eliminar Documento"
+              }}
+              onDeleteSuccess={onDeleteSuccess}
+              onDeleteError={onDeleteError}
+            />
+          )}
         </Space>
       ),
     },
@@ -163,8 +170,8 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
         pageSize: 10,
         showQuickJumper: true,
         showTotal: (total, range) =>
-          `${range[0]}-${range[1]} de ${total} documentos`,
-        style: { marginTop: '16px' }
+          isSmallScreen ? `${range[0]}-${range[1]} · ${total}` : `${range[0]}-${range[1]} de ${total} documentos`,
+        style: { marginTop: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
       }}
       style={{
         backgroundColor: isDark ? token.colorBgContainer : '#FFFFFF',

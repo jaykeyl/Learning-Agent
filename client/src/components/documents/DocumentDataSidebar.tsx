@@ -63,7 +63,7 @@ export const DocumentDataSidebar: React.FC<DocumentDataSidebarProps> = ({ docume
   const screens = useBreakpoint();
   const isMobile = !screens.md;
 
-  // bottom-sheet (mobile) height in px
+  // bottom-sheet (mobile)
   const initialHeight = Math.round(window.innerHeight * INITIAL_DRAWER_HEIGHT_RATIO);
   const [drawerHeight, setDrawerHeight] = useState<number>(initialHeight);
 
@@ -242,7 +242,7 @@ export const DocumentDataSidebar: React.FC<DocumentDataSidebarProps> = ({ docume
 
     const onPointerMove = (ev: PointerEvent) => {
       if (!draggingRef.current) return;
-      const delta = startYRef.current - ev.clientY; // upward -> positive
+      const delta = startYRef.current - ev.clientY; 
       const candidate = Math.round(startHeightRef.current + delta);
       const bounded = Math.max(MIN_DRAWER_HEIGHT, Math.min(Math.round(window.innerHeight * MAX_DRAWER_HEIGHT_RATIO), candidate));
       setDrawerHeight(bounded);

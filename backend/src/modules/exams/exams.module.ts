@@ -17,8 +17,7 @@ import { ApproveExamCommandHandler } from './application/commands/approve-exam.h
 import { SavedExamPrismaRepository } from './infrastructure/persistence/saved-exam.prisma.repository';
 import { SaveApprovedExamUseCase } from './application/commands/save-approved-exam.usecase';
 import { ListCourseExamsUseCase } from './application/queries/list-course-exams.usecase';
-import { SAVED_EXAM_REPO, COURSE_EXAMS_HARDCODED } from './tokens';
-import { SimpleCourseExamsProvider } from './infrastructure/http/providers/course-hardcoded-exams.provider';
+import { SAVED_EXAM_REPO } from './tokens';
 import { ApprovedExamsController } from './infrastructure/http/approved-exams.controller';
 import { TOKEN_SERVICE } from '../identity/tokens';
 
@@ -57,7 +56,6 @@ const DevTokenService = {
 
     { provide: EXAM_AI_GENERATOR, useClass: LlmAiQuestionGenerator },
     { provide: SAVED_EXAM_REPO, useClass: SavedExamPrismaRepository },
-    { provide: COURSE_EXAMS_HARDCODED, useClass: SimpleCourseExamsProvider },
 
     GenerateExamUseCase,
     CreateExamCommandHandler,
