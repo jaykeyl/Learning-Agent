@@ -10,12 +10,23 @@ const { Text } = Typography;
 type Props = {
   data: ExamSummary[];
   onEdit?: (exam?: ExamSummary) => void;
+  onChangeStatus?: (
+    exam: ExamSummary,
+    mode: 'now' | 'schedule' | 'draft',
+    whenIso?: string
+  ) => Promise<void> | void;
+  onToggleVisibility?: (exam: ExamSummary, next: 'visible' | 'hidden') => Promise<void> | void;
+  onDelete?: (exam: ExamSummary) => Promise<void> | void;
 };
 
 function fmt(dateIso?: string) {
   if (!dateIso) return '—';
   try {
-    return new Date(dateIso).toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: '2-digit' });
+    return new Date(dateIso).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+    });
   } catch {
     return '—';
   }
@@ -27,7 +38,9 @@ function StatusVisibility({ exam }: { exam: ExamSummary }) {
     return (
       <div className="flex items-center justify-center gap-2 flex-wrap" style={{ lineHeight: 1.2 }}>
         <Tag color="error">Oculto</Tag>
-        <span className="text-[12px] text-[var(--app-color-text-tertiary)]">No visible al alumnado</span>
+        <span className="text-[12px] text-[var(--app-color-text-tertiary)]">
+          No visible al alumnado
+        </span>
       </div>
     );
   }
@@ -35,7 +48,9 @@ function StatusVisibility({ exam }: { exam: ExamSummary }) {
     return (
       <div className="flex items-center justify-center gap-2 flex-wrap" style={{ lineHeight: 1.2 }}>
         <Tag color="success">Publicado</Tag>
-        <span className="text-[12px] text-[var(--app-color-text-tertiary)]">Visible • Publicado: {fmt(exam.publishedAt)}</span>
+        <span className="text-[12px] text-[var(--app-color-text-tertiary)]">
+          Visible • Publicado: {fmt(exam.publishedAt)}
+        </span>
       </div>
     );
   }
@@ -43,7 +58,9 @@ function StatusVisibility({ exam }: { exam: ExamSummary }) {
     return (
       <div className="flex items-center justify-center gap-2 flex-wrap" style={{ lineHeight: 1.2 }}>
         <Tag color="processing">Programado</Tag>
-        <span className="text-[12px] text-[var(--app-color-text-tertiary)]">Visible • Programado: {fmt(exam.publishedAt)}</span>
+        <span className="text-[12px] text-[var(--app-color-text-tertiary)]">
+          Visible • Programado: {fmt(exam.publishedAt)}
+        </span>
       </div>
     );
   }
@@ -93,7 +110,13 @@ function downloadExamPdf(exam: ExamSummary) {
   w.document.close();
 }
 
-export default function ExamTable({ data, onEdit }: Props) {
+export default function ExamTable({
+  data,
+  onEdit,
+  onChangeStatus,
+  onToggleVisibility,
+  onDelete,
+}: Props) {
   const toggleVisibility = useExamsStore((s: ExamsState) => s.toggleVisibility);
   const setVisibility = useExamsStore((s: ExamsState) => s.setVisibility);
   const setStatus = useExamsStore((s: ExamsState) => s.setStatus);
@@ -112,8 +135,21 @@ export default function ExamTable({ data, onEdit }: Props) {
     setPublishOpen(true);
   };
 
-  const handleConfirmPublish = () => {
+  const handleConfirmPublish = async () => {
     if (!target) return;
+    if (onChangeStatus) {
+      const whenIso =
+        publishMode === 'schedule'
+          ? scheduleAt?.toDate().toISOString()
+          : publishMode === 'now'
+            ? new Date().toISOString()
+            : undefined;
+      await onChangeStatus(target, publishMode, whenIso);
+      setPublishOpen(false);
+      setTarget(null);
+      return;
+    }
+
     if (publishMode === 'now') {
       setStatus(target.id, 'published', new Date().toISOString());
       setVisibility(target.id, 'visible');
@@ -136,11 +172,15 @@ export default function ExamTable({ data, onEdit }: Props) {
 
   const columns: ColumnsType<ExamSummary> = [
     {
-      title: <span style={{ display: 'block', textAlign: 'center', fontSize: token.fontSizeLG, fontWeight: 600 }}>Título de Examen</span>,
+      title: (
+        <span style={{ display: 'block', textAlign: 'center', fontSize: token.fontSizeLG, fontWeight: 600 }}>
+          Título de Examen
+        </span>
+      ),
       dataIndex: 'title',
       key: 'title',
       render: (title, record) => (
-        <div style={{ textAlign:'center' }}>
+        <div style={{ textAlign: 'center' }}>
           <Text strong style={{ color: token.colorPrimary, fontSize: token.fontSizeLG }} ellipsis>
             {title}
           </Text>
@@ -153,7 +193,11 @@ export default function ExamTable({ data, onEdit }: Props) {
       ellipsis: true,
     },
     {
-      title: <span style={{ display: 'block', textAlign: 'center', fontSize: token.fontSizeLG, fontWeight: 600 }}>Estado / Visibilidad</span>,
+      title: (
+        <span style={{ display: 'block', textAlign: 'center', fontSize: token.fontSizeLG, fontWeight: 600 }}>
+          Estado / Visibilidad
+        </span>
+      ),
       key: 'status_visibility',
       align: 'center',
       render: (_, record) => <StatusVisibility exam={record} />,
@@ -165,28 +209,63 @@ export default function ExamTable({ data, onEdit }: Props) {
       ellipsis: true,
     },
     {
-      title: <span style={{ display: 'block', textAlign: 'center', fontSize: token.fontSizeLG, fontWeight: 600 }}>Acciones</span>,
+      title: (
+        <span style={{ display: 'block', textAlign: 'center', fontSize: token.fontSizeLG, fontWeight: 600 }}>
+          Acciones
+        </span>
+      ),
       key: 'actions',
       align: 'right',
       render: (_, record) => (
         <Space size={6} wrap={false} style={{ whiteSpace: 'nowrap' }}>
           <Tooltip title="Editar">
-            <Button type="text" style={{ paddingInline: 6 }} icon={<EditOutlined style={{ fontSize: 18 }} />} onClick={() => onEdit?.(record)} aria-label="Editar" />
+            <Button
+              type="text"
+              style={{ paddingInline: 6 }}
+              icon={<EditOutlined style={{ fontSize: 18 }} />}
+              onClick={() => onEdit?.(record)}
+              aria-label="Editar"
+            />
           </Tooltip>
           <Tooltip title="Publicar / Programar / Borrador">
-            <Button type="text" style={{ paddingInline: 6 }} icon={<UploadOutlined style={{ fontSize: 18 }} />} onClick={() => openPublishModal(record)} aria-label="Estado" />
+            <Button
+              type="text"
+              style={{ paddingInline: 6 }}
+              icon={<UploadOutlined style={{ fontSize: 18 }} />}
+              onClick={() => openPublishModal(record)}
+              aria-label="Estado"
+            />
           </Tooltip>
           <Tooltip title={record.visibility === 'visible' ? 'Hacer privado' : 'Hacer público'}>
             <Button
               type="text"
               style={{ paddingInline: 6 }}
-              icon={record.visibility === 'visible' ? <EyeInvisibleOutlined style={{ fontSize: 18 }} /> : <EyeOutlined style={{ fontSize: 18 }} />}
-              onClick={() => toggleVisibility(record.id)}
+              icon={
+                record.visibility === 'visible' ? (
+                  <EyeInvisibleOutlined style={{ fontSize: 18 }} />
+                ) : (
+                  <EyeOutlined style={{ fontSize: 18 }} />
+                )
+              }
+              onClick={() => {
+                const next = record.visibility === 'visible' ? 'hidden' : 'visible';
+                if (onToggleVisibility) {
+                  onToggleVisibility(record, next);
+                } else {
+                  (toggleVisibility as any)(record.id); 
+                }
+              }}
               aria-label="Visibilidad"
             />
           </Tooltip>
           <Tooltip title="Descargar PDF">
-            <Button type="text" style={{ paddingInline: 6 }} icon={<FilePdfOutlined style={{ fontSize: 18 }} />} onClick={() => downloadExamPdf(record)} aria-label="Descargar PDF" />
+            <Button
+              type="text"
+              style={{ paddingInline: 6 }}
+              icon={<FilePdfOutlined style={{ fontSize: 18 }} />}
+              onClick={() => downloadExamPdf(record)}
+              aria-label="Descargar PDF"
+            />
           </Tooltip>
           <Popconfirm
             title="Eliminar examen"
@@ -194,7 +273,15 @@ export default function ExamTable({ data, onEdit }: Props) {
             okText="Eliminar"
             cancelText="Cancelar"
             okButtonProps={{ danger: true }}
-            onConfirm={() => { removeExam(record.id); message.success('Examen eliminado'); }}
+            onConfirm={async () => {
+              if (onDelete) {
+                await onDelete(record);
+                message.success('Examen eliminado');
+              } else {
+                removeExam(record.id);
+                message.success('Examen eliminado');
+              }
+            }}
           >
             <Tooltip title="Eliminar">
               <Button type="text" danger style={{ paddingInline: 6 }} icon={<DeleteOutlined style={{ fontSize: 18 }} />} aria-label="Eliminar" />
@@ -210,7 +297,7 @@ export default function ExamTable({ data, onEdit }: Props) {
       <Table
         rowKey="id"
         className="shadow-sm rounded-lg"
-        style={{ background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}` ,padding:10 }}
+        style={{ background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}`, padding: 10 }}
         columns={columns}
         dataSource={data}
         pagination={{ pageSize: 8, showSizeChanger: false }}
@@ -227,17 +314,32 @@ export default function ExamTable({ data, onEdit }: Props) {
         open={publishOpen}
         onOk={handleConfirmPublish}
         onCancel={() => setPublishOpen(false)}
-        okText={publishMode === 'now' ? 'Publicar' : publishMode === 'schedule' ? 'Programar' : 'Guardar como borrador'}
+        okText={
+          publishMode === 'now'
+            ? 'Publicar'
+            : publishMode === 'schedule'
+              ? 'Programar'
+              : 'Guardar como borrador'
+        }
         cancelText="Cancelar"
       >
-        <Radio.Group value={publishMode} onChange={(e) => setPublishMode(e.target.value)} className="flex flex-col gap-2">
+        <Radio.Group
+          value={publishMode}
+          onChange={(e) => setPublishMode(e.target.value)}
+          className="flex flex-col gap-2"
+        >
           <Radio value="now">Publicar ahora</Radio>
           <Radio value="schedule">Programar</Radio>
           <Radio value="draft">Borrador</Radio>
         </Radio.Group>
         {publishMode === 'schedule' && (
           <div className="mt-3">
-            <DatePicker showTime style={{ width: '100%' }} value={scheduleAt as any} onChange={(d) => setScheduleAt(d)} />
+            <DatePicker
+              showTime
+              style={{ width: '100%' }}
+              value={scheduleAt as any}
+              onChange={(d) => setScheduleAt(d)}
+            />
           </div>
         )}
       </Modal>
