@@ -5,7 +5,7 @@ import QuestionCard from '../../components/ai/QuestionCard';
 import type { GeneratedQuestion } from '../../services/exams.service';
 import { useExamsStore } from '../../store/examsStore';
 import { useNavigate } from 'react-router-dom';
-
+import { readJSON, saveJSON } from '../../services/storage/localStorage';
 
 const { Title, Text } = Typography;
 
@@ -70,12 +70,192 @@ export default function AiResults({
     }
   };
 
+  function optToString(opt: any): string {
+    if (typeof opt === 'string') return opt;
+    if (!opt || typeof opt !== 'object') return '';
+    return (
+      opt.text ??
+      opt.label ??
+      opt.content ??
+      opt.option ??
+      opt.value ??
+      ''
+    );
+  }
+
+  function optionsAsStrings(q: any): string[] {
+    if (!q?.options) return [];
+    if (Array.isArray(q.options)) return q.options.map(optToString).filter(Boolean);
+    return [];
+  }
+
+  function letterToIndex(letter: any): number | undefined {
+    const s = String(letter ?? '').trim().toLowerCase();
+    const map: Record<string, number> = { a:0, b:1, c:2, d:3, e:4, f:5 };
+    return s in map ? map[s] : undefined;
+  }
+
+  function numberToIndex(n: any): number | undefined {
+    const v = Number(String(n ?? '').trim());
+    if (!Number.isFinite(v)) return undefined;
+    const i = v - 1;
+    return i >= 0 ? i : undefined;
+  }
+
+  function parseBooleanAnswer(ans: any): boolean | undefined {
+    if (typeof ans === 'boolean') return ans;
+    const s = String(ans ?? '').trim().toLowerCase();
+    if (!s) return undefined;
+    if (['v', 'verdadero', 'true', 'si', 'sí', 's', '1'].includes(s)) return true;
+    if (['f', 'falso', 'false', 'no', 'n', '0'].includes(s)) return false;
+    return undefined;
+  }
+
+  function findCorrectIndexFromOptionsArray(q: any): number | undefined {
+    if (!Array.isArray(q?.options)) return undefined;
+    const byFlag = q.options.findIndex((o: any) => o?.correct === true || o?.isCorrect === true);
+    return byFlag >= 0 ? byFlag : undefined;
+  }
+
+  function normalizeMCQ(q: any, idx: number) {
+    const base = {
+      id: q.id,
+      n: idx + 1,
+      source: q.id?.startsWith('manual_') ? ('manual' as const) : ('ai' as const),
+      type: q.type,
+      text: q.text ?? '',
+    };
+
+    const opts = optionsAsStrings(q);
+    let correctIndex: number | undefined =
+      q.correctOptionIndex ??
+      q.correctIndex ??
+      q.answerIndex ??
+      undefined;
+
+    if (correctIndex === undefined) {
+      correctIndex =
+        letterToIndex(q.correctOptionLetter) ??
+        letterToIndex(q.answerLetter) ??
+        letterToIndex(q.correct) ??
+        letterToIndex(q.answer) ??
+        undefined;
+    }
+
+    if (correctIndex === undefined) {
+      correctIndex =
+        numberToIndex(q.correctOptionNumber) ??
+        numberToIndex(q.answerNumber) ??
+        numberToIndex(q.correct) ??
+        numberToIndex(q.answer) ??
+        undefined;
+    }
+
+    if (correctIndex === undefined) {
+      correctIndex = findCorrectIndexFromOptionsArray(q);
+    }
+
+    let answerText: string | undefined = (q.answer && String(q.answer).trim()) || undefined;
+    if (typeof correctIndex === 'number' && Array.isArray(opts) && opts[correctIndex]) {
+      answerText = opts[correctIndex]; // priorizamos el texto de la opción correcta
+    } else if (!answerText && Array.isArray(opts) && opts.length) {
+      const i = opts.findIndex(o => o.trim().toLowerCase() === String(q.correctOptionText ?? q.correctAnswer ?? q.solution ?? '').trim().toLowerCase());
+      if (i >= 0) {
+        correctIndex = i;
+        answerText = opts[i];
+      }
+    }
+
+    if (!answerText && typeof q.answer === 'string' && opts.length) {
+      const i = opts.findIndex(o => o.trim().toLowerCase() === q.answer.trim().toLowerCase());
+      if (i >= 0) {
+        correctIndex = i;
+        answerText = opts[i];
+      }
+    }
+
+    return {
+      ...base,
+      options: opts,
+      correctOptionIndex: typeof correctIndex === 'number' ? correctIndex : undefined,
+      answer: answerText,
+    };
+  }
+
+  function normalizeTrueFalse(q: any, idx: number) {
+    const base = {
+      id: q.id,
+      n: idx + 1,
+      source: q.id?.startsWith('manual_') ? ('manual' as const) : ('ai' as const),
+      type: q.type,
+      text: q.text ?? '',
+    };
+
+    let bool =
+      parseBooleanAnswer(q.answer) ??
+      parseBooleanAnswer(q.correctBoolean) ??
+      parseBooleanAnswer(q.correct) ??
+      parseBooleanAnswer(q.truth) ??
+      parseBooleanAnswer(q.isTrue) ??
+      undefined;
+
+    return {
+      ...base,
+      correctBoolean: bool,
+      answer: typeof bool === 'boolean' ? (bool ? 'Verdadero' : 'Falso') : (q.answer ?? undefined),
+    };
+  }
+
+  function normalizeOpen(q: any, idx: number) {
+    const base = {
+      id: q.id,
+      n: idx + 1,
+      source: q.id?.startsWith('manual_') ? ('manual' as const) : ('ai' as const),
+      type: q.type,
+      text: q.text ?? '',
+    };
+
+    const answer =
+      q.expectedAnswer ??
+      q.answer ??
+      q.modelAnswer ??
+      q.sampleAnswer ??
+      q.solution ??
+      q.correct ??
+      undefined;
+
+    return { ...base, expectedAnswer: answer, answer };
+  }
+
+  function mapQuestionForPrint(q: GeneratedQuestion, idx: number) {
+    if (q.type === 'multiple_choice') return normalizeMCQ(q, idx);
+    if (q.type === 'true_false') return normalizeTrueFalse(q, idx);
+    return normalizeOpen(q, idx);
+  }
+
   const handleSave = async () => {
     setSaveLoading(true);
     try {
       await onSave();
-      addFromQuestions({ title: subject || 'Examen', questions, publish: true });
-       navigate('/exams', { replace: true })
+      const summary = addFromQuestions({ title: subject || 'Examen', questions, publish: true });
+
+      const printable = {
+        examId: summary.id,
+        title: summary.title,
+        subject: subject || summary.className || '—',
+        teacher: '—',
+        createdAt: summary.createdAt || new Date().toISOString(),
+        questions: questions.filter(q => q.include).map(mapQuestionForPrint),
+      };
+      saveJSON(`exam:content:${summary.id}`, printable);
+
+      const index = readJSON<string[]>(`exam:content:index`) || [];
+      if (!index.includes(summary.id)) {
+        index.push(summary.id);
+        saveJSON(`exam:content:index`, index);
+      }
+
+      navigate('/exams', { replace: true });
     } finally {
       setSaveLoading(false);
     }
@@ -167,7 +347,7 @@ export default function AiResults({
                   index={i}
                   question={q}
                   onChange={onChange}
-                  onRegenerate={onRegenerateOne}
+                  onRegenerate={!q.id?.startsWith('manual_') ? onRegenerateOne : undefined}
                   disabled={q.type === 'multiple_choice' || q.type === 'true_false'}
                 />
               </div>

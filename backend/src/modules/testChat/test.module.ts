@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../core/prisma/prisma.module';
 import { AiConfigService } from '../../core/ai/ai.config';
 import { LlmModule } from '../llm/llm.module';
-import { ChatIntController } from './infrastructure/httpchat/chatInt.controller';
+import { ChatIntController } from './infrastructure/http/chatTest.controller';
 import { DeepseekModule } from '../deepseek/deepseek.module';
 
 @Module({
@@ -10,4 +10,4 @@ import { DeepseekModule } from '../deepseek/deepseek.module';
   controllers: [ChatIntController],
   providers: [AiConfigService],
 })
-export class InterviewModule {}
+export class TestChatModule {}

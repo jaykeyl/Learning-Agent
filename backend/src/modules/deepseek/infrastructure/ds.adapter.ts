@@ -9,6 +9,7 @@ import {
   QuestionResponse,
   MultipleSelectionResponse,
   DoubleOptionResponse,
+
 } from '../domain/ports/response';
 
 @Injectable()
@@ -226,4 +227,48 @@ export class DsAdapter implements DeepseekPort {
       throw new Error('Error generating multiple selection and question');
     }
   }
+  async generateMultOptionTest(
+    topico: string,
+  ): Promise<MultipleSelectionTestResponse> {
+    try {
+      const vars: Record<string, string> = {
+        topico: topico,
+      };
+      const prompt = await this.promptTemplatePort.render(
+        'test.multipleSelection.v1',
+        vars,
+      );
+      const completion = await this.deepseek.chat.completions.create({
+        model: 'deepseek-chat',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are an assistant that always responds in strict JSON format.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+        max_tokens: 1000,
+      });
+
+      const responseContent = completion.choices[0]?.message?.content;
+      console.log('responseContent:', responseContent);
+      if (!responseContent) {
+        throw new Error('No response from AI');
+      }
+      const response = JSON.parse(
+        responseContent,
+      ) as MultipleSelectionTestResponse;
+      return response;
+    } catch (error) {
+      console.error('OpenAI Error in generateMultipleTestSelection:', error);
+      throw new Error('Error generating multiple selection and question');
+    }
+  }
+
 }

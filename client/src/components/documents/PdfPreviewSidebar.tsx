@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Typography, Spin, Alert, theme as antTheme } from 'antd';
+import { Button, Typography, Spin, Alert, Grid, theme as antTheme } from 'antd';
 import { CloseOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useThemeStore } from '../../store/themeStore';
 import type { Document } from '../../interfaces/documentInterface';
@@ -11,17 +11,19 @@ interface PdfPreviewSidebarProps {
   document: Document | null;
   onClose: () => void;
   visible: boolean;
-  isSmallScreen?: boolean;
   sidebarWidth?: string;
 }
+
+const { useBreakpoint } = Grid;
 
 export const PdfPreviewSidebar: React.FC<PdfPreviewSidebarProps> = ({
   document,
   onClose,
   visible,
-  isSmallScreen = false,
   sidebarWidth = '50%'
 }) => {
+  const screens = useBreakpoint();
+  const isSmallScreen = !screens.lg;
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

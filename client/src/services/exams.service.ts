@@ -8,8 +8,8 @@ export type GeneratedQuestion =
   | { id: string; type: 'open_analysis'; text: string; imageUrl?: string; options?: string[]; include: boolean }
   | { id: string; type: 'open_exercise'; text: string; include: boolean };
 
-const TEXT_KEYS = ['text', 'statement', 'question', 'prompt', 'enunciado', 'descripcion', 'description', 'body', 'content'];
-const OPT_KEYS = ['options', 'choices', 'alternativas', 'opciones', 'answers'];
+const TEXT_KEYS = ['text', 'statement', 'question', 'prompt', 'enunciado', 'descripcion', 'description', 'body', 'content'] as const;
+const OPT_KEYS  = ['options', 'choices', 'alternativas', 'opciones', 'answers'] as const;
 
 function pickTextLike(q: any): string {
   for (const k of TEXT_KEYS) {
@@ -29,26 +29,26 @@ function pickOptionsLike(q: any): string[] | undefined {
 function mockQuestions(): GeneratedQuestion[] {
   return [
     {
-      id: 'q1',
+      id: 'q1_mc',
       type: 'multiple_choice',
       text: '¿Cuál es la derivada de f(x) = 3x² + 2x - 5?',
       options: ['6x + 2', '3x + 2', '6x² + 2', '3x² + 2x'],
       include: true,
     },
     {
-      id: 'q2',
+      id: 'q2_tf',
       type: 'true_false',
       text: 'El Teorema Fundamental del Cálculo conecta derivación e integración.',
       include: true,
     },
     {
-      id: 'q3',
+      id: 'q3_oe',
       type: 'open_exercise',
       text: 'Resuelve la integral indefinida: ∫(4x³ - 3x² + 6x - 2) dx',
       include: true,
     },
     {
-      id: 'q4',
+      id: 'q4_oa',
       type: 'open_analysis',
       text: 'Analiza la siguiente gráfica y elige la interpretación correcta.',
       options: ['La velocidad aumenta', 'El movimiento es uniforme', 'La aceleración es negativa'],
@@ -84,8 +84,8 @@ function buildQuestionsDto(input: Record<string, unknown> = {}) {
     throw new Error('La distribución debe contener al menos 1 pregunta en total.');
   }
 
-  const reference =
-    input.reference != null ? String(input.reference) : undefined;
+  const reference = 
+  input.reference != null ? String(input.reference) : undefined;
 
   const instruction = [
     'RESPONDE EXCLUSIVAMENTE EN ESPAÑOL NEUTRO (es).',
@@ -124,49 +124,47 @@ function looksEnglish(text: string): boolean {
   return hints.some((w) => t.includes(w));
 }
 function forceSpanish<T extends GeneratedQuestion>(q: T, subject: string): T {
-  const textIsEs = looksSpanish(q.text) && !looksEnglish(q.text);
-  const id = `${q.id}`;
-  if (textIsEs) {
-    if (q.type === 'multiple_choice') {
-      const opts = (q as any).options as string[] | undefined;
-      if (opts && opts.some((o) => looksEnglish(o) && !looksSpanish(o))) {
-        (q as any).options = ['Opción A', 'Opción B', 'Opción C', 'Opción D'];
-      }
-    }
-    return q;
-  }
+  const isTextEs = looksSpanish(q.text) && !looksEnglish(q.text);
 
   if (q.type === 'multiple_choice') {
+    const opts = Array.isArray((q as any).options) ? [...(q as any).options as string[]] : [];
+    const optsOk = opts.length && !opts.some(o => looksEnglish(o) && !looksSpanish(o));
+    if (isTextEs && optsOk) return { ...q, options: [...opts] } as T;
     return {
-      id,
+      id: q.id,
       type: 'multiple_choice',
-      text: `¿Cuál de las siguientes afirmaciones es correcta sobre ${subject}?`,
-      options: ['Opción A', 'Opción B', 'Opción C', 'Opción D'],
+      text: isTextEs ? q.text : `¿Cuál de las siguientes afirmaciones es correcta sobre ${subject}?`,
+      options: optsOk ? [...opts] : ['Opción A','Opción B','Opción C','Opción D'],
       include: true,
     } as T;
   }
   if (q.type === 'true_false') {
+    if (isTextEs) return { ...q } as T;
     return {
-      id,
+      id: q.id,
       type: 'true_false',
       text: `Indica si la siguiente afirmación es verdadera o falsa sobre ${subject}.`,
       include: true,
     } as T;
   }
   if (q.type === 'open_analysis') {
-    const opts = (q as any).options as string[] | undefined;
-    const optionsEs = Array.isArray(opts) ? opts.filter((o) => looksSpanish(o) && !looksEnglish(o)) : undefined;
+    const opts = Array.isArray((q as any).options) ? [...(q as any).options as string[]] : undefined;
+    const optsEs = Array.isArray(opts) ? opts.filter(o => looksSpanish(o) && !looksEnglish(o)) : undefined;
+    if (isTextEs && (optsEs?.length ? true : !opts)) {
+      return { ...q, options: optsEs } as T;
+    }
     return {
-      id,
+      id: q.id,
       type: 'open_analysis',
-      text: `Analiza el siguiente aspecto de ${subject} y justifica tu razonamiento en español.`,
-      options: optionsEs && optionsEs.length ? optionsEs : undefined,
+      text: isTextEs ? q.text : `Analiza el siguiente aspecto de ${subject} y justifica tu razonamiento en español.`,
+      options: optsEs && optsEs.length ? optsEs : undefined,
       include: true,
     } as T;
   }
 
+  if (isTextEs) return { ...q } as T;
   return {
-    id,
+    id: q.id,
     type: 'open_exercise',
     text: `Resuelve un ejercicio relacionado con ${subject} y explica cada paso en español.`,
     include: true,
@@ -218,7 +216,7 @@ function makePlaceholders(opts: {
 }
 
 function orderByType(items: GeneratedQuestion[]) {
-  const order = ['multiple_choice', 'true_false', 'open_analysis', 'open_exercise'] as const;
+  const order = ['multiple_choice','true_false','open_analysis','open_exercise'] as const;
   const idx = (t: GeneratedQuestion['type']) => order.indexOf(t as any);
   return [...items].sort((a, b) => idx(a.type) - idx(b.type));
 }
@@ -295,7 +293,6 @@ export async function generateQuestions(input: Record<string, unknown>): Promise
   (['multiple_choice', 'true_false', 'open_analysis', 'open_exercise'] as const).forEach((t) => {
     const want = wanted[t];
     const have = byType[t];
-
     if (want <= 0) return;
 
     if (have.length >= want) {
