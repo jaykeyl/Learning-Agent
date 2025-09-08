@@ -1,4 +1,3 @@
-// client/src/pages/exams/ExamCreatePage.tsx
 import { useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import '../../components/exams/ExamForm.css';
@@ -20,10 +19,7 @@ const layoutStyle: CSSProperties = {
   flexDirection: 'column',
 };
 
-/** 
- * Repara preguntas inválidas devolviendo reemplazos válidos por tipo.
- * Se ejecuta tras generar en lote o al regenerar todo.
- */
+
 async function repairInvalidQuestions(
   list: GeneratedQuestion[],
   baseDto: any,
@@ -34,7 +30,6 @@ async function repairInvalidQuestions(
     const q = fixed[i];
     if (isValidGeneratedQuestion(q)) continue;
 
-    // DTO para una sola pregunta del mismo tipo
     const distribution = {
       multiple_choice: q.type === 'multiple_choice' ? 1 : 0,
       true_false: q.type === 'true_false' ? 1 : 0,
@@ -43,7 +38,6 @@ async function repairInvalidQuestions(
     };
     const oneDto = { ...baseDto, totalQuestions: 1, distribution };
 
-    // Hasta 3 intentos para reemplazar
     let replacement: GeneratedQuestion | undefined;
     for (let attempt = 0; attempt < 3; attempt++) {
       const res = await generateFn(oneDto);

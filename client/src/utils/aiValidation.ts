@@ -1,4 +1,3 @@
-// client/src/utils/aiValidation.ts
 import type { GeneratedQuestion } from '../services/exams.service';
 
 export const PLACEHOLDER_SIGNATURES = [

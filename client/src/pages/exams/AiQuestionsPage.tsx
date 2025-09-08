@@ -1,4 +1,3 @@
-// client/src/pages/exams/AiQuestionPage.tsx
 import { useRef, useState } from 'react';
 import { Typography, theme } from 'antd';
 import type { CSSProperties } from 'react';
@@ -31,7 +30,6 @@ const layoutStyle: CSSProperties = {
   padding: 'clamp(24px, 3.2vw, 40px) 16px',
 };
 
-/** Reparación post-generación para evitar placeholders */
 async function repairInvalidQuestions(
   list: GeneratedQuestion[],
   baseDto: any,
