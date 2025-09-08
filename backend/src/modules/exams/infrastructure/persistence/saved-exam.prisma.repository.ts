@@ -4,8 +4,16 @@ import type {
   SaveApprovedExamInput,
   SavedExamDTO,
   SavedExamRepositoryPort,
+  SavedExamReadModel,
+  SavedExamStatus
 } from '../../domain/ports/saved-exam.repository.port';
 
+
+function asSavedExamStatus(s: unknown): SavedExamStatus {
+  if (s === 'Guardado' || s === 'Publicado') return s;
+  // Optional: be strict to catch bad data early
+  throw new Error(`Unexpected SavedExam.status from DB: ${String(s)}`);
+}
 @Injectable()
 export class SavedExamPrismaRepository implements SavedExamRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
@@ -50,4 +58,22 @@ export class SavedExamPrismaRepository implements SavedExamRepositoryPort {
       source: 'saved',
     }));
     }
+
+async findByExamId(examId: string): Promise<SavedExamReadModel | null> {
+    const r = await this.prisma.savedExam.findFirst({ where: { examId } });
+    if (!r) return null;
+
+    return {
+      id: r.id,
+      title: r.title,
+      content: r.content,
+      status: asSavedExamStatus(r.status), // <-- narrow to the union
+      courseId: r.courseId,
+      teacherId: r.teacherId,
+      createdAt: r.createdAt,
+      examId: r.examId ?? null,
+    };
+  }
+
+
 }

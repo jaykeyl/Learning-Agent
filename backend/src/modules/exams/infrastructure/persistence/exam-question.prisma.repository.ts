@@ -120,4 +120,25 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
       updatedAt: updated.updatedAt,
     };
   }
+
+    async listByExam(examId: string) {
+    const rows = await this.prisma.examQuestion.findMany({
+      where: { examId },
+      orderBy: { order: 'asc' },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      examId: row.examId,
+      kind: row.kind as any,
+      text: row.text,
+      options: (row as any).options ?? undefined,
+      correctOptionIndex: row.correctOptionIndex ?? undefined,
+      correctBoolean: row.correctBoolean ?? undefined,
+      expectedAnswer: row.expectedAnswer ?? undefined,
+      order: row.order,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    }));
+  }
+
 }

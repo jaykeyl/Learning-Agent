@@ -5,6 +5,7 @@ import { Exam } from '../../domain/entities/exam.entity';
 import { Difficulty } from '../../domain/entities/difficulty.vo';
 import { PositiveInt } from '../../domain/entities/positive-int.vo';
 import { DistributionVO } from '../../domain/entities/distribution.vo';
+import { SavedExamDTO } from '../../domain/ports/saved-exam.repository.port';
 
 @Injectable()
 export class ExamPrismaRepository implements ExamRepositoryPort {
@@ -116,6 +117,23 @@ export class ExamPrismaRepository implements ExamRepositoryPort {
       data: { approvedAt: new Date() },
     });
     this.logger.log(`approve <- id=${id}`);
+  }
+
+    async findByExamId(examId: string): Promise<SavedExamDTO | null> {
+    const r = await this.prisma.savedExam.findUnique({
+      where: { examId },
+    });
+    if (!r) return null;
+    return {
+      id: r.id,
+      title: r.title,
+      content: r.content,
+      status: r.status as any,
+      courseId: r.courseId,
+      teacherId: r.teacherId,
+      createdAt: r.createdAt,
+      source: 'saved',
+    };
   }
 
 }

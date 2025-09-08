@@ -319,6 +319,8 @@ model Exam {
   questions       ExamQuestion[]
 
   @@index([subject])
+
+  savedExam      SavedExam?
 }
 
 // === Preguntas de Examen ===
@@ -339,6 +341,9 @@ model SavedExam {
   title     String
   content   Json
   status    ExamStorageStatus @default(Guardado)
+
+  examId    String?           @unique
+  exam      Exam?             @relation(fields: [examId], references: [id], onDelete: Cascade)
 
   // FK “lógicas” (sin relación Prisma)
   courseId  String

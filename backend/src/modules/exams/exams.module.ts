@@ -17,6 +17,7 @@ import { ApproveExamCommandHandler } from './application/commands/approve-exam.h
 import { SavedExamPrismaRepository } from './infrastructure/persistence/saved-exam.prisma.repository';
 import { SaveApprovedExamUseCase } from './application/commands/save-approved-exam.usecase';
 import { ListCourseExamsUseCase } from './application/queries/list-course-exams.usecase';
+import { GetExamByIdUseCase } from './application/queries/get-exam-by-id.usecase';
 import { SAVED_EXAM_REPO, COURSE_EXAMS_HARDCODED } from './tokens';
 import { SimpleCourseExamsProvider } from './infrastructure/http/providers/course-hardcoded-exams.provider';
 import { ApprovedExamsController } from './infrastructure/http/approved-exams.controller';
@@ -67,6 +68,7 @@ const DevTokenService = {
     ApproveExamCommandHandler,
     SaveApprovedExamUseCase,
     ListCourseExamsUseCase,
+    GetExamByIdUseCase,
     
     { provide: TOKEN_SERVICE, useValue: DevTokenService },
   ],
