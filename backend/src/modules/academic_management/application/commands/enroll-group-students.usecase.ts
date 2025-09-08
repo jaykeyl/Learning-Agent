@@ -1,11 +1,11 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
-import { ENROLLMENT_REPO, STUDENT_REPO, CLASSES_REPO, USER_REPO } from "../../tokens";
+import { ENROLLMENT_REPO, STUDENT_REPO, CLASSES_REPO } from "../../tokens";
 import type { EnrollmentRepositoryPort } from "../../domain/ports/enrollment.repository.ports";
 import type { StudentRepositoryPort } from "../../domain/ports/student.repository.ports";
 import type { ClassesRepositoryPort } from "../../domain/ports/classes.repository.ports";
-import type { UserRepositoryPort } from "../../domain/ports/user.repository.ports";
 import { EnrollGroupStudentRow } from "../../infrastructure/http/dtos/enroll-group-student.dto";
-import { InternalServerError, NotFoundError } from "src/shared/handler/errors";
+import { NotFoundError } from "src/shared/handler/errors";
+import { CreateStudentProfileUseCase } from "./create-student-profile.usecase";
 
 @Injectable()
 export class EnrollGroupStudentUseCase {
@@ -15,7 +15,7 @@ export class EnrollGroupStudentUseCase {
         @Inject(ENROLLMENT_REPO) private readonly enrollmentRepo: EnrollmentRepositoryPort,
         @Inject(STUDENT_REPO) private readonly studentRepo: StudentRepositoryPort,
         @Inject(CLASSES_REPO) private readonly classesRepo: ClassesRepositoryPort,
-        @Inject(USER_REPO) private readonly userRepo: UserRepositoryPort,
+        private readonly createStudent: CreateStudentProfileUseCase,
     ) {}
 
     async execute(input: { classId: string, studentRows: EnrollGroupStudentRow[] }) {
@@ -31,7 +31,13 @@ export class EnrollGroupStudentUseCase {
                 let student = await this.studentRepo.findByCode(row.studentCode);
                 if (!student) {
                     this.logger.log(`Student not found with code ${row.studentCode}, creating new user`);
-                    student = await this.handleNewUser (row.studentName, row.studentLastname, row.studentCode);
+                    const rowData = {
+                        studentName: row.studentName,
+                        studentLastname: row.studentLastname,
+                        studentCode: row.studentCode
+                    }
+                    student = await this.createStudent.execute(rowData);
+                    this.logger.log(student)
                 }
 
                 const existingEnrollment = await this.enrollmentRepo.findByStudentAndClass(student.userId, input.classId);
@@ -56,30 +62,6 @@ export class EnrollGroupStudentUseCase {
                 errorRows++;
             }
         }
-        return {totalRows, errorRows, existingRows, successRows};
-    }
-
-    async handleNewUser (studentName: string, studentLastname: string, studentCode: string) {
-        const newUser  = await this.userRepo.create(
-            studentName,
-            studentLastname,
-            `${this.fixedString(studentName)+this.fixedString(studentLastname)}.${studentCode}@upb.edu`,
-            `${this.fixedString(studentLastname)+studentCode}`
-        );
-        if (!newUser ) {
-            this.logger.error("Error creating new user on single enrollment endpoint");
-            throw new InternalServerError("Error creando al usuario");
-        }
-
-        const newStudent = await this.studentRepo.create(newUser .id, studentCode);
-        if (!newStudent) {
-            this.logger.error("Error creating new student on single enrollment endpoint");
-            throw new InternalServerError("Error creando la cuenta del estudiante");
-        }
-        return newStudent;
-    }
-
-    fixedString(s: string): string {
-        return s.trim().toLowerCase().replace(/\s+/g, '');
+        return { totalRows, errorRows, existingRows, successRows };
     }
 }

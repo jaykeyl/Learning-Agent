@@ -1,10 +1,8 @@
 import { Body, Controller, Get, Param, Post, UseGuards, Put } from '@nestjs/common';
 import { CreateClassUseCase } from '../../application/commands/create-class.usecase';
-import { CreateStudentProfileDto } from './dtos/create-studentProfile.dto';
 import { CreateClassDto } from './dtos/create-classes.dto';
 import { ListClassesUseCase } from '../../application/queries/list-classes.usecase';
 import { ListStudentsUseCase } from '../../application/queries/list-student.usecase';
-import { CreateStudentProfileUseCase } from '../../application/commands/create-student-profile.usecase';
 import { GetClassesByStudentUseCase } from '../../application/queries/get-classes-by-student.usecase';
 import { GetStudentsByClassUseCase } from '../../application/queries/get-students-by-class.usecase';
 import { GetClassByIdUseCase } from '../../application/queries/get-class-by-id.usecase';
@@ -44,7 +42,6 @@ export class AcademicManagementController {
     private readonly getTeacherInfoById: GetTeacherInfoByIDUseCase,
     private readonly createCourse: CreateCourseUseCase,
     private readonly createClasses: CreateClassUseCase,
-    private readonly createProfileStudent: CreateStudentProfileUseCase,
     private readonly enrollSingle: EnrollSingleStudentUseCase,
     private readonly enrollGroup: EnrollGroupStudentUseCase,
     private readonly updateClass: UpdateClassUseCase,
@@ -218,18 +215,6 @@ export class AcademicManagementController {
       } else{
         return responseInternalServerError(error.message, "Sin implementar", description, path)
       }
-    }
-  }
-
-  @Post('students')
-  async createStudentEndpoint(@Body() dto: CreateStudentProfileDto) {
-    const path = academicRoute + `/students`
-    const description = "Create a new student"
-    try {
-      const student = await this.createProfileStudent.execute(dto);
-      return responseCreated("Sin implementar", student, description, path)
-    } catch (error) {
-      return responseInternalServerError(error.message, "Sin implementar", description, path)
     }
   }
 

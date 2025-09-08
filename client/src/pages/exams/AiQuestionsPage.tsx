@@ -37,6 +37,7 @@ const pickOptionsLike = (q: any) => {
     if (Array.isArray(v) && v.length) return v.map(String);
   }
   return undefined;
+
 };
 
 function normalizeToQuestions(res: any): GeneratedQuestion[] {

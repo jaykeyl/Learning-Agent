@@ -6,6 +6,7 @@ import { User } from '../../domain/entities/user.entity';
 @Injectable()
 export class UserPrismaRepository implements UserRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
+
   async findById(userId: string): Promise<User | null> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     return user
@@ -25,5 +26,51 @@ export class UserPrismaRepository implements UserRepositoryPort {
     return u
       ? new User(u.id, u.email, u.name, u.lastname, u.password, u.isActive)
       : null;
+  }
+
+  async create(name: string, lastname: string, email: string, passwordHash: string, isActive?: boolean, roleId?: string,): Promise<User> {
+    const data: any = {
+      name,
+      lastname,
+      email,
+      password: passwordHash,
+      isActive,
+    }
+    if (roleId) data.roles = { create: [{ roleId }] };
+    
+    const user = await this.prisma.user.create({ data });
+    return new User(
+      user.id,
+      user.email,
+      user.name,
+      user.lastname,
+      user.password,
+      user.isActive,
+    )
+  }
+
+  async update(userId: string, name?: string, lastname?: string, email?: string, passwordHash?: string, isActive?: boolean): Promise<User> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name,
+        lastname,
+        email,
+        password: passwordHash,
+        isActive
+      }
+    })
+    return new User(
+      user.id,
+      user.email,
+      user.name,
+      user.lastname,
+      user.password,
+      user.isActive,
+    )
+  }
+
+  async delete(userId: string): Promise<void> {
+    await this.prisma.user.delete({ where: { id: userId }});
   }
 }

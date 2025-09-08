@@ -32,9 +32,9 @@ export class UploadDocumentUseCase {
       throw new BadRequestException('Solo se permiten archivos PDF');
     }
 
-    const maxSize = 10 * 1024 * 1024; // 10MB en bytes
+    const maxSize = 100 * 1024 * 1024; // 100MB en bytes
     if (file.size > maxSize) {
-      throw new BadRequestException('El archivo no puede ser mayor a 10MB');
+      throw new BadRequestException('El archivo no puede ser mayor a 100MB');
     }
 
     // Generar hash SHA-256 del archivo
