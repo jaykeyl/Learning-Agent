@@ -166,4 +166,3 @@ export default function CourseExamsPanel({ courseId }: Props) {
     </div>
   );
 }
-
