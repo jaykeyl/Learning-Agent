@@ -9,8 +9,9 @@ import { readJSON } from '../../services/storage/localStorage';
 import PageTemplate from '../../components/PageTemplate';
 import GlobalScrollbar from '../../components/GlobalScrollbar'; 
 import './ExamCreatePage.css';
-import { generateQuestions, type GeneratedQuestion } from '../../services/exams.service';
+import { generateQuestions, createExamApproved, type GeneratedQuestion } from '../../services/exams.service';
 import AiResults from './AiResults';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 const layoutStyle: CSSProperties = {
   display: 'flex',
@@ -43,6 +44,9 @@ function normalizeToQuestions(res: any): GeneratedQuestion[] {
 export default function ExamsCreatePage() {
   const { toasts, pushToast, removeToast } = useToast();
   const formRef = useRef<ExamFormHandle>(null!);
+  const [params] = useSearchParams();
+  const courseId = params.get('courseId') || '';
+  const navigate = useNavigate();
 
   const [aiOpen, setAiOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -201,10 +205,42 @@ export default function ExamsCreatePage() {
     }
   };
 
-  const onSave = async () => {
-    const selected = aiQuestions.filter((q) => q.include).length;
-    pushToast(`Cambios guardados. Preguntas incluidas: ${selected}.`, 'success');
-  };
+const onSave = async () => {
+  if (!courseId) {
+    pushToast('Abre el creador desde la materia (Crear examen) para asociarlo.', 'error');
+    return;
+  }
+
+  const selected = aiQuestions.filter(q => q.include);
+  if (!selected.length) {
+    pushToast('Selecciona al menos una pregunta.', 'error');
+    return;
+  }
+
+  const ts = Date.now();
+  const used = new Set<string>();
+  const questions = selected.map((q, i) => {
+    const baseId = q.id || `q_${ts}_${q.type}_${i}`;
+    let id = baseId;
+    while (used.has(id)) id = `${id}_${Math.random().toString(36).slice(2,6)}`;
+    used.add(id);
+    return {
+      id,
+      type: q.type,
+      text: (q as any).text,
+      options: (q as any).options ?? undefined,
+    };
+  });
+
+  await createExamApproved({
+    courseId,
+    title: aiMeta.subject || 'Examen',
+    questions,
+  });
+
+  pushToast('Examen guardado en la base de datos.', 'success');
+  navigate(`/courses/${courseId}`);
+};
 
   return (
     <PageTemplate
