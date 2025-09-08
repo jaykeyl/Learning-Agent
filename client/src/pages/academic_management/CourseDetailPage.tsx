@@ -31,6 +31,7 @@ import useCourses from "../../hooks/useCourses";
 import UploadButton from '../../components/shared/UploadButton';
 import { processFile } from "../../utils/enrollGroupByFile";
 import type { StudentInfo } from "../../interfaces/studentInterface";
+import CourseExamsPanel from "../courses/CourseExamsPanel";
 
 const { Text } = Typography;
 const { TabPane } = Tabs;
@@ -627,20 +628,7 @@ export function CourseDetailPage() {
               key="exams"
             >
               <div style={{ padding: '32px' }}>
-                <div style={{ textAlign: 'center', padding: '64px 0' }}>
-                  <Empty description="No hay exámenes creados para este curso">
-                    <Text style={{ fontSize: '14px' }}>
-                      Los exámenes creados aparecerán aquí para su gestión
-                    </Text>
-                  </Empty>
-                  <Button 
-                    type="primary" 
-                    style={{ marginTop: "16px" }}
-                    onClick={goToExams}
-                  >
-                    Ir a exámenes
-                  </Button>
-                </div>
+                {courseId && <CourseExamsPanel courseId={courseId} />}
               </div>
             </TabPane>
 

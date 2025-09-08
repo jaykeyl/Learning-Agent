@@ -9,6 +9,7 @@ import { ExamsModule } from './modules/exams/exams.module';
 import { AiConfigService } from './core/ai/ai.config';
 import { InterviewModule } from './modules/interviewChat/interview.module';
 import { ReinforcementModule } from './modules/reinforcement/reinforcement.module';
+import { TestChatModule } from './modules/testChat/test.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ReinforcementModule } from './modules/reinforcement/reinforcement.modul
     DocumentsModule,
     InterviewModule,
     ReinforcementModule,
+    TestChatModule,
   ],
   controllers: [],
   providers: [AiConfigService],
