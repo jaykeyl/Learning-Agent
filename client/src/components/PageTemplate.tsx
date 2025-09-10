@@ -78,7 +78,10 @@ export default function PageTemplate({
         </div>
       </header>
 
-      <main className="flex-1 overflow-auto px-4 md:px-0">{children}</main>
+      
+      <main className="flex-1 min-h-0 overflow-auto pantalla-scroll px-4 md:px-0">
+         {children}
+      </main>
     </div>
   );
 }

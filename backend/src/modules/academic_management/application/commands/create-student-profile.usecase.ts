@@ -1,49 +1,64 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { USER_REPO } from '../../tokens';
-import { STUDENT_REPO } from '../../tokens';
-import type { UserRepositoryPort } from '../../domain/ports/user.repository.ports';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { USER_REPO, STUDENT_REPO, ROLE_REPO, HASHER } from '../../tokens';
 import type { StudentRepositoryPort } from '../../domain/ports/student.repository.ports';
-import { Student } from '../../domain/entities/student.entity'
-import { CreateStudentUseCase } from './create-student.usecase'
-import { CreateUserUseCase } from './create-user.usecase'
-// import { email } from 'zod';
+import type { UserRepositoryPort } from 'src/modules/identity/domain/ports/user.repository.port';
+import type { RoleRepositoryPort } from 'src/modules/rbac/domain/ports/role.repository.port';
+import { BcryptHasher } from '../../../identity/infrastructure/crypto/bcrypt.hasher';
+import { InternalServerError } from '../../../../shared/handler/errors';
+import { Student } from '../../domain/entities/student.entity';
+
 @Injectable()
 export class CreateStudentProfileUseCase {
+  private readonly logger = new Logger(CreateStudentProfileUseCase.name)
+  private readonly studentRoleName = 'estudiante'
+
   constructor(
     @Inject(USER_REPO) private readonly userRepo: UserRepositoryPort,
     @Inject(STUDENT_REPO) private readonly studentRepo: StudentRepositoryPort,
+    @Inject(ROLE_REPO) private readonly roleRepo: RoleRepositoryPort,
+    @Inject(HASHER) private readonly hasher: BcryptHasher,
   ) { }
-  async execute(input: {
-    name: string,
-    lastname: string,
-    email: string,
-    password: string,
-    isActive?: boolean,
-    code: string,
-    career?: string,
-    admissionYear?: number
-  }): Promise<Student> {
-    const existingStudent = await this.studentRepo.findByCode(input.code);
-    if (existingStudent) {
-      return existingStudent;
+
+  async execute(input: { studentName: string, studentLastname: string, studentCode: string }): Promise<Student> {
+    const studentRole = await this.roleRepo.findByName(this.studentRoleName)
+    const studentRoleId = studentRole?.id
+    if (!studentRole || !studentRoleId) {
+      this.logger.error(`Error fetching RoleId by name ${this.studentRoleName}`)
+      throw new InternalServerError("Ha ocurrido un error intentando crear un nuevo perfil para el estudiante");
     }
-    let user = await this.userRepo.findByEmail(input.email);
-    if (!user) {
-      user = await this.userRepo.create(
-        input.name,
-        input.lastname,
-        input.email,
-        input.password,
-        input.isActive ?? true
-      );
-    }
-    const newStudent = await this.studentRepo.create(
-      user.id,
-      input.code,
-      input.career,
-      input.admissionYear
+
+    const password = `${this.fixedString(input.studentLastname + input.studentCode)}UPB2025`
+    const hash = await this.hasher.hash(password)
+
+    const email = `${this.fixedString(input.studentName + input.studentLastname + input.studentCode)}@upb.edu`
+
+    const newUser = await this.userRepo.create(
+      input.studentName,
+      input.studentLastname,
+      email,
+      hash,
+      true,
+      studentRoleId
     );
 
+    if (!newUser) {
+      this.logger.error("Error creating new user")
+      throw new InternalServerError("Ha ocurrido un error intentando crear un nuevo perfil para el estudiante.");
+    }
+
+    const newStudent = await this.studentRepo.create(
+      newUser.id, 
+      input.studentCode
+    );
+
+    if (!newStudent) {
+      this.logger.error("Error creating new student")
+      throw new InternalServerError("Ha ocurrido un error creando la cuenta del estudiante");
+    }
     return newStudent;
+  }
+
+  fixedString(s: string): string {
+    return s.trim().toLowerCase().replace(/\s+/g, '');
   }
 }

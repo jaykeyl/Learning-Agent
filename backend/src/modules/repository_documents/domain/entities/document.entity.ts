@@ -11,6 +11,7 @@ export class Document {
     public readonly uploadedBy: string,
     public readonly status: DocumentStatus = DocumentStatus.UPLOADED,
     public readonly extractedText?: string,
+    public readonly textHash?: string,
     public readonly pageCount?: number,
     public readonly documentTitle?: string,
     public readonly documentAuthor?: string,
@@ -49,6 +50,7 @@ export class Document {
    */
   withExtractedText(
     extractedText: string,
+    textHash?: string,
     pageCount?: number,
     documentTitle?: string,
     documentAuthor?: string,
@@ -66,6 +68,7 @@ export class Document {
       this.uploadedBy,
       this.status,
       extractedText,
+      textHash,
       pageCount,
       documentTitle,
       documentAuthor,
@@ -91,6 +94,33 @@ export class Document {
       this.uploadedBy,
       status,
       this.extractedText,
+      this.textHash,
+      this.pageCount,
+      this.documentTitle,
+      this.documentAuthor,
+      this.language,
+      this.uploadedAt,
+      new Date(),
+    );
+  }
+
+  /**
+   * Actualiza el hash del texto del documento
+   */
+  withTextHash(textHash: string): Document {
+    return new Document(
+      this.id,
+      this.fileName,
+      this.originalName,
+      this.mimeType,
+      this.size,
+      this.url,
+      this.s3Key,
+      this.fileHash,
+      this.uploadedBy,
+      this.status,
+      this.extractedText,
+      textHash,
       this.pageCount,
       this.documentTitle,
       this.documentAuthor,

@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Table, Button, message, Typography, Empty, Tabs } from "antd";
 import {
   EditOutlined,
@@ -9,7 +9,7 @@ import {
   UserOutlined,
   FolderOutlined,
   BookOutlined,
-  BarChartOutlined
+  BarChartOutlined,
 } from "@ant-design/icons";
 import useClasses from "../../hooks/useClasses";
 import useTeacher from "../../hooks/useTeacher";
@@ -17,10 +17,8 @@ import PageTemplate from "../../components/PageTemplate";
 import { CursosForm } from "../../components/cursosForm";
 import { SafetyModal } from "../../components/safetyModal";
 import { SingleStudentForm } from "../../components/singleStudentForm";
-import { StudentUpload } from "../../components/studentUpload";
 import StudentPreviewModal from "../../components/StudentPreviewModal";
 import type { Clase } from "../../interfaces/claseInterface";
-import type { TeacherInfo } from "../../interfaces/teacherInterface";
 import type {
   createEnrollmentInterface,
   EnrollGroupRow,
@@ -30,26 +28,31 @@ import dayjs from "dayjs";
 import useStudents from "../../hooks/useStudents";
 import { useUserStore } from "../../store/userStore";
 import useCourses from "../../hooks/useCourses";
+import UploadButton from '../../components/shared/UploadButton';
+import { processFile } from "../../utils/enrollGroupByFile";
+import type { StudentInfo } from "../../interfaces/studentInterface";
+import CourseExamsPanel from "../courses/CourseExamsPanel";
 
 const { Text } = Typography;
 const { TabPane } = Tabs;
 
 export function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const user = useUserStore((s) => s.user);
+
   const { fetchClassById, actualClass, updateClass, softDeleteClass } = useClasses();
   const { students, fetchStudentsByClass } = useStudents();
-  const { enrollSingleStudent, enrollGroupStudents } = useEnrollment();
-  const { getCourseByID } = useCourses();
-  const { getTeacherInfoById } = useTeacher();
-  const user = useUserStore((s) => s.user);
+  const { enrollSingleStudent, enrollGroupStudents, softDeleteSingleEnrollment } = useEnrollment();
+  const { actualCourse, getCourseByID } = useCourses();
+  const { teacherInfo, fetchTeacherInfoById } = useTeacher();
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [safetyModalOpen, setSafetyModalOpen] = useState(false);
   const [singleStudentFormOpen, setSingleStudentFormOpen] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
-
-  const [teacherInfo, setTeacherInfo] = useState<TeacherInfo | null>(null);
+  const [safetyModalConfig, setSafetyModalConfig] = useState({ title: "", message: "", onConfirm: () => { } });
 
   const [parsedStudents, setParsedStudents] = useState<
     Array<
@@ -63,84 +66,115 @@ export function CourseDetailPage() {
   const [duplicates, setDuplicates] = useState<string[]>([]);
   const [fileName, setFileName] = useState<string>("archivo.xlsx");
   const [sending, setSending] = useState(false);
-
   const [loading, setLoading] = useState(true);
 
+  const fetchPeriod = async () => {
+    if (!id) return
+
+    const res = await fetchClassById(id);
+    if (res.state == "error") {
+      message.error(res.message)
+    }
+  };
+
+  const fetchCourse = async () => {
+    if (!actualClass?.courseId) return
+
+    const courseID = actualClass.courseId;
+    const res = await getCourseByID(courseID);
+    if (res.state == "error") {
+      message.error(res.message)
+    }
+  };
+
+  const fetchTeacher = async () => {
+    if (!actualCourse?.teacherId) return
+
+    const res = await fetchTeacherInfoById(actualCourse.teacherId);
+    if (res.state == "error") {
+      message.error(res.message)
+    }
+  }
+
+  const fetchStudents = useCallback(async () => {
+    if (!id) return;
+
+    const res = await fetchStudentsByClass(id);
+    if (res.state === "error") {
+      message.error(res.message);
+    }
+  }, [id, fetchStudentsByClass]);
+
+
   useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!id) {
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      try {
-        await fetchClassById(id);
-        await fetchStudentsByClass(id);
-      } catch (error) {
-        message.error("Error al cargar los datos del curso");
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
+    const preparePeriods = async () => {
+      if (!id) return
+      setLoading(true)
+      await fetchPeriod();
+    }
+    preparePeriods();
   }, [id]);
 
   useEffect(() => {
-    const loadTeacherInfo = async () => {
-      if (actualClass?.courseId) {
-        try {
-          const courseID = actualClass.courseId;
-          const courseRes = await getCourseByID(courseID);
-          if (!courseRes.success) return
+    const prepareCourse = async () => {
+      if (!actualClass?.courseId) return
+      await fetchCourse();
+    }
+    prepareCourse();
+  }, [actualClass])
 
-          const teacherId = courseRes.data.teacherId;
-          if (!teacherId) return;
+  useEffect(() => {
+    const prepareTeacher = async () => {
+      if (!actualCourse?.teacherId) return
+      await fetchTeacher();
+      setLoading(false)
+    }
+    prepareTeacher();
+  }, [actualCourse])
 
-          const teacherRes = await getTeacherInfoById(teacherId);
-          if (teacherRes && teacherRes.success) {
-            const teacher = teacherRes.data
-            if (teacher) setTeacherInfo(teacher);
-          }
-        } catch (error) {
-          console.error("Error al obtener información del docente:", error);
-          setTeacherInfo(null);
-        }
-      } else {
-        setTeacherInfo(null);
-      }
-    };
-    loadTeacherInfo();
-  }, [actualClass]);
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
+
 
   const handleEditClass = async (values: Clase) => {
     const data = await updateClass(values);
-    if (data.success) {
+    if (data.state == "success") {
       message.success(data.message)
+    } else if (data.state == "info") {
+      message.info(data.message)
     } else {
-      message.error("Error al actualizar el curso");
-      return
+      message.error(data.message)
     }
 
     setEditModalOpen(false);
-    if (id) await fetchClassById(id);
   };
 
-  const handleDeleteCourse = () => setSafetyModalOpen(true);
+  const handleDeletePeriod = () => {
+    setSafetyModalConfig({
+      title: "¿Eliminar período?",
+      message: `¿Estás seguro de que quieres eliminar el período ${actualClass?.name}? Esta acción no se puede deshacer.`,
+      onConfirm: confirmDeletePeriod,
+    });
+    setSafetyModalOpen(true);
+  };
 
-  const confirmDeleteCourse = async () => {
+  const confirmDeletePeriod = async () => {
     try {
       if (!id) {
         message.error("ID del curso no encontrado");
         return;
       }
       const res = await softDeleteClass(id);
-      if (!res.success) {
-        message.error(res.message);//AQUI
-        return;
+      if (res.state == "error") {
+        message.error(res.message)
+        return
       }
+      if (res.state == "info") {
+        message.info(res.message)
+        return
+      }
+
       message.success(res.message);
       setTimeout(() => {
         if (user?.roles.includes("docente")) {
@@ -161,6 +195,7 @@ export function CourseDetailPage() {
       await enrollSingleStudent(values);
       message.success("Estudiante inscrito correctamente");
       if (id) fetchClassById(id);
+      await fetchStudents();
       setSingleStudentFormOpen(false);
     } catch {
       message.error("Error al inscribir al estudiante");
@@ -193,27 +228,66 @@ export function CourseDetailPage() {
     }));
 
     setSending(true);
-    try {
-      const result = await enrollGroupStudents({
-        classId: id,
-        studentRows: payloadRows,
-      });
-      message.success(
-        `Procesado: ${result.totalRows} · Éxito: ${result.successRows} · Ya inscritos: ${result.existingRows} · Errores: ${result.errorRows}`
-      );
+
+    const result = await enrollGroupStudents({
+      classId: id,
+      studentRows: payloadRows
+    });
+    if (result.state == "success") {
+      console.log(result.data)
+      const totalRows = result.data.totalRows;
+      const successRows = result.data.successRows;
+      const existingRows = result.data.existingRows;
+      const errorRows = result.data.errorRows;
+
+      message.success(`Procesadas ${totalRows} filas`)
+      message.info(`Éxito: ${successRows} · Ya inscritos: ${existingRows} · Errores: ${errorRows}`)
 
       setPreviewModalOpen(false);
       setParsedStudents([]);
       setDuplicates([]);
       fetchClassById(id);
-    } catch (error: any) {
-      message.error(
-        error?.message || "Error al inscribir el grupo de estudiantes"
-      );
-    } finally {
-      setSending(false);
+      await fetchStudents()
+    } else {
+      message.error(result.message);
     }
+
+    setSending(false);
   };
+
+  const handleSingleEnrollmentDeleteWarning = (record: StudentInfo) => {
+    setSafetyModalConfig({
+      title: "¿Eliminar estudiante?",
+      message: `¿Estás seguro que quieres eliminar a ${record.name} ${record.lastname} de este periodo?`,
+      onConfirm: () => handleDeleteSingleEnrollment(record),
+    });
+    setSafetyModalOpen(true);
+  }
+
+  const handleDeleteSingleEnrollment = async (record: StudentInfo) => {
+    if (!id || !record) {
+      message.error("Ha ocurrido un error")
+      setSafetyModalOpen(false);
+      return
+    }
+    const classData = {
+      studentId: record.userId,
+      classId: id
+    }
+    const res = await softDeleteSingleEnrollment(classData)
+    if (res.state == "error") {
+      message.error(res.message)
+      setSafetyModalOpen(false);
+      return
+    }
+    message.success(res.message)
+    await fetchStudents()
+    setSafetyModalOpen(false);
+  }
+
+  const goToExams = () => {
+    navigate(`/exams`)
+  }
 
   const studentsColumns = [
     {
@@ -240,18 +314,29 @@ export function CourseDetailPage() {
     {
       title: "Acciones",
       key: "actions",
-      render: () => (
-        <Button
-          type="primary"
-          size="small"
-          icon={<BarChartOutlined />}
-          onClick={() => {
-            // Sin acción - será implementado por el equipo de Ángela
-            message.info("Funcionalidad en desarrollo");
-          }}
-        >
-          Ver progreso
-        </Button>
+      render: (_: any, record: StudentInfo) => (
+        <div style={{ display: "flex", gap: 8 }}>
+          <Button
+            type="primary"
+            size="small"
+            icon={<BarChartOutlined />}
+            onClick={() => {
+              // Sin acción - será implementado por el equipo de Ángela
+              message.info("Funcionalidad en desarrollo");
+            }}
+          >
+            Ver progreso
+          </Button>
+          <Button
+            danger
+            type="primary"
+            size="small"
+            icon={<DeleteOutlined />}
+            onClick={() => handleSingleEnrollmentDeleteWarning(record)}
+          >
+            Eliminar
+          </Button>
+        </div>
       )
     }
   ];
@@ -296,11 +381,11 @@ export function CourseDetailPage() {
     <PageTemplate
       title={actualClass.name}
       subtitle={dayjs().format("DD [de] MMMM [de] YYYY")}
-      //TODO Hay que cambiar los Breadcrumbs para que se mantengan con el formato del usuario actual (docente o estudiante)
       breadcrumbs={[
         { label: "Home", href: "/" },
-        { label: "Clases", href: "/classes" },
-        { label: actualClass.name, href: `/classes/${actualClass.id}` },
+        { label: "Materias", href: "/courses" },
+        { label: actualCourse?.name || "Materia", href: `/courses/${courseId}/periods` },
+        { label: actualClass.name },
       ]}
       actions={
         <>
@@ -322,7 +407,7 @@ export function CourseDetailPage() {
             danger
             type="primary"
             icon={<DeleteOutlined />}
-            onClick={handleDeleteCourse}
+            onClick={handleDeletePeriod}
           >
             Eliminar Curso
           </Button>
@@ -465,24 +550,43 @@ export function CourseDetailPage() {
                   <div style={{ textAlign: "center", padding: "2rem" }}>
                     <Empty description="No hay estudiantes inscritos en este curso">
                       <div style={{ marginTop: "24px" }}>
-                        <StudentUpload
-                          disabled={false}
-                          onStudentsParsed={(parsed, info) => {
-                            setParsedStudents(parsed);
-                            if (info?.fileName) setFileName(info.fileName);
-
-                            const seen = new Set<string>();
-                            const dupSet = new Set<string>();
-                            for (const s of parsed) {
-                              const k = String(s.codigo || "")
-                                .trim()
-                                .toLowerCase();
-                              if (!k) continue;
-                              if (seen.has(k)) dupSet.add(String(s.codigo));
-                              else seen.add(k);
+                        <UploadButton
+                          buttonConfig={{
+                            variant: 'fill',
+                            className: 'color: white '
+                          }}
+                          onUpload={async (file, onProgress) => {
+                            const students = await processFile(file, onProgress);
+                            return students;
+                          }}
+                          fileConfig={{
+                            accept: ".csv,.xlsx,.xls",
+                            maxSize: 1 * 1024 * 1024,
+                            validationMessage: "Solo se permiten archivos .xlsx o .csv de hasta 1MB"
+                          }}
+                          processingConfig={{
+                            steps: [
+                              { key: 'upload', title: 'Subir archivo', description: 'Subiendo archivo' },
+                              { key: 'parse', title: 'Parsear datos', description: 'Procesando información' },
+                            ],
+                            processingText: "Procesando tabla...",
+                            successText: "Tabla procesada correctamente"
+                          }}
+                          onUploadSuccess={(students) => {
+                            if (Array.isArray(students)) {
+                              setParsedStudents(students);
+                              setFileName("archivo.xlsx");
+                              const seen = new Set<string>();
+                              const dupSet = new Set<string>();
+                              for (const s of students) {
+                                const k = String(s.codigo || "").trim().toLowerCase();
+                                if (!k) continue;
+                                if (seen.has(k)) dupSet.add(String(s.codigo));
+                                else seen.add(k);
+                              }
+                              setDuplicates(Array.from(dupSet));
+                              setPreviewModalOpen(true);
                             }
-                            setDuplicates(Array.from(dupSet));
-                            setPreviewModalOpen(true);
                           }}
                         />
                       </div>
@@ -524,13 +628,7 @@ export function CourseDetailPage() {
               key="exams"
             >
               <div style={{ padding: '32px' }}>
-                <div style={{ textAlign: 'center', padding: '64px 0' }}>
-                  <Empty description="No hay exámenes creados para este curso">
-                    <Text style={{ fontSize: '14px' }}>
-                      Los exámenes creados aparecerán aquí para su gestión
-                    </Text>
-                  </Empty>
-                </div>
+                {courseId && <CourseExamsPanel courseId={courseId} />}
               </div>
             </TabPane>
 
@@ -575,10 +673,10 @@ export function CourseDetailPage() {
 
         <SafetyModal
           open={safetyModalOpen}
-          onCancel={() => setSafetyModalOpen(false)}
-          onConfirm={confirmDeleteCourse}
-          title="¿Eliminar curso?"
-          message={`¿Estás seguro de que quieres eliminar el curso "${actualClass.name}"? Esta acción no se puede deshacer.`}
+          onCancel={() => { setSafetyModalOpen(false); }}
+          onConfirm={safetyModalConfig.onConfirm}
+          title={safetyModalConfig.title}
+          message={safetyModalConfig.message}
           confirmText="Sí, eliminar"
           cancelText="Cancelar"
           danger

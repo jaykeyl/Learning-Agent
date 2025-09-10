@@ -71,13 +71,17 @@ interface DocumentListBackendResponse {
 }
 
 interface UploadBackendResponse {
-  id: string;
-  fileName: string;
-  originalName: string;
-  mimeType: string;
-  size: number;
-  downloadUrl: string;
-  uploadedAt: string;
+  status: 'uploaded' | 'restored' | 'duplicate_found' | 'similar_found';
+  message: string;
+  document?: {
+    id: string;
+    fileName: string;
+    originalName: string;
+    mimeType: string;
+    size: number;
+    downloadUrl: string;
+    uploadedAt: string;
+  };
 }
 
 interface DeleteBackendResponse {
@@ -186,25 +190,37 @@ export const documentService = {
         }
       );
 
+      // Verificar que el documento existe en la respuesta
+      if (!response.data.document) {
+        throw new Error('El servidor no devolvió información del documento');
+      }
+
       // Mapear respuesta del backend a nuestra interfaz
       const document: Document = {
-        id: response.data.id,
-        fileName: response.data.fileName,
-        originalName: response.data.originalName,
-        mimeType: response.data.mimeType,
-        size: response.data.size,
-        downloadUrl: response.data.downloadUrl,
-        uploadedAt: response.data.uploadedAt,
+        id: response.data.document.id,
+        fileName: response.data.document.fileName,
+        originalName: response.data.document.originalName,
+        mimeType: response.data.document.mimeType,
+        size: response.data.document.size,
+        downloadUrl: response.data.document.downloadUrl,
+        uploadedAt: response.data.document.uploadedAt,
       };
 
       return {
         success: true,
         data: document,
+        status: response.data.status, // Agregar el status del backend
       };
     } catch (error: unknown) {
       console.error('Error uploading document:', error);
       
       const httpError = error as HttpError;
+      
+      // Manejar errores específicos de duplicados (409)
+      if (httpError.response?.status === 409) {
+        const errorData = httpError.response.data as { message?: string };
+        throw new Error(errorData?.message || 'Documento duplicado detectado');
+      }
       
       // Manejar errores específicos de autenticación
       if (httpError.response?.status === 401) {

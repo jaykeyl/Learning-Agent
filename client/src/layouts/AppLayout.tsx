@@ -10,6 +10,8 @@ import {
   FileAddOutlined,
   CloudUploadOutlined,
   SolutionOutlined,
+  MenuFoldOutlined,
+  MenuOutlined,
 } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -26,9 +28,9 @@ function buildNavItems(roles: string[] | undefined): NavItem[] {
   const common: NavItem[] = [
     { key: "/", icon: <HomeOutlined />, label: <Link to="/">Home</Link> },
     {
-      key: "/upload-pdf",
+      key: "/document",
       icon: <CloudUploadOutlined />,
-      label: <Link to="/upload-pdf">Documentos</Link>,
+      label: <Link to="/document">Documentos</Link>,
     },
     {
       key: "/settings",
@@ -37,10 +39,10 @@ function buildNavItems(roles: string[] | undefined): NavItem[] {
     },
   ];
 
-  const isTeacher = roles?.includes("docente");
+  const isProfessor = roles?.includes("docente");
   const isStudent = roles?.includes("estudiante");
 
-  const teacherOnly: NavItem[] = [
+  const professorOnly: NavItem[] = [
     {
       key: "/courses",
       icon: <SolutionOutlined />,
@@ -63,14 +65,20 @@ function buildNavItems(roles: string[] | undefined): NavItem[] {
 
   return [
     ...common.slice(0, 1),
-    ...(isTeacher ? teacherOnly : []),
+    ...(isProfessor ? professorOnly : []),
     ...(isStudent ? studentOnly : []),
     ...common.slice(1),
   ];
 }
 
 export default function AppLayout() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("siderCollapsed") === "1";
+    } catch {
+      return false;
+    }
+  });
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { theme, setTheme } = useThemeStore();
@@ -87,6 +95,10 @@ export default function AppLayout() {
     media.addEventListener("change", listener);
     return () => media.removeEventListener("change", listener);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("siderCollapsed", collapsed ? "1" : "0");
+  }, [collapsed]);
 
   const currentTheme: SiderTheme = useMemo(
     () =>
@@ -116,43 +128,54 @@ export default function AppLayout() {
       >
         <div className="h-full ">
           <div className="h-full w-full pb-2 bg-[var(--app-colorBgContainer)] shadow-sm ring-1 ring-[var(--app-colorBorder)] flex flex-col overflow-hidden">
-            <div className="px-5 pt-5 pb-4">
-              <div className="text-xl font-semibold tracking-tight">
-                LEARNING ISC
-              </div>
+            <div
+              className={
+                `px-3 pt-5 pb-4 flex items-center gap-2 ` +
+                (collapsed ? "justify-center" : "justify-between")
+              }
+            >
+              {!collapsed && (
+                <div className="text-xl font-semibold tracking-tight truncate px-2">
+                  LEARNING ISC
+                </div>
+              )}
+              <button
+                onClick={() => setCollapsed((c) => !c)}
+                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                className={
+                  (collapsed ? "p-3" : "p-2") +
+                  " rounded-lg hover:bg-[var(--app-colorBgElevated)]"
+                }
+              >
+                {collapsed ? (
+                  <MenuOutlined style={{ fontSize: 24 }} />
+                ) : (
+                  <MenuFoldOutlined />
+                )}
+              </button>
             </div>
 
-            {/* <ConfigProvider
-              theme={{
-                components: {
-                  Menu: {
-                    itemBorderRadius: 12,
-                    itemHeight: 44,
-                    itemPaddingInline: 12,
-                    itemSelectedBg: "#B2B0E8",
-                    itemSelectedColor: "#0f172a",
-                    itemHoverBg: "rgba(15, 23, 42, 0.04)",
-                    activeBarWidth: 0,
-                  },
-                },
+            <Menu
+              mode="inline"
+              selectedKeys={[selectedKey]}
+              items={navItems}
+              className="px-3"
+              style={{
+                borderInlineEnd: 0,
+                flex: 1,
+                overflowY: "auto",
               }}
-            > */}
-              <Menu
-                mode="inline"
-                selectedKeys={[selectedKey]}
-                items={navItems}
-                className="px-3"
-                style={{
-                  borderInlineEnd: 0,
-                  flex: 1,
-                  overflowY: "auto",
-                }}
-              />
-            {/* </ConfigProvider> */}
+            />
 
             <div className="px-5 pt-6 pb-2 mt-auto mb-2">
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center gap-3">
+                <div
+                  className={
+                    collapsed
+                      ? "flex flex-col items-center gap-3"
+                      : "flex items-center gap-3"
+                  }
+                >
                   <button
                     onClick={() =>
                       setTheme(theme === "light" ? "dark" : "light")
@@ -168,24 +191,48 @@ export default function AppLayout() {
                     className="ring-2 ring-white shadow"
                   />
                 </div>
-                <div className="mt-3 font-semibold">{user?.name ?? ""} {user?.lastname ?? ""}</div>
-                <div className="text-xs text-slate-500">
-                  {user?.roles?.includes("docente") ? "Docente" : user?.roles?.includes("estudiante") ? "Estudiante" : ""}
-                </div>
+                {!collapsed && (
+                  <>
+                    <div className="mt-3 font-semibold">
+                      {user?.name ?? ""} {user?.lastname ?? ""}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {user?.roles?.includes("docente")
+                        ? "Docente"
+                        : user?.roles?.includes("estudiante")
+                        ? "Estudiante"
+                        : ""}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-
-            <button
-              onClick={async () => {
-                await logout();
-                setUser(null);
-                navigate("/login", { replace: true });
-              }}
-              className="mx-auto mb-5 my-5 py-5 flex items-center justify-center gap-3 h-10 px-4 rounded-xl text-[var(--app-colorText)] hover:bg-[var(--app-colorBgElevated)]"
-            >
-              <LogoutOutlined />
-              <span className="text-sm">Log Out</span>
-            </button>
+            {collapsed ? (
+              <button
+                onClick={async () => {
+                  await logout();
+                  setUser(null);
+                  navigate("/login", { replace: true });
+                }}
+                aria-label="Log out"
+                title="Log out"
+                className="self-center mb-5 my-5 h-10 w-10 flex items-center justify-center rounded-full text-[var(--app-colorText)] hover:bg-[var(--app-colorBgElevated)]"
+              >
+                <LogoutOutlined />
+              </button>
+            ) : (
+              <button
+                onClick={async () => {
+                  await logout();
+                  setUser(null);
+                  navigate("/login", { replace: true });
+                }}
+                className="self-center mb-5 my-5 py-5 flex items-center justify-center gap-3 h-10 px-4 rounded-xl text-[var(--app-colorText)] hover:bg-[var(--app-colorBgElevated)]"
+              >
+                <LogoutOutlined />
+                <span className="text-sm">Log Out</span>
+              </button>
+            )}
           </div>
         </div>
       </Sider>

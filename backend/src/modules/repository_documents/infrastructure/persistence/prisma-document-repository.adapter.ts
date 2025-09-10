@@ -14,8 +14,27 @@ export class PrismaDocumentRepositoryAdapter implements DocumentRepositoryPort {
 
   async save(document: Document): Promise<Document> {
     try {
-      const savedDocument = await this.prisma.document.create({
-        data: {
+      // Usar upsert para manejar casos donde el documento pueda existir
+      const savedDocument = await this.prisma.document.upsert({
+        where: { id: document.id },
+        update: {
+          originalName: document.originalName,
+          storedName: document.fileName,
+          s3Key: document.s3Key,
+          size: document.size,
+          contentType: document.mimeType,
+          fileHash: document.fileHash,
+          textHash: document.textHash,
+          extractedText: document.extractedText,
+          status: document.status as any,
+          uploadedBy: document.uploadedBy,
+          pageCount: document.pageCount,
+          documentTitle: document.documentTitle,
+          documentAuthor: document.documentAuthor,
+          language: document.language,
+          updatedAt: new Date(),
+        },
+        create: {
           id: document.id,
           originalName: document.originalName,
           storedName: document.fileName,
@@ -23,6 +42,7 @@ export class PrismaDocumentRepositoryAdapter implements DocumentRepositoryPort {
           size: document.size,
           contentType: document.mimeType,
           fileHash: document.fileHash,
+          textHash: document.textHash,
           extractedText: document.extractedText,
           status: document.status as any,
           uploadedBy: document.uploadedBy,
@@ -57,8 +77,11 @@ export class PrismaDocumentRepositoryAdapter implements DocumentRepositoryPort {
 
   async findByFileHash(fileHash: string): Promise<Document | undefined> {
     try {
-      const document = await this.prisma.document.findUnique({
-        where: { fileHash },
+      const document = await this.prisma.document.findFirst({
+        where: {
+          fileHash,
+          status: { not: 'DELETED' }, // excluir documentos eliminados
+        },
       });
 
       return document ? this.mapToDomain(document) : undefined;
@@ -67,6 +90,24 @@ export class PrismaDocumentRepositoryAdapter implements DocumentRepositoryPort {
         `Error finding document by hash ${fileHash}: ${error.message}`,
       );
       throw new Error(`Failed to find document by hash: ${error.message}`);
+    }
+  }
+
+  async findByTextHash(textHash: string): Promise<Document | undefined> {
+    try {
+      const document = await this.prisma.document.findFirst({
+        where: {
+          textHash,
+          status: { not: 'DELETED' }, // excluir documentos eliminados
+        },
+      });
+
+      return document ? this.mapToDomain(document) : undefined;
+    } catch (error) {
+      this.logger.error(
+        `Error finding document by text hash ${textHash}: ${error.message}`,
+      );
+      throw new Error(`Failed to find document by text hash: ${error.message}`);
     }
   }
 
@@ -249,7 +290,95 @@ export class PrismaDocumentRepositoryAdapter implements DocumentRepositoryPort {
       prismaDocument.language,
       prismaDocument.uploadedAt,
       prismaDocument.updatedAt,
+      prismaDocument.textHash,
     );
+  }
+
+  async findByCourseId(
+    courseId: string,
+    offset: number = 0,
+    limit: number = 10,
+    tipo?: string,
+  ): Promise<Document[]> {
+    try {
+      const where: any = {
+        courseId,
+        status: {
+          not: 'DELETED' as any,
+        },
+      };
+
+      // Filtrar por tipo si se proporciona
+      if (tipo) {
+        where.contentType = {
+          contains: tipo,
+          mode: 'insensitive',
+        };
+      }
+
+      const documents = await this.prisma.document.findMany({
+        where,
+        skip: offset,
+        take: limit,
+        orderBy: { uploadedAt: 'desc' },
+      });
+
+      return documents.map((doc) => this.mapToDomain(doc));
+    } catch (error) {
+      this.logger.error(
+        `Error finding documents by courseId ${courseId}: ${error.message}`,
+      );
+      throw new Error(`Failed to find documents by courseId: ${error.message}`);
+    }
+  }
+
+  async countByCourseId(courseId: string, tipo?: string): Promise<number> {
+    try {
+      const where: any = {
+        courseId,
+        status: {
+          not: 'DELETED' as any,
+        },
+      };
+
+      // Filtrar por tipo si se proporciona
+      if (tipo) {
+        where.contentType = {
+          contains: tipo,
+          mode: 'insensitive',
+        };
+      }
+
+      return await this.prisma.document.count({
+        where,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Error counting documents by courseId ${courseId}: ${error.message}`,
+      );
+      throw new Error(`Failed to count documents by courseId: ${error.message}`);
+    }
+  }
+
+  async associateWithCourse(
+    documentId: string,
+    courseId: string,
+  ): Promise<Document | undefined> {
+    try {
+      const updatedDocument = await this.prisma.document.update({
+        where: { id: documentId },
+        data: { courseId },
+      });
+
+      return this.mapToDomain(updatedDocument);
+    } catch (error) {
+      this.logger.error(
+        `Error associating document ${documentId} with course ${courseId}: ${error.message}`,
+      );
+      throw new Error(
+        `Failed to associate document with course: ${error.message}`,
+      );
+    }
   }
 
   /**

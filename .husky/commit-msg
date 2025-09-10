@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+set -e
+
+commit_msg_file="$1"
+msg=$(cat "$commit_msg_file")
+
+# Conventional Commits pattern
+pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9_.-]+\))?(!)?:\s.{1,}'
+
+if echo "$msg" | grep -Eq "$pattern"; then
+  echo "✔ Commit message valid"
+  exit 0
+else
+  echo "✖ Invalid commit message. Use Conventional Commits, e.g.:"
+  echo "  feat(login): add remember me option"
+  echo "  fix(api)!: handle token refresh on 401"
+  echo "  chore: update dependencies"
+  exit 1
+fi
+

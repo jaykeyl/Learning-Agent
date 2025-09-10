@@ -1,10 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import type { DocumentStoragePort } from '../../domain/ports/document-storage.port';
+import type { DocumentRepositoryPort } from '../../domain/ports/document-repository.port';
 import { DocumentListResponse } from '../../domain/value-objects/upload-document.vo';
+import { DocumentListItem } from '../../domain/entities/document-list-item';
 
 @Injectable()
 export class ListDocumentsUseCase {
-  constructor(private readonly documentStorage: DocumentStoragePort) {}
+  constructor(
+    private readonly documentStorage: DocumentStoragePort,
+    private readonly documentRepository: DocumentRepositoryPort,
+  ) {}
 
   /**
    * Ejecuta el caso de uso para listar documentos
@@ -12,13 +17,43 @@ export class ListDocumentsUseCase {
    */
   async execute(): Promise<DocumentListResponse> {
     try {
-      const allDocuments = await this.documentStorage.listDocuments();
+      // Obtener documentos de la base de datos
+      const dbDocuments = await this.documentRepository.findAll();
 
-      const activeDocuments = allDocuments.filter(
-        (doc) => !doc.fileName.startsWith('deleted/'),
-      );
+      // Crear DocumentListItem con datos correctos
+      const documents: DocumentListItem[] = [];
 
-      return new DocumentListResponse(activeDocuments, activeDocuments.length);
+      for (const doc of dbDocuments) {
+        try {
+          // Verificar que el archivo existe en el storage
+          const exists = await this.documentStorage.documentExists(
+            doc.fileName,
+          );
+          if (!exists) continue;
+
+          // Generar URL de descarga
+          const downloadUrl = await this.documentStorage.generateDownloadUrl(
+            doc.fileName,
+          );
+
+          documents.push(
+            new DocumentListItem(
+              doc.id, // ID real del documento
+              doc.fileName,
+              doc.originalName,
+              doc.mimeType,
+              doc.size,
+              downloadUrl,
+              doc.uploadedAt,
+            ),
+          );
+        } catch (error) {
+          console.error(`Error processing document ${doc.id}:`, error);
+          // Continuar con el siguiente documento
+        }
+      }
+
+      return new DocumentListResponse(documents, documents.length);
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);

@@ -23,6 +23,13 @@ export interface DocumentRepositoryPort {
   findByFileHash(fileHash: string): Promise<Document | undefined>;
 
   /**
+   * Busca un documento por su hash de texto normalizado
+   * @param textHash Hash SHA-256 del texto normalizado
+   * @returns Documento encontrado o undefined
+   */
+  findByTextHash(textHash: string): Promise<Document | undefined>;
+
+  /**
    * Busca un documento por clave S3
    * @param s3Key Clave del archivo en S3
    * @returns Documento encontrado o undefined
@@ -100,4 +107,38 @@ export interface DocumentRepositoryPort {
    * @returns Número de documentos con el estado especificado
    */
   countByStatus(status: DocumentStatus): Promise<number>;
+
+  /**
+   * Lista documentos por curso/materia con paginación
+   * @param courseId ID del curso/materia
+   * @param offset Número de registros a saltar
+   * @param limit Número máximo de registros a retornar
+   * @param tipo Filtro opcional por tipo de archivo
+   * @returns Lista de documentos del curso
+   */
+  findByCourseId(
+    courseId: string,
+    offset?: number,
+    limit?: number,
+    tipo?: string,
+  ): Promise<Document[]>;
+
+  /**
+   * Cuenta documentos por curso/materia
+   * @param courseId ID del curso/materia
+   * @param tipo Filtro opcional por tipo de archivo
+   * @returns Número de documentos del curso
+   */
+  countByCourseId(courseId: string, tipo?: string): Promise<number>;
+
+  /**
+   * Asocia un documento con un curso/materia
+   * @param documentId ID del documento
+   * @param courseId ID del curso/materia
+   * @returns Documento actualizado o undefined si no existe
+   */
+  associateWithCourse(
+    documentId: string,
+    courseId: string,
+  ): Promise<Document | undefined>;
 }

@@ -7,8 +7,10 @@
     "dev": "vite",
     "json-server": "json-server --watch db-docs.json --port 3001",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "lint": "eslint . --max-warnings=0",
+    "lint-staged": "lint-staged",
+    "preview": "vite preview",
+    "test": "jest --watchAll"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
@@ -38,6 +40,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.2.0",
+    "lint-staged": "^16.1.6",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.34.1",
     "vite": "^6.0.0"

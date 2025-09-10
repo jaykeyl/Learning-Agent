@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - qa
+  push:
+    branches:
+      - main
+      - qa
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Clonar repo
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Configurar Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      # 3. Instalar dependencias raíz
+      - name: Install dependencies (root)
+        run: npm install
+
+      # 4. Instalar dependencias del backend
+      - name: Install dependencies (backend)
+        run: npm --prefix backend install
+
+      # 5. Validar ESLint
+      - name: Run ESLint
+        run: npm run lint
+
+      # 6. Validar mensajes de commit (solo en PR)
+      - name: Commitlint
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "${{ github.event.pull_request.title }}" | npx commitlint
+
+      # 7. Ejecutar pruebas unitarias del backend
+      - name: Run tests (backend)
+        run: npm --prefix backend run test -- --passWithNoTests

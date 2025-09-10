@@ -1,22 +1,19 @@
 .ai-results {
-  /* Usamos la base de develop pero sin limitar altura para permitir DnD */
+
   padding: 12px;
   background: var(--app-color-bg-container);
   border: 1px solid var(--app-color-border);
   max-height: none;
-  overflow: visible;
   position: relative;
   z-index: 2;
 }
 
-/* Cabecera de pregunta (de fix) */
 .question-header {
   min-height: 60px;
   padding: 12px;
   background: #fafbfc;
 }
 
-/* Tarjeta sutil (develop) */
 .card.subtle {
   background: inherit !important;
   color: inherit !important;
@@ -26,55 +23,57 @@
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* Card-like para el contenedor principal (develop) */
 .ai-results.card-like {
   background: inherit !important;
   color: inherit !important;
   border: 1px solid var(--app-color-border-secondary);
   border-radius: 12px;
-  padding: 16px;
+  padding: 30px;
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* Preferencias de color: Light */
-@media (prefers-color-scheme: light) {
-  .card.subtle {
-    background: #fff;
-    color: #0f172a;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-  }
-
-  .ai-results.card-like {
-    background: #fff !important;
-    color: #0f172a !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-  }
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
-/* Preferencias de color: Dark */
-@media (prefers-color-scheme: dark) {
-  .question-header {
-    background: #1f1f1f;
-  }
+.readable-card {
+  width: min(100%, 960px);
+  margin: 0 auto;
+  padding: clamp(12px, 2vw, 20px);
 
-  .card.subtle {
-    background: inherit !important;
-    color: inherit !important;
-    border-color: var(--app-color-border-secondary);
-    box-shadow: none;
-  }
+  font-size: clamp(14px, 0.35vw + 12px, 16px);
+  line-height: 1.45;
 
-  .ai-results.card-like {
-    background: var(--app-color-bg-container) !important;
-    color: var(--app-color-text, #e0e0e0) !important;
-    border-color: var(--app-color-border-secondary);
-    box-shadow: none;
-  }
+  min-height: 520px;   
+}
 
-  .ai-results.card-like .ant-typography,
-  .ai-results.card-like label,
-  .ai-results.card-like span,
-  .ai-results.card-like p {
-    color: var(--app-color-text, #e0e0e0) !important;
-  }
+@media (min-width: 1600px) {
+  .readable-card { font-size: 17px; }
+}
+@media (min-width: 2000px) {
+  .readable-card { font-size: 18px; }
+}
+
+@media (max-width: 360px) {
+  .readable-card { font-size: 15px; }
+}
+
+.readable-card .form-grid input,
+.readable-card .form-grid select,
+.readable-card .form-grid textarea {
+  font-size: 1em;
+  line-height: 1.4;
+  min-height: 38px;
+}
+
+
+.readable-card label,
+.readable-card small,
+.readable-card .help {
+  font-size: 0.95em;
+}
+
+.readable-card .steps-container .step-item-center {
+  font-size: clamp(0.95em, 0.6vw + 0.6em, 1.05em);
 }

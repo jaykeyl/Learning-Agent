@@ -47,6 +47,17 @@ export class S3StorageAdapter implements DocumentStoragePort {
    */
   async uploadDocument(req: UploadDocumentRequest): Promise<Document> {
     try {
+      console.log(' MinIO Config:', {
+        endpoint: this.endpoint,
+        bucketName: this.bucketName,
+        region: minioConfig.region,
+      });
+      console.log(' Upload Request:', {
+        originalName: req.originalName,
+        mimeType: req.mimeType,
+        size: req.size,
+      });
+      
       // Generar nombre único para el archivo
       const fileName = this.generateFileName(req.originalName);
 
@@ -80,8 +91,8 @@ export class S3StorageAdapter implements DocumentStoragePort {
       );
 
       return document;
-    } catch {
-      throw new Error('Error uploading document to MinIO');
+    } catch (error) {
+      throw new Error(`Error uploading document to MinIO: ${error.message || error}`);
     }
   }
 
@@ -103,8 +114,8 @@ export class S3StorageAdapter implements DocumentStoragePort {
       });
 
       return signedUrl;
-    } catch {
-      throw new Error('Error generating download URL');
+    } catch (error) {
+      throw new Error(`Error generating download URL: ${error.message || error}`);
     }
   }
 
@@ -151,6 +162,7 @@ export class S3StorageAdapter implements DocumentStoragePort {
 
           documents.push(
             new DocumentListItem(
+              object.Key, // Usar el fileName como id temporalmente
               object.Key,
               originalName,
               metadata.ContentType || 'application/pdf',
@@ -173,7 +185,7 @@ export class S3StorageAdapter implements DocumentStoragePort {
   /**
    * Genera un nombre único para el archivo combinando timestamp, UUID y nombre original
    * @param originalFileName - Nombre original del archivo
-   * @returns Nombre único para MinIO con formato: documents/timestamp_uuid_nombreOriginal.pdf
+   * @returns Nombre único para MinIO con formato: timestamp_uuid_nombreOriginal.pdf
    */
   private generateFileName(originalFileName: string): string {
     const timestamp = Date.now();
@@ -188,15 +200,15 @@ export class S3StorageAdapter implements DocumentStoragePort {
       .replace(/[^a-zA-Z0-9.-]/g, '_') // Reemplazar caracteres especiales
       .substring(0, 50); // Limitar longitud
 
-    // Generar nombre único: timestamp_uuid_nombreOriginal.extension
+    // Generar nombre único: timestamp_uuid_nombreOriginal.extension (SIN carpeta)
     const uniqueFileName = `${timestamp}_${uniqueId}_${baseName}.${extension}`;
 
-    return `documents/${uniqueFileName}`;
+    return uniqueFileName; // Directamente en el bucket root
   }
 
   /**
    * Extrae información del nombre de archivo generado
-   * @param fileName - Nombre del archivo generado (ej: documents/1234567890_uuid_documento.pdf)
+   * @param fileName - Nombre del archivo generado (ej: 1234567890_uuid_documento.pdf)
    * @returns Objeto con timestamp, uuid, nombre original y extensión
    */
   private parseFileName(fileName: string): {
@@ -206,10 +218,8 @@ export class S3StorageAdapter implements DocumentStoragePort {
     extension: string;
   } | null {
     try {
-      const baseFileName = fileName.replace('documents/', '');
-
-      // Buscar el patrón: timestamp_uuid_nombreOriginal.extension
-      const match = baseFileName.match(/^(\d+)_([a-f0-9-]+)_(.+)\.([^.]+)$/);
+      // Sin carpeta documents/, buscar directamente el patrón
+      const match = fileName.match(/^(\d+)_([a-f0-9-]+)_(.+)\.([^.]+)$/);
 
       if (!match) {
         return null;
@@ -342,6 +352,55 @@ export class S3StorageAdapter implements DocumentStoragePort {
       });
     } catch (error) {
       throw new Error(`Error downloading file from MinIO: ${error.message}`);
+    }
+  }
+
+  /**
+   * verifica si un archivo existe en el storage
+   * @param s3Key clave s3 del archivo
+   * @returns true si el archivo existe
+   */
+  async exists(s3Key: string): Promise<boolean> {
+    try {
+      const headCommand = new HeadObjectCommand({
+        Bucket: this.bucketName,
+        Key: s3Key,
+      });
+
+      await this.s3Client.send(headCommand);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * mueve un archivo de una ubicación a otra en el storage
+   * @param sourceKey clave s3 de origen
+   * @param destinationKey clave s3 de destino
+   */
+  async moveFile(sourceKey: string, destinationKey: string): Promise<void> {
+    try {
+      // copiar archivo a la nueva ubicación
+      const copyCommand = new CopyObjectCommand({
+        Bucket: this.bucketName,
+        CopySource: `${this.bucketName}/${sourceKey}`,
+        Key: destinationKey,
+      });
+
+      await this.s3Client.send(copyCommand);
+
+      // eliminar archivo original
+      const deleteCommand = new DeleteObjectCommand({
+        Bucket: this.bucketName,
+        Key: sourceKey,
+      });
+
+      await this.s3Client.send(deleteCommand);
+    } catch (error) {
+      throw new Error(
+        `error moviendo archivo de ${sourceKey} a ${destinationKey}: ${error.message}`,
+      );
     }
   }
 }

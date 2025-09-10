@@ -15,6 +15,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
+import { ContextualLoggerService } from '../services/contextual-logger.service';
 import { GenerateDocumentEmbeddingsUseCase } from '../../application/use-cases/generate-document-embeddings.use-case';
 import { SearchDocumentsUseCase } from '../../application/use-cases/search-documents.use-case';
 
@@ -87,6 +88,7 @@ export class EmbeddingsController {
   constructor(
     private readonly generateEmbeddingsUseCase: GenerateDocumentEmbeddingsUseCase,
     private readonly searchDocumentsUseCase: SearchDocumentsUseCase,
+    private readonly contextualLogger: ContextualLoggerService,
   ) {}
 
   /**
@@ -176,7 +178,7 @@ export class EmbeddingsController {
   ) {
     try {
       this.logger.log(
-        `🚀 Iniciando generación de embeddings para documento: ${documentId}`,
+        ` Iniciando generación de embeddings para documento: ${documentId}`,
       );
       const startTime = Date.now();
 
@@ -189,7 +191,7 @@ export class EmbeddingsController {
       const processingTime = Date.now() - startTime;
 
       if (!result.success) {
-        this.logger.error(`❌ Error generando embeddings: ${result.error}`);
+        this.logger.error(`Error generando embeddings: ${result.error}`);
         throw new HttpException(
           {
             message: result.error,
@@ -201,7 +203,7 @@ export class EmbeddingsController {
       }
 
       this.logger.log(
-        `✅ Embeddings generados exitosamente para ${documentId} en ${processingTime}ms`,
+        `Embeddings generados exitosamente para ${documentId} en ${processingTime}ms`,
       );
 
       return {
@@ -213,7 +215,7 @@ export class EmbeddingsController {
         },
       };
     } catch (error) {
-      this.logger.error(`❌ Error en controlador de embeddings:`, error);
+      this.logger.error(`Error en controlador de embeddings:`, error);
 
       if (error instanceof HttpException) {
         throw error;
@@ -255,7 +257,7 @@ export class EmbeddingsController {
           query: 'algoritmos de machine learning',
           searchOptions: {
             limit: 15,
-            similarityThreshold: 0.8,
+            similarityThreshold: 0.6,
             chunkTypes: ['paragraph'],
           },
           includeMetadata: true,
@@ -311,14 +313,14 @@ export class EmbeddingsController {
   async searchDocuments(@Body() dto: SemanticSearchDto) {
     try {
       // Debug: Ver qué está llegando
-      this.logger.log(`📨 DTO recibido:`, JSON.stringify(dto, null, 2));
-      this.logger.log(`📊 Tipo de dto:`, typeof dto);
-      this.logger.log(`📊 Tipo de query:`, typeof dto?.query);
-      this.logger.log(`📊 Query value:`, dto?.query);
+      this.logger.log(` DTO recibido:`, JSON.stringify(dto, null, 2));
+      this.logger.log(` Tipo de dto:`, typeof dto);
+      this.logger.log(` Tipo de query:`, typeof dto?.query);
+      this.logger.log(` Query value:`, dto?.query);
 
       // Validación adicional de entrada
       if (!dto || !dto.query || typeof dto.query !== 'string') {
-        this.logger.error(`❌ Validación fallida:`, {
+        this.logger.error(`Validación fallida:`, {
           dto: !!dto,
           query: dto?.query,
           queryType: typeof dto?.query,
@@ -338,7 +340,7 @@ export class EmbeddingsController {
         );
       }
 
-      this.logger.log(`🔍 Iniciando búsqueda semántica: "${dto.query}"`);
+      this.logger.log(`Iniciando búsqueda semántica: "${dto.query}"`);
       const startTime = Date.now();
 
       // Ejecutar caso de uso
@@ -347,7 +349,7 @@ export class EmbeddingsController {
       const processingTime = Date.now() - startTime;
 
       if (!result.success) {
-        this.logger.error(`❌ Error en búsqueda semántica: ${result.error}`);
+        this.logger.error(`Error en búsqueda semántica: ${result.error}`);
         throw new HttpException(
           {
             message: result.error,
@@ -359,7 +361,7 @@ export class EmbeddingsController {
       }
 
       this.logger.log(
-        `✅ Búsqueda completada: ${result.result?.totalResults || 0} resultados en ${processingTime}ms`,
+        ` Búsqueda completada: ${result.result?.totalResults || 0} resultados en ${processingTime}ms`,
       );
 
       return {
@@ -374,7 +376,7 @@ export class EmbeddingsController {
         },
       };
     } catch (error) {
-      this.logger.error(`❌ Error en controlador de búsqueda:`, error);
+      this.logger.error(`Error en controlador de búsqueda:`, error);
 
       if (error instanceof HttpException) {
         throw error;

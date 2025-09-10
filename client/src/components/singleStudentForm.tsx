@@ -1,4 +1,4 @@
-import { Modal, Form, Input, Button} from 'antd';
+import { Modal, Form, Input, Button } from 'antd';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 
@@ -9,12 +9,23 @@ interface UploadStudentFormProps {
   onSubmit: (values: { studentName: string; studentLastname: string; studentCode: string }) => void;
 }
 
-export const SingleStudentForm = ({ open, onClose, onSubmit }: UploadStudentFormProps 
+export const SingleStudentForm = ({ open, onClose, onSubmit }: UploadStudentFormProps
 ) => {
   const validationSchema = Yup.object().shape({
-    studentName: Yup.string().required('Nombre requerido'),
-    studentLastname: Yup.string().required('Apellido requerido'),
-    studentCode: Yup.string().required('Código de estudiante requerido')
+    studentName: Yup.string()
+      .required('Nombre requerido')
+      .matches(/^[^!@$%^&*?{}|<>]*$/, "El nombre no puede contener caracteres especiales")
+      .matches(/^[^0-9]*$/, "El nombre no puede contener números")
+      .max(30, "El nombre no puede tener más de 30 caracteres"),
+    studentLastname: Yup.string()
+      .required('Apellido requerido')
+      .matches(/^[^!@$%^&*?{}|<>]*$/, "El apellido no puede contener caracteres especiales")
+      .matches(/^[^0-9]*$/, "El apellido no puede contener números")
+      .max(30, "El apellido no puede tener más de 30 caracteres"),
+    studentCode: Yup.string()
+      .required('Código de estudiante requerido')
+      .matches(/^[^!@$%^&*?{}|<>]*$/, "El código no puede contener caracteres especiales")
+      .max(8, "El código no puede tener más de 8 dígitos")
   });
 
   const formik = useFormik({
@@ -24,6 +35,8 @@ export const SingleStudentForm = ({ open, onClose, onSubmit }: UploadStudentForm
       studentCode: '',
     },
     validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
     onSubmit: (values, { resetForm }) => {
       onSubmit(values);
       resetForm();
@@ -31,35 +44,80 @@ export const SingleStudentForm = ({ open, onClose, onSubmit }: UploadStudentForm
     }
   });
 
+  const handleCancel = () => {
+    formik.resetForm();
+    onClose();
+  }
+
+  const handleSubmit = () => {
+    formik.handleSubmit()
+  }
+
   return (
-    <Modal open={open} onCancel={onClose} onOk={() => {}} footer={null} centered title="Añadir Estudiante">
-      <Form layout="vertical" style={{ display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column'}} onFinish={formik.handleSubmit}>
+    <Modal open={open} onCancel={handleCancel} onOk={() => { }}
+      footer={[
+        <Button key="cancel" danger onClick={handleCancel}>
+          Cancelar
+        </Button>,
+        <Button type="primary" onClick={handleSubmit}>
+          Inscribir estudiante
+        </Button>
+      ]}
+      centered title="Añadir Estudiante">
+      <Form layout="vertical" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
         <Form.Item
-          style={{width:'100%'}}
+          style={{ width: '100%' }}
           label="Nombre"
           validateStatus={formik.errors.studentName && formik.touched.studentName ? 'error' : ''}
           help={formik.touched.studentName && formik.errors.studentName}
         >
-          <Input name="studentName" value={formik.values.studentName} onChange={formik.handleChange} onBlur={formik.handleBlur} />
+          <Input
+            name="studentName"
+            value={formik.values.studentName}
+            onChange={(e) => {
+              formik.handleChange(e);
+              if (!formik.touched.studentName) {
+                formik.setFieldTouched("studentName", true, false);
+              }
+            }}
+            onBlur={formik.handleBlur}
+          />
         </Form.Item>
         <Form.Item
-          style={{width:'100%'}}
+          style={{ width: '100%' }}
           label="Apellido"
           validateStatus={formik.errors.studentLastname && formik.touched.studentLastname ? 'error' : ''}
-          help={formik.touched.studentLastname && formik.errors.studentLastname}>
-            <Input name="studentLastname" value={formik.values.studentLastname} onChange={formik.handleChange} onBlur={formik.handleBlur} />
-          </Form.Item>
+          help={formik.touched.studentLastname && formik.errors.studentLastname}
+        >
+          <Input
+            name="studentLastname"
+            value={formik.values.studentLastname}
+            onChange={(e) => {
+              formik.handleChange(e);
+              if (!formik.touched.studentLastname) {
+                formik.setFieldTouched("studentLastname", true, false);
+              }
+            }}
+            onBlur={formik.handleBlur}
+          />
+        </Form.Item>
         <Form.Item
-            style={{width:'100%'}}
-            label="Código UPB"
-            validateStatus={formik.errors.studentCode && formik.touched.studentCode ? 'error' : ''}
-            help={formik.touched.studentCode && formik.errors.studentCode}>
-            <Input name="studentCode" value={formik.values.studentCode} onChange={formik.handleChange} onBlur={formik.handleBlur} />
-            </Form.Item>
-        <Form.Item style={{width:'70%'}}>
-          <Button type="primary" htmlType="submit" style={{ width: '100%' }}>
-            Guardar
-          </Button>
+          style={{ width: '100%' }}
+          label="Código UPB"
+          validateStatus={formik.errors.studentCode && formik.touched.studentCode ? 'error' : ''}
+          help={formik.touched.studentCode && formik.errors.studentCode}
+        >
+          <Input
+            name="studentCode"
+            value={formik.values.studentCode}
+            onChange={(e) => {
+              formik.handleChange(e);
+              if (!formik.touched.studentCode) {
+                formik.setFieldTouched("studentCode", true, false);
+              }
+            }}
+            onBlur={formik.handleBlur}
+          />
         </Form.Item>
       </Form>
     </Modal>

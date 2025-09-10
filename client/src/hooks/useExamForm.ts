@@ -88,7 +88,7 @@ export function useExamForm() {
 
     if (!isPosInt(values.attempts)) errors.attempts = 'Los intentos no pueden estar vacíos ';
     if (!isPosInt(values.timeMinutes)) {
-      errors.timeMinutes = 'El tiempo debe ser un número';
+      errors.timeMinutes = 'El tiempo no puede estar vacío';
     } else {
       const t = toInt(values.timeMinutes);
       if (t < limits.timeMin) errors.timeMinutes = `Mínimo ${limits.timeMin} minutos.`;
@@ -139,7 +139,7 @@ export function useExamForm() {
     if (name === 'timeMinutes') {
       const n = toInt(value);
       if (!Number.isInteger(n)) {
-        errors.timeMinutes = 'El tiempo debe ser un número';
+        errors.timeMinutes = 'El tiempo no puede estar vacío';
       } else if (n < limits.timeMin) {
         errors.timeMinutes = `Mínimo ${limits.timeMin} minutos.`;
       } else if (n > limits.timeMax) {

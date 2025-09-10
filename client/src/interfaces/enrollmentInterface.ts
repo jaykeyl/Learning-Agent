@@ -27,3 +27,9 @@ export interface EnrollGroupResponse {
   existingRows: number;
   successRows: number;
 }
+
+export interface SoftDeleteSingleEnrollmentDTO {
+  studentId: string;
+  teacherId: string;
+  classId: string;
+}

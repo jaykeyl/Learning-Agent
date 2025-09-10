@@ -1,18 +1,24 @@
 import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from './core/prisma/prisma.module';
 import { RbacModule } from './modules/rbac/rbac.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { DocumentsModule } from './modules/repository_documents/documents.module';
 import { AcademicManagementModule } from './modules/academic_management/academic_management.module';
 import { ExamsModule } from './modules/exams/exams.module';
 import { AiConfigService } from './core/ai/ai.config';
-import { InterviewModule } from './modules/testChat/interview.module';
+import { InterviewModule } from './modules/interviewChat/interview.module';
 import { ReinforcementModule } from './modules/reinforcement/reinforcement.module';
+
+
+import { DeepseekModule } from './modules/deepseek/deepseek.module';
+import { ExamsChatModule } from './modules/exams-chat/exams-chat.module';
+
+
 
 @Module({
   imports: [
-    PrismaModule,
     RbacModule,
     IdentityModule,
     ConfigModule.forRoot({ isGlobal: true }),
@@ -21,8 +27,13 @@ import { ReinforcementModule } from './modules/reinforcement/reinforcement.modul
     DocumentsModule,
     InterviewModule,
     ReinforcementModule,
+
+    DeepseekModule,
+    ExamsChatModule,
+
+
   ],
-  controllers: [],
-  providers: [AiConfigService],
+  controllers: [AppController],
+  providers: [AiConfigService, AppService],
 })
 export class AppModule {}
