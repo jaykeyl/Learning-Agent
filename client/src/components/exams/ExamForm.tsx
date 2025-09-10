@@ -25,12 +25,25 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
     trueFalse: '',
     analysis: '',
     openEnded: '',
+    timeMinutes: 45,
   });
-
-  const totalQuestions = getTotalQuestions();
 
   const [step, setStep] = useState(0);
   const steps = ['Datos generales', 'Cantidad de preguntas', 'Tiempo y referencia'];
+
+  // Forzar que el slider siempre inicie en 45 min al entrar al paso 2
+  useEffect(() => {
+    if (step === 2) {
+      setValues((prev) => ({
+        ...prev,
+        timeMinutes: 45,
+      }));
+      setValue('timeMinutes', 45);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  const totalQuestions = getTotalQuestions();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [sending, setSending] = useState(false);
@@ -47,7 +60,7 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
         trueFalse: '',
         analysis: '',
         openEnded: '',
-        timeMinutes: '',
+        timeMinutes: 45,
         reference: '',
       });
       setValue('subject', '');
@@ -113,10 +126,10 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
     } else if (step === 2) {
       setValues((prev) => ({
         ...prev,
-        timeMinutes: '',
+        timeMinutes: 45,
         reference: '',
       }));
-      setValue('timeMinutes', '');
+      setValue('timeMinutes', 45);
       setValue('reference', '');
       onToast('Tiempo y referencia limpiados.', 'info');
     }
@@ -380,28 +393,25 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
 
           {step === 2 && (
             <>
-              <div className="form-group">
-                <label htmlFor="timeMinutes">Tiempo (min) *</label>
-                <input
-                  id="timeMinutes"
-                  name="timeMinutes"
-                  type="number"
-                  min={45}
-                  max={240}
-                  step={1}
-                  placeholder="45"
-                  className="input-hover"
-                  value={values.timeMinutes || ''}
-                  onChange={(e) => onChange('timeMinutes', e.target.value)}
-                  style={{
-                    background: token.colorBgContainer,
-                    color: token.colorText,
-                    borderColor: token.colorBorder,
-                    borderWidth: 2,
-                    borderStyle: 'solid',
-                  }}
-                />
-                {touched.timeMinutes && errors.timeMinutes && <small className="error">{errors.timeMinutes}</small>}
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
+                <label htmlFor="timeMinutes" style={{ fontWeight: 500, marginBottom: 4 }}>Tiempo (min) </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, width: '100%' }}>
+                  <input
+                    id="timeMinutes"
+                    name="timeMinutes"
+                    type="range"
+                    min={45}
+                    max={240}
+                    step={1}
+                    value={values.timeMinutes}
+                    onChange={e => onChange('timeMinutes', e.target.value)}
+                    style={{
+                      flex: 1,
+                      accentColor: token.colorPrimary,
+                    }}
+                  />
+                  <span style={{ minWidth: 60, fontWeight: 500, fontSize: 16 }}>{values.timeMinutes} min</span>
+                </div>
               </div>
 
               <div className="form-group">
@@ -423,7 +433,6 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   }}
                 />
                 <small className="help">Máx. 1000 caracteres</small>
-                {touched.reference && errors.reference && <small className="error">{errors.reference}</small>}
               </div>
             </>
           )}
