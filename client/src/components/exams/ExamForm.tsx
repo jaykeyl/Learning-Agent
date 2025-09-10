@@ -29,12 +29,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
   });
   
 
-  const totalQuestions = getTotalQuestions();
-
   const [step, setStep] = useState(0);
   const steps = ['Datos generales', 'Cantidad de preguntas', 'Tiempo y referencia'];
 
-  // Forzar que el slider siempre inicie en 45 min al entrar al paso 2
   useEffect(() => {
     if (step === 2) {
       setValues((prev) => ({
@@ -43,7 +40,6 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
       }));
       setValue('timeMinutes', 45);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
   const totalQuestions = getTotalQuestions();
@@ -123,6 +119,18 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
       setValue('subject', '');
       setValue('difficulty', '');
       setValue('attempts', '');
+      setTouched((prev) => ({
+        ...prev,
+        subject: false,
+        difficulty: false,
+        attempts: false,
+      }));
+      setErrors((prev) => ({
+        ...prev,
+        subject: '',
+        difficulty: '',
+        attempts: '',
+      }));
       onToast('Datos generales limpiados.', 'info');
     } else if (step === 1) {
       setValues((prev) => ({
@@ -228,7 +236,7 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
             <>
               <div className="form-group sm:col-span-2">
                 <label htmlFor="subject" className="block text-sm font-medium mb-1">
-                  Materia *
+                  Materia
                 </label>
                 <input
                   id="subject"
@@ -263,7 +271,7 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
 
               <div className="form-group">
                 <label htmlFor="difficulty" className="block text-sm font-medium mb-1">
-                  Dificultad *
+                  Dificultad
                 </label>
                 <select
                   id="difficulty"
@@ -306,7 +314,7 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
 
               <div className="form-group sm:col-span-1">
                 <label htmlFor="attempts" className="block text-sm font-medium mb-1">
-                  N.º de intentos *
+                  N.º de intentos
                 </label>
                 <input
                   id="attempts"
@@ -352,7 +360,7 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
               }}
             >
               <label className="w-full text-center font-bold text-[clamp(1rem,1.2vw+0.6rem,1.15rem)] my-0">
-                Cantidad de preguntas por tipo *
+                Cantidad de preguntas por tipo
               </label>
 
               <div
@@ -500,36 +508,6 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
 
           {step === 2 && (
             <>
-              <div className="form-group">
-                <label htmlFor="timeMinutes" className="block text-sm font-medium mb-1">
-                  Tiempo (min) *
-                </label>
-                <input
-                  id="timeMinutes"
-                  name="timeMinutes"
-                  type="number"
-                  min={45}
-                  max={240}
-                  step={1}
-                  placeholder="45"
-                  className="
-                    input-hover w-full rounded-lg border-2 px-3 py-2
-                    text-[clamp(0.95rem,0.7vw+0.75rem,1.05rem)]
-                    outline-none transition focus:ring-2
-                  "
-                  value={values.timeMinutes || ''}
-                  onChange={(e) => onChange('timeMinutes', e.target.value)}
-                  style={{
-                    background: token.colorBgContainer,
-                    color: token.colorText,
-                    borderColor: token.colorBorder,
-                    borderWidth: 2,
-                    borderStyle: 'solid',
-                  }}
-                />
-                {touched.timeMinutes && errors.timeMinutes && (
-                  <small className="error block mt-1 text-xs text-red-500">{errors.timeMinutes}</small>
-                )}
               <div className="form-group" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
                 <label htmlFor="timeMinutes" style={{ fontWeight: 500, marginBottom: 4 }}>Tiempo (min) </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, width: '100%' }}>
@@ -575,11 +553,10 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     borderStyle: 'solid',
                   }}
                 />
-                <small className="help block mt-1 text-xs opacity-70">Máx. 1000 caracteres</small>
+                <small className="help">Máx. 1000 caracteres</small>
                 {touched.reference && errors.reference && (
                   <small className="error block mt-1 text-xs text-red-500">{errors.reference}</small>
                 )}
-                <small className="help">Máx. 1000 caracteres</small>
               </div>
             </>
           )}
