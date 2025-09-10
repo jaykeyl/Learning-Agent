@@ -1,6 +1,8 @@
 import { Card, Typography, theme } from 'antd';
 import ExamTable from '../../components/exams/ExamTable';
 import { useExamsStore } from '../../store/examsStore';
+import PageTemplate from '../../components/PageTemplate';
+import GlobalScrollbar from '../../components/GlobalScrollbar'; 
 
 const { Title, Text } = Typography;
 
@@ -13,15 +15,12 @@ export default function ExamManagementPage() {
   const scheduled = exams.filter((e) => e.status === 'scheduled').length;
 
   return (
-    <div className="p-4 md:p-6" style={{ background: token.colorBgLayout, minHeight: '100%' }}>
-      <div className="max-w-7xl mx-auto space-y-4">
-        <div className="flex items-end justify-between">
-          <div>
-            <Title level={2} style={{ marginBottom: 0 }}>Gestión de Exámenes</Title>
-            <Text type="secondary">Administra tus exámenes generados y manuales</Text>
-          </div>
-        </div>
-
+    <PageTemplate
+          title="Exámenes"
+          subtitle="Gestiona todos los exámenes que creaste"
+          breadcrumbs={[{ label: 'Home', href: '/' },{ label: 'Gestión de Exámenes'}]}
+        >
+      <GlobalScrollbar />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card style={{ borderLeft: `4px solid ${token.colorPrimary}` }}>
             <Title level={4} style={{ margin: 0 }}>Total</Title>
@@ -37,11 +36,18 @@ export default function ExamManagementPage() {
           </Card>
         </div>
 
-        <ExamTable
-          data={exams}
-          onEdit={() => { window.location.href = '/exams/create'; }}
-        />
-      </div>
-    </div>
+        <div className="flex items-center justify-between">
+          <h2 className="text-x2 sm:text-2xl font-semibold my-2">Exámenes:</h2>
+        </div>
+
+        <div id="tabla-examenes">
+          <ExamTable
+            data={exams}
+            onEdit={() => { window.location.href = '/exams/create'; }}
+          />
+        </div>
+
+        <div id="fin-examenes" />
+    </PageTemplate>
   );
 }

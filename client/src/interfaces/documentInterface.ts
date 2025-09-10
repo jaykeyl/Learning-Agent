@@ -19,6 +19,7 @@ export interface DocumentListResponse {
 export interface UploadResponse {
   success: boolean;
   data: Document;
+  status?: 'uploaded' | 'restored' | 'duplicate_found' | 'similar_found';
 }
 
 // Nuevas interfaces para datos extraídos

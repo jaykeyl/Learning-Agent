@@ -1,16 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../../core/prisma/prisma.service';
 import { ExamRepositoryPort } from '../../domain/ports/exam.repository.port';
 import { Exam } from '../../domain/entities/exam.entity';
 import { Difficulty } from '../../domain/entities/difficulty.vo';
 import { PositiveInt } from '../../domain/entities/positive-int.vo';
 import { DistributionVO } from '../../domain/entities/distribution.vo';
+import { SavedExamDTO } from '../../domain/ports/saved-exam.repository.port';
 
 @Injectable()
 export class ExamPrismaRepository implements ExamRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(ExamPrismaRepository.name);
 
   async create(exam: Exam): Promise<Exam> {
+    this.logger.log(`create -> id=${exam.id}, subject=${exam.subject}, total=${exam.totalQuestions.getValue()}`);
     const row = await this.prisma.exam.create({
       data: {
         id: exam.id,
@@ -30,6 +33,7 @@ export class ExamPrismaRepository implements ExamRepositoryPort {
         approvedAt: exam.approvedAt ?? null,
       },
     });
+    this.logger.log(`create <- prisma created id=${row.id}`);
 
     const sum =
       row.mcqCount +
@@ -104,6 +108,7 @@ export class ExamPrismaRepository implements ExamRepositoryPort {
   }
 
   async approve(id: string): Promise<void> {
+    this.logger.log(`approve -> id=${id}`);
     const row = await this.prisma.exam.findUnique({ where: { id } });
     if (!row) throw new Error('Exam not found');
     if (row.approvedAt) throw new Error('Exam already approved');
@@ -111,6 +116,24 @@ export class ExamPrismaRepository implements ExamRepositoryPort {
       where: { id },
       data: { approvedAt: new Date() },
     });
+    this.logger.log(`approve <- id=${id}`);
+  }
+
+    async findByExamId(examId: string): Promise<SavedExamDTO | null> {
+    const r = await this.prisma.savedExam.findUnique({
+      where: { examId },
+    });
+    if (!r) return null;
+    return {
+      id: r.id,
+      title: r.title,
+      content: r.content,
+      status: r.status as any,
+      courseId: r.courseId,
+      teacherId: r.teacherId,
+      createdAt: r.createdAt,
+      source: 'saved',
+    };
   }
 
 }

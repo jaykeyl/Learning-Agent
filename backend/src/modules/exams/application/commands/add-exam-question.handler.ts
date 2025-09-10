@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { AddExamQuestionCommand } from './add-exam-question.command';
 import { EXAM_QUESTION_REPO } from '../../tokens';
 import type { ExamQuestionRepositoryPort } from '../../domain/ports/exam-question.repository.port';
@@ -8,16 +8,21 @@ export class AddExamQuestionCommandHandler {
   constructor(
     @Inject(EXAM_QUESTION_REPO) private readonly repo: ExamQuestionRepositoryPort,
   ) {}
+  private readonly logger = new Logger(AddExamQuestionCommandHandler.name);
 
   async execute(cmd: AddExamQuestionCommand) {
     const { examId, position, question } = cmd;
+    this.logger.log(`execute -> examId=${examId}, position=${position}, kind=${question.kind}`);
 
     if (!(await this.repo.existsExam(examId))) {
+      this.logger.warn(`execute x exam not found id=${examId}`);
       throw new NotFoundException('Exam not found');
     }
 
     this.validateQuestion(question);
-    return this.repo.addToExam(examId, question, position);
+    const created = await this.repo.addToExam(examId, question, position);
+    this.logger.log(`execute <- created question id=${created.id} order=${created.order}`);
+    return created;
   }
 
   private validateQuestion(q: any) {

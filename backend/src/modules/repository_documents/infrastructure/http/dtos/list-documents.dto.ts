@@ -10,6 +10,9 @@ import { Type } from 'class-transformer';
 
 export class DocumentListItemDto {
   @IsString()
+  id: string;
+
+  @IsString()
   fileName: string;
 
   @IsString()
@@ -28,6 +31,7 @@ export class DocumentListItemDto {
   uploadedAt: Date;
 
   constructor(
+    id: string,
     fileName: string,
     originalName: string,
     mimeType: string,
@@ -35,6 +39,7 @@ export class DocumentListItemDto {
     downloadUrl: string,
     uploadedAt: Date,
   ) {
+    this.id = id;
     this.fileName = fileName;
     this.originalName = originalName;
     this.mimeType = mimeType;

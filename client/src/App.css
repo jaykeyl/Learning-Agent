@@ -1,3 +1,52 @@
 html, body, #root {
   font-family: var(--app-fontFamily), system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
 }
+
+/* Inputs & selectors follow design tokens for both themes */
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-affix-wrapper:hover,
+.ant-input-affix-wrapper-focused,
+.ant-input-number,
+.ant-input-number:hover,
+.ant-input-number-focused,
+.ant-picker,
+.ant-picker:hover,
+.ant-select .ant-select-selector,
+.ant-select:hover .ant-select-selector,
+.ant-mentions,
+.ant-mentions:hover,
+.ant-input-textarea > textarea {
+  background-color: var(--app-colorBgContainer) !important;
+  color: var(--app-colorText) !important;
+  border-color: var(--app-colorBorder) !important;
+}
+
+.ant-select .ant-select-selection-placeholder,
+.ant-input::placeholder,
+.ant-mentions .ant-mentions-measure,
+textarea::placeholder,
+input::placeholder {
+  color: var(--app-colorTextPlaceholder) !important;
+}
+
+/* Focus ring to primary */
+.ant-input:focus,
+.ant-input-affix-wrapper-focused,
+.ant-input-number:focus,
+.ant-picker-focused .ant-picker,
+.ant-select-focused .ant-select-selector,
+.ant-mentions:focus {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--app-colorPrimary) 20%, transparent);
+  border-color: var(--app-colorPrimary) !important;
+}
+
+/* Disabled states */
+.ant-input[disabled],
+.ant-select-disabled .ant-select-selector,
+.ant-picker-disabled,
+.ant-input-number-disabled,
+.ant-input[disabled]::placeholder,
+.ant-select-disabled .ant-select-selection-placeholder {
+  opacity: 0.6;
+}

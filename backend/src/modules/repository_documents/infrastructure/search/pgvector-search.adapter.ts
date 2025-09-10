@@ -9,7 +9,7 @@ import type {
 import type { EmbeddingGeneratorPort } from '../../domain/ports/embedding-generator.port';
 
 /**
- * Opciones de configuración para pgvector
+ * opciones de configuración para pgvector
  */
 export interface PgVectorConfig {
   /** Función de distancia a utilizar */
@@ -29,10 +29,9 @@ export interface PgVectorConfig {
 }
 
 /**
- * Adaptador para búsqueda vectorial usando pgvector
+ * adaptador para búsqueda vectorial usando pgvector
  *
- * Implementa búsquedas por similaridad semántica utilizando
- * la extensión pgvector de PostgreSQL
+ * implementa búsquedas por similaridad semántica con pgvector
  */
 export class PgVectorSearchAdapter implements VectorSearchPort {
   constructor(
@@ -44,106 +43,146 @@ export class PgVectorSearchAdapter implements VectorSearchPort {
   ) {}
 
   /**
-   * Busca chunks similares usando un vector de embedding
+   * busca chunks similares usando un vector de embedding
    */
   async searchByVector(
     queryVector: number[],
     options: VectorSearchOptions = {},
   ): Promise<VectorSearchResult> {
     try {
-      // 1. Validar entrada
+      // validar entrada
       this.validateVector(queryVector);
       const finalOptions = this.normalizeOptions(options);
 
-      // 2. Construir consulta SQL
-      const distanceOperator = this.getDistanceOperator();
-      const orderDirection = this.getOrderDirection();
-
-      // 3. Construir filtros WHERE
-      const whereConditions = this.buildWhereConditions(finalOptions);
-      const whereClause =
-        whereConditions.length > 0
-          ? `WHERE ${whereConditions.join(' AND ')}`
-          : '';
-
-      // 4. Ejecutar consulta
-      const query = `
-        SELECT 
-          dc.id,
-          dc.document_id,
-          dc.chunk_index,
-          dc.content,
-          dc.type,
-          dc.word_count,
-          dc.char_count,
-          dc.start_position,
-          dc.end_position,
-          dc.metadata,
-          dc.created_at,
-          d.title as document_title,
-          d.file_name as document_file_name,
-          d.file_size as document_file_size,
-          d.content_type as document_content_type,
-          (dc.embedding ${distanceOperator} $1::vector) as similarity_score
-        FROM document_chunks dc
-        INNER JOIN documents d ON dc.document_id = d.id
-        ${whereClause}
-        ${
-          finalOptions.similarityThreshold
-            ? `AND (dc.embedding ${distanceOperator} $1::vector) ${this.getThresholdOperator()} $${whereConditions.length + 2}`
-            : ''
-        }
-        ORDER BY dc.embedding ${distanceOperator} $1::vector ${orderDirection}
-        LIMIT $${finalOptions.similarityThreshold ? whereConditions.length + 3 : whereConditions.length + 2}
-      `;
-
-      // 5. Preparar parámetros
-      const params: any[] = [JSON.stringify(queryVector)];
-      // Agregar parámetros de filtros WHERE aquí si los hay
+      // construir consulta según si hay umbral o no
+      let query: string;
+      let params: any[];
 
       if (finalOptions.similarityThreshold) {
-        params.push(finalOptions.similarityThreshold);
+        query = `
+          SELECT 
+            dc.id,
+            dc."documentId",
+            dc."chunkIndex",
+            dc.content,
+            dc.type,
+            dc."wordCount",
+            dc."charCount",
+            dc."startPosition",
+            dc."endPosition",
+            dc.metadata,
+            dc."createdAt",
+            d."documentTitle" as document_title,
+            d."originalName" as document_file_name,
+            d.size as document_file_size,
+            d."contentType" as document_content_type,
+            (1 - (dc.embedding <=> $1::vector)) as similarity_score
+          FROM document_chunks dc
+          INNER JOIN "Document" d ON dc."documentId" = d.id
+          WHERE dc.embedding IS NOT NULL
+          AND (1 - (dc.embedding <=> $1::vector)) >= $2
+          ORDER BY dc.embedding <=> $1::vector ASC
+          LIMIT $3
+        `;
+        params = [
+          `[${queryVector.join(',')}]`,
+          finalOptions.similarityThreshold,
+          finalOptions.limit,
+        ];
+      } else {
+        query = `
+          SELECT 
+            dc.id,
+            dc."documentId",
+            dc."chunkIndex",
+            dc.content,
+            dc.type,
+            dc."wordCount",
+            dc."charCount",
+            dc."startPosition",
+            dc."endPosition",
+            dc.metadata,
+            dc."createdAt",
+            d."documentTitle" as document_title,
+            d."originalName" as document_file_name,
+            d.size as document_file_size,
+            d."contentType" as document_content_type,
+            (1 - (dc.embedding <=> $1::vector)) as similarity_score
+          FROM document_chunks dc
+          INNER JOIN "Document" d ON dc."documentId" = d.id
+          WHERE dc.embedding IS NOT NULL
+          ORDER BY dc.embedding <=> $1::vector ASC
+          LIMIT $2
+        `;
+        params = [`[${queryVector.join(',')}]`, finalOptions.limit];
       }
-      params.push(finalOptions.limit);
 
-      // 6. Ejecutar consulta (por ahora simulada)
-      // En implementación real: const results = await this.prisma.$queryRawUnsafe(query, ...params);
-      console.log('🔍 Ejecutando búsqueda vectorial:', {
-        vectorDimensions: queryVector.length,
-        options: finalOptions,
-        query:
-          typeof query === 'string'
-            ? query.replace(/\s+/g, ' ').trim()
-            : 'vector search',
+      // ejecutar consulta de búsqueda vectorial
+      console.log(`🔍 PgVector DEBUG: Ejecutando consulta con params:`, {
+        queryVectorLength: queryVector.length,
+        similarityThreshold: finalOptions.similarityThreshold,
+        limit: finalOptions.limit,
+        hasThreshold: !!finalOptions.similarityThreshold
       });
+      
+      const results = await this.prisma.$queryRawUnsafe(query, ...params);
+      
+      console.log(`PgVector DEBUG: Resultados obtenidos: ${(results as any[]).length}`);
+      if ((results as any[]).length > 0) {
+        console.log(`🔍 PgVector DEBUG: Primer resultado:`, {
+          documentId: (results as any[])[0].documentId,
+          similarity: (results as any[])[0].similarity_score,
+          chunkId: (results as any[])[0].id
+        });
+      } else {
+        // DEBUG: Verificar si hay chunks con embeddings en la BD
+        const totalChunksWithEmbeddings = await this.prisma.$queryRawUnsafe(
+          'SELECT COUNT(*) as count FROM document_chunks WHERE embedding IS NOT NULL'
+        );
+        console.log(`🔍 PgVector DEBUG: Total chunks con embeddings en BD:`, totalChunksWithEmbeddings);
+      }
 
-      // Simular resultados por ahora
-      const results = await this.simulateVectorSearch(
-        queryVector,
-        finalOptions,
-      );
+      // mapear resultados a la interfaz esperada
+      const mappedResults = (results as any[]).map((row) => ({
+        id: row.id,
+        documentId: row.documentId,
+        content: row.content,
+        type: row.type,
+        chunkIndex: row.chunkIndex,
+        wordCount: row.wordCount,
+        charCount: row.charCount,
+        startPosition: row.startPosition,
+        endPosition: row.endPosition,
+        similarityScore: parseFloat(row.similarity_score),
+        documentTitle: row.document_title,
+        documentFileName: row.document_file_name,
+        documentFileSize: row.document_file_size,
+        documentContentType: row.document_content_type,
+        metadata: row.metadata,
+        createdAt: row.createdAt,
+      }));
 
       return {
-        chunks: results,
-        totalResults: results.length,
+        chunks: mappedResults,
+        totalResults: mappedResults.length,
         searchOptions: finalOptions,
-        processingTimeMs: 0, // Calcular tiempo real
+        processingTimeMs: 0, // calcular tiempo real
       };
     } catch (error) {
-      console.error('❌ Error en búsqueda vectorial:', error);
+      console.error('Error en búsqueda vectorial:', error);
       throw this.handleSearchError(error, 'searchByVector');
     }
   }
 
   /**
-   * Busca chunks similares convirtiendo texto a vector primero
+   * busca chunks similares convirtiendo texto a vector primero
    */
   async searchByText(
     query: string,
     options: VectorSearchOptions = {},
   ): Promise<SemanticSearchResult> {
     try {
-      // Validar entrada
+      // validar entrada
       if (!query || typeof query !== 'string') {
         throw new Error('El query de búsqueda debe ser una cadena válida');
       }
@@ -153,11 +192,11 @@ export class PgVectorSearchAdapter implements VectorSearchPort {
         throw new Error('El query de búsqueda no puede estar vacío');
       }
 
-      // 1. Generar embedding del texto de consulta
+      // 1. generar embedding del texto de consulta
       const embeddingResult =
         await this.embeddingGenerator.generateEmbedding(trimmedQuery);
 
-      // 2. Buscar usando el vector
+      // 2. buscar usando el vector
       const vectorResult = await this.searchByVector(
         embeddingResult.embedding,
         options,
@@ -171,26 +210,26 @@ export class PgVectorSearchAdapter implements VectorSearchPort {
         processingTimeMs: vectorResult.processingTimeMs,
       };
     } catch (error) {
-      console.error('❌ Error en búsqueda por texto:', error);
+      console.error('Error en búsqueda por texto:', error);
       throw this.handleSearchError(error, 'searchByText');
     }
   }
 
   /**
-   * Encuentra chunks similares a uno específico
+   * encuentra chunks similares a uno específico
    */
   async findSimilarChunks(
     chunkId: string,
     options: VectorSearchOptions = {},
   ): Promise<VectorSearchResult> {
     try {
-      // 1. Obtener el chunk de referencia
+      // 1. obtener el chunk de referencia
       const referenceChunk = await this.getChunkEmbedding(chunkId);
       if (!referenceChunk) {
         throw new Error(`No se encontró el chunk con ID: ${chunkId}`);
       }
 
-      // 2. Buscar chunks similares excluyendo el mismo
+      // 2. buscar chunks similares excluyendo el mismo
       const finalOptions = {
         ...options,
         excludeChunkIds: [...(options.excludeChunkIds || []), chunkId],
@@ -198,20 +237,20 @@ export class PgVectorSearchAdapter implements VectorSearchPort {
 
       return this.searchByVector(referenceChunk.embedding, finalOptions);
     } catch (error) {
-      console.error('❌ Error encontrando chunks similares:', error);
+      console.error('Error encontrando chunks similares:', error);
       throw this.handleSearchError(error, 'findSimilarChunks');
     }
   }
 
   /**
-   * Encuentra documentos similares a uno específico
+   * encuentra documentos similares a uno específico
    */
   async findSimilarDocuments(
     documentId: string,
     options: VectorSearchOptions = {},
   ): Promise<SimilarDocument[]> {
     try {
-      // 1. Obtener embeddings promedio del documento
+      // 1. obtener embeddings promedio del documento
       const documentEmbedding =
         await this.getDocumentAverageEmbedding(documentId);
       if (!documentEmbedding) {
@@ -220,7 +259,7 @@ export class PgVectorSearchAdapter implements VectorSearchPort {
         );
       }
 
-      // 2. Buscar documentos similares
+      // 2. buscar documentos similares
       const finalOptions = {
         ...options,
         excludeDocumentIds: [...(options.excludeDocumentIds || []), documentId],
@@ -232,7 +271,7 @@ export class PgVectorSearchAdapter implements VectorSearchPort {
         finalOptions,
       );
 
-      // 3. Agrupar por documento y calcular similaridad promedio
+      // 3. agrupar por documento y calcular similaridad promedio
       const documentMap = new Map<
         string,
         {
@@ -261,7 +300,7 @@ export class PgVectorSearchAdapter implements VectorSearchPort {
         );
       });
 
-      // 4. Convertir a SimilarDocument[]
+      // 4. convertir a similardocument[]
       const similarDocuments: SimilarDocument[] = [];
       for (const [docId, data] of documentMap) {
         const firstChunk = data.chunks[0];
@@ -271,27 +310,27 @@ export class PgVectorSearchAdapter implements VectorSearchPort {
           fileName: firstChunk.documentFileName,
           averageSimilarity: data.totalSimilarity / data.chunks.length,
           maxSimilarity: data.maxSimilarity,
-          relevantChunks: data.chunks.slice(0, 3), // Top 3 chunks más relevantes
+          relevantChunks: data.chunks.slice(0, 3), // 3 chunks más relevantes
           totalChunks: data.chunks.length,
         });
       }
 
-      // 5. Ordenar por similaridad promedio
+      // 5. ordenar por similaridad promedio
       similarDocuments.sort(
         (a, b) => b.averageSimilarity - a.averageSimilarity,
       );
 
       return similarDocuments.slice(0, options.limit || 10);
     } catch (error) {
-      console.error('❌ Error encontrando documentos similares:', error);
+      console.error('Error encontrando documentos similares:', error);
       throw this.handleSearchError(error, 'findSimilarDocuments');
     }
   }
 
-  // ============ MÉTODOS PRIVADOS ============
+  // ============ métodos privados ============
 
   /**
-   * Valida que el vector sea válido
+   * valida que el vector sea válido
    */
   private validateVector(vector: number[]): void {
     if (!Array.isArray(vector) || vector.length === 0) {
@@ -304,14 +343,14 @@ export class PgVectorSearchAdapter implements VectorSearchPort {
       );
     }
 
-    // Verificar dimensiones típicas
+    // verificar dimensiones típicas
     if (![256, 512, 1024, 1536, 3072].includes(vector.length)) {
-      console.warn(`⚠️ Dimensiones inusuales del vector: ${vector.length}`);
+      console.warn(`Dimensiones inusuales del vector: ${vector.length}`);
     }
   }
 
   /**
-   * Normaliza las opciones de búsqueda
+   * normaliza las opciones de búsqueda
    */
   private normalizeOptions(
     options: VectorSearchOptions,
@@ -331,7 +370,7 @@ export class PgVectorSearchAdapter implements VectorSearchPort {
   }
 
   /**
-   * Obtiene el operador de distancia SQL según la configuración
+   * valida que el vector de entrada sea válido
    */
   private getDistanceOperator(): string {
     switch (this.config.distanceFunction) {
@@ -347,21 +386,21 @@ export class PgVectorSearchAdapter implements VectorSearchPort {
   }
 
   /**
-   * Obtiene la dirección de ordenamiento
+   * obtiene la dirección de ordenamiento
    */
   private getOrderDirection(): string {
     return this.config.distanceFunction === 'inner_product' ? 'DESC' : 'ASC';
   }
 
   /**
-   * Obtiene el operador de umbral
+   * obtiene el operador de umbral
    */
   private getThresholdOperator(): string {
     return this.config.distanceFunction === 'inner_product' ? '>=' : '<=';
   }
 
   /**
-   * Construye condiciones WHERE para filtros
+   * construye condiciones where para filtros
    */
   private buildWhereConditions(
     options: Required<VectorSearchOptions>,
@@ -391,12 +430,12 @@ export class PgVectorSearchAdapter implements VectorSearchPort {
   }
 
   /**
-   * Obtiene el embedding de un chunk específico
+   * obtiene el embedding de un chunk específico
    */
   private async getChunkEmbedding(
     chunkId: string,
   ): Promise<{ embedding: number[] } | null> {
-    // Por ahora simulado - en implementación real:
+    // por ahora simulado - en implementación real:
     // const result = await this.prisma.documentChunk.findUnique({
     //   where: { id: chunkId },
     //   select: { embedding: true }
@@ -408,29 +447,29 @@ export class PgVectorSearchAdapter implements VectorSearchPort {
   }
 
   /**
-   * Calcula el embedding promedio de un documento
+   * calcula el embedding promedio de un documento
    */
   private async getDocumentAverageEmbedding(
     documentId: string,
   ): Promise<number[] | null> {
-    // Implementación real pendiente
+    // implementación real pendiente
     console.log('🔍 Calculando embedding promedio para documento:', documentId);
     return null; // Simular por ahora
   }
 
   /**
-   * Simula resultados de búsqueda vectorial para desarrollo
+   * simula resultados de búsqueda vectorial para desarrollo
    */
   private async simulateVectorSearch(
     queryVector: number[],
     options: Required<VectorSearchOptions>,
   ): Promise<any[]> {
-    // Simulación para desarrollo - reemplazar con consulta real
+    // simulación para desarrollo - reemplazar con consulta real
     return [];
   }
 
   /**
-   * Maneja errores de búsqueda
+   * maneja errores de búsqueda
    */
   private handleSearchError(error: unknown, operation: string): Error {
     if (error instanceof Error) {

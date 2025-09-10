@@ -20,6 +20,7 @@ export class UploadDocumentResponse {
 
 export class DocumentListItem {
   constructor(
+    public readonly id: string,
     public readonly fileName: string,
     public readonly originalName: string,
     public readonly mimeType: string,

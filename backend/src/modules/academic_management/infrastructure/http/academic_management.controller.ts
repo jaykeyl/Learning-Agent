@@ -1,12 +1,8 @@
 import { Body, Controller, Get, Param, Post, UseGuards, Put } from '@nestjs/common';
 import { CreateClassUseCase } from '../../application/commands/create-class.usecase';
-import { CreateStudentProfileDto } from './dtos/create-studentProfile.dto';
 import { CreateClassDto } from './dtos/create-classes.dto';
 import { ListClassesUseCase } from '../../application/queries/list-classes.usecase';
 import { ListStudentsUseCase } from '../../application/queries/list-student.usecase';
-import { CreateStudentProfileUseCase } from '../../application/commands/create-student-profile.usecase';
-import { CreateEnrollmentUseCase } from '../../application/commands/create-enrollment.usecase';
-import { CreateEnrollmentDto } from './dtos/create-enrollment.dto';
 import { GetClassesByStudentUseCase } from '../../application/queries/get-classes-by-student.usecase';
 import { GetStudentsByClassUseCase } from '../../application/queries/get-students-by-class.usecase';
 import { GetClassByIdUseCase } from '../../application/queries/get-class-by-id.usecase';
@@ -18,6 +14,7 @@ import { UpdateClassUseCase } from '../../application/commands/update-class.usec
 import { EditClassDTO } from './dtos/edit-class.dto';
 import { SoftDeleteClassUseCase } from '../../application/commands/soft-delete-class.usecase';
 import { DeleteClassDTO } from './dtos/delete-class.dto';
+import { DeleteStudentDTO } from './dtos/delete-student.dto';
 import { GetTeacherInfoByIDUseCase } from '../../application/queries/get-teacher-info-by-id.usecase';
 import { JwtAuthGuard } from 'src/shared/guards/jwt-auth.guard';
 import { CreateCourseUseCase } from '../../application/commands/create-course.usecase';
@@ -27,6 +24,7 @@ import { GetClassesByCourseUseCase } from '../../application/queries/get-classes
 import { responseAlreadyCreated, responseConflict, responseCreated, responseForbidden, responseInternalServerError, responseNotFound, responseSuccess } from 'src/shared/handler/http.handler';
 import { AlreadyCreatedError, ForbiddenError, NotFoundError,ConflictError } from 'src/shared/handler/errors';
 import { GetCourseByIdUseCase } from '../../application/queries/get-course-by-id.usecase';
+import { SoftDeleteSingleEnrollmentUseCase } from '../../application/commands/soft-delete-single-enrollment.useCase';
 const academicRoute = 'academic'
 
 @UseGuards(JwtAuthGuard)
@@ -44,12 +42,11 @@ export class AcademicManagementController {
     private readonly getTeacherInfoById: GetTeacherInfoByIDUseCase,
     private readonly createCourse: CreateCourseUseCase,
     private readonly createClasses: CreateClassUseCase,
-    private readonly createProfileStudent: CreateStudentProfileUseCase,
-    private readonly createEnrollment: CreateEnrollmentUseCase,
     private readonly enrollSingle: EnrollSingleStudentUseCase,
     private readonly enrollGroup: EnrollGroupStudentUseCase,
     private readonly updateClass: UpdateClassUseCase,
     private readonly softDeleteClass: SoftDeleteClassUseCase,
+    private readonly softDeleteStudent: SoftDeleteSingleEnrollmentUseCase,
   ) { }
 
   //Endpoints GET
@@ -149,7 +146,11 @@ export class AcademicManagementController {
       const classesData = await this.getClassesByStudent.execute(studentId);
       return responseSuccess("Sin implementar", classesData, description, path)
     } catch (error) {
-      return responseInternalServerError(error.message, "Sin implementar", description, path)
+      if (error instanceof NotFoundError) {
+        return responseNotFound(error.message, "Sin implementar", description, path)
+      } else {
+        return responseInternalServerError(error.message, "Sin implementar", description, path)
+      }
     }
   }
 
@@ -214,30 +215,6 @@ export class AcademicManagementController {
       } else{
         return responseInternalServerError(error.message, "Sin implementar", description, path)
       }
-    }
-  }
-
-  @Post('students')
-  async createStudentEndpoint(@Body() dto: CreateStudentProfileDto) {
-    const path = academicRoute + `/students`
-    const description = "Create a new student"
-    try {
-      const student = await this.createProfileStudent.execute(dto);
-      return responseCreated("Sin implementar", student, description, path)
-    } catch (error) {
-      return responseInternalServerError(error.message, "Sin implementar", description, path)
-    }
-  }
-
-  @Post('enrollments')
-  async createEnrollmentEndpoint(@Body() dto: CreateEnrollmentDto) {
-    const path = academicRoute + `/enrollments`
-    const description = "Enroll student"
-    try {
-      const enrollment = await this.createEnrollment.execute(dto);
-      return responseCreated("Sin implementar", enrollment, description, path)
-    } catch (error) {
-      return responseInternalServerError(error.message, "Sin implementar", description, path)
     }
   }
 
@@ -326,4 +303,36 @@ export class AcademicManagementController {
       }
     }
   }
+
+  
+  @Put('students/remove/:id')
+  //idclass, idteacher, idstudent 
+  async softDeleteStudents(@Param('id') id: string, @Body() dto: DeleteStudentDTO) {
+    const path = academicRoute + `/students/remove/${id}`
+    const description = "Soft delete a student by student ID and class ID";
+    try {
+      const input = {
+        teacherId: dto.teacherId,
+        studentId: dto.studentId,
+        classId: id
+      }
+
+      const enrollment = await this.softDeleteStudent.execute(input)
+      return responseCreated("Sin implementar", enrollment, description, path)
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return responseNotFound(error.message, "Sin implementar", description, path)
+      } else if (error instanceof ForbiddenError) {
+        return responseForbidden(error.message, "Sin implementar", description, path)
+      } else if (error instanceof ConflictError) {
+        return responseConflict(error.message, "Sin implementar", description, path)
+      } else {
+        return responseInternalServerError(error.message, "Sin implementar", description, path)
+      }
+    }
+  }
+
+
+
+
 }

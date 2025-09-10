@@ -143,12 +143,17 @@ model Document {
   size         Int
   contentType  String
   fileHash         String                    @unique // Hash SHA-256 del archivo
+  textHash         String?                   @unique // Hash SHA-256 del texto normalizado
   extractedText    String?                   @db.Text // Texto extraído
   status           DocumentStatus            @default(UPLOADED)
   
   // Metadata del documento
   uploadedBy       String
   uploader         User                      @relation(fields: [uploadedBy], references: [id])
+  
+  // Relación opcional con Course/Materia para el contrato de documentos
+  courseId         String?
+  course           Course?                   @relation(fields: [courseId], references: [id])
   
   // Relations para RAG
   chunks           DocumentChunk[]
@@ -167,7 +172,9 @@ model Document {
   @@index([status])
   @@index([uploadedBy])
   @@index([fileHash])
+  @@index([textHash])
   @@index([contentType])
+  @@index([courseId])
 }
 
 model DocumentChunk {
@@ -319,6 +326,8 @@ model Exam {
   questions       ExamQuestion[]
 
   @@index([subject])
+
+  savedExam      SavedExam?
 }
 
 // === Preguntas de Examen ===
@@ -327,6 +336,30 @@ enum QuestionKind {
   TRUE_FALSE
   OPEN_ANALYSIS
   OPEN_EXERCISE
+}
+// Estado de publicación del examen guardado
+enum ExamStorageStatus {
+  Guardado
+  Publicado
+}
+
+model SavedExam {
+  id        Int               @id @default(autoincrement())
+  title     String
+  content   Json
+  status    ExamStorageStatus @default(Guardado)
+
+  examId    String?           @unique
+  exam      Exam?             @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  // FK “lógicas” (sin relación Prisma)
+  courseId  String
+  teacherId String
+
+  createdAt DateTime          @default(now())
+
+  @@index([courseId, createdAt])
+  @@index([teacherId, createdAt])
 }
 
 model ExamQuestion {
@@ -364,6 +397,9 @@ model Course {
   teacherId     String
   teacher       TeacherProfile    @relation(fields: [teacherId], references: [userId])
   classes       Classes[]
+  
+  // Relación con documentos para el contrato
+  documents     Document[]
 
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt

@@ -1,4 +1,4 @@
-import { Controller, Post, Put, Body, Param, HttpCode, Req } from '@nestjs/common';
+import { Controller, Post, Put, Body, Param, HttpCode, Req, Logger } from '@nestjs/common';
 import type { Request } from 'express';
 import { randomUUID } from 'crypto';
 
@@ -22,7 +22,7 @@ import { UpdateExamQuestionCommand } from '../../application/commands/update-exa
 import { UpdateExamQuestionCommandHandler } from '../../application/commands/update-exam-question.handler';
 import { ApproveExamCommand } from '../../application/commands/approve-exam.command';
 import { ApproveExamCommandHandler } from '../../application/commands/approve-exam.handler';
-
+import { PrismaService } from 'src/core/prisma/prisma.service';
 import {
   responseSuccess,
   responseBadRequest,
@@ -48,7 +48,9 @@ export class ExamsController {
     private readonly addExamQuestionHandler: AddExamQuestionCommandHandler,
     private readonly updateExamQuestionHandler: UpdateExamQuestionCommandHandler,
     private readonly approveExamHandler: ApproveExamCommandHandler,
+    private readonly prisma: PrismaService,
   ) {}
+  private readonly logger = new Logger(ExamsController.name);
 
   @Post(':id/questions')
   async addQuestion(
@@ -56,6 +58,7 @@ export class ExamsController {
     @Body() dto: AddExamQuestionDto,
     @Req() req: Request,
   ) {
+    this.logger.log(`[${cid(req)}] addQuestion -> examId=${id}, kind=${dto.kind}, position=${dto.position}`);
     const cmd = new AddExamQuestionCommand(id, dto.position, {
       kind: dto.kind,
       text: dto.text,
@@ -65,12 +68,14 @@ export class ExamsController {
       expectedAnswer: dto.expectedAnswer,
     });
     const created = await this.addExamQuestionHandler.execute(cmd);
+    this.logger.log(`[${cid(req)}] addQuestion <- created question id=${created.id} order=${created.order}`);
     return responseSuccess(cid(req), created, 'Question added to exam', pathOf(req));
   }
 
   @Post()
   @HttpCode(200)
   async create(@Body() dto: CreateExamDto, @Req() req: Request) {
+    this.logger.log(`[${cid(req)}] createExam -> subject=${dto.subject}, difficulty=${dto.difficulty}, total=${dto.totalQuestions}, time=${dto.timeMinutes}`);
     const sum = sumDistribution(dto.distribution);
     if (dto.totalQuestions <= 0) {
       return responseBadRequest('totalQuestions debe ser > 0.', cid(req), 'Error en validación', pathOf(req));
@@ -90,12 +95,14 @@ export class ExamsController {
     );
 
     const exam = await this.createExamHandler.execute(createCmd);
+    this.logger.log(`[${cid(req)}] createExam <- created exam id=${exam.id}`);
     return responseSuccess(cid(req), exam, 'Exam created successfully', pathOf(req));
   }
 
   @Post('questions')
   @HttpCode(200)
   async generate(@Body() dto: GenerateQuestionsDto, @Req() req: Request) {
+    this.logger.log(`[${cid(req)}] generateQuestions -> subject=${dto.subject}, difficulty=${dto.difficulty}, total=${dto.totalQuestions}`);
     const sum = sumDistribution(dto.distribution);
     if (dto.totalQuestions <= 0) {
       return responseBadRequest('totalQuestions debe ser > 0.', cid(req), 'Error en validación', pathOf(req));
@@ -120,13 +127,15 @@ export class ExamsController {
       open_analysis: flat.filter((q: any) => q.type === 'open_analysis'),
       open_exercise: flat.filter((q: any) => q.type === 'open_exercise'),
     };
-
+    this.logger.log(`[${cid(req)}] generateQuestions <- generated counts mcq=${grouped.multiple_choice.length}, tf=${grouped.true_false.length}, oa=${grouped.open_analysis.length}, oe=${grouped.open_exercise.length}`);
     return responseSuccess(cid(req), { questions: grouped }, 'Questions generated successfully', pathOf(req));
   }
 
   @Post('generate-exam')
   async generateExam(@Body() dto: GenerateExamInput, @Req() req: Request) {
+    this.logger.log(`[${cid(req)}] generateExam -> templateId=${dto.templateId}, subject=${dto.subject}, level=${dto.level}, numQuestions=${dto.numQuestions}`);
     const exam = await this.generateExamHandler.execute(dto);
+    this.logger.log(`[${cid(req)}] generateExam <- provider=${exam.provider}, model=${exam.model}, outputLength=${exam.output?.length ?? 0}`);
     return responseSuccess(cid(req), exam, 'Exam generated successfully', pathOf(req));
   }
 
@@ -136,14 +145,88 @@ export class ExamsController {
     @Body() dto: UpdateExamQuestionDto,
     @Req() req: Request
   ) {
+    this.logger.log(`[${cid(req)}] updateQuestion -> id=${id}`);
     const updated = await this.updateExamQuestionHandler.execute(new UpdateExamQuestionCommand(id, dto));
+    this.logger.log(`[${cid(req)}] updateQuestion <- id=${updated.id}`);
     return responseSuccess(cid(req), updated, 'Question updated successfully', pathOf(req));
   }
 
   @Post(':id/approve')
   @HttpCode(200)
   async approveExam(@Param('id') id: string, @Req() req: Request) {
+    this.logger.log(`[${cid(req)}] approveExam -> id=${id}`);
     const res = await this.approveExamHandler.execute(new ApproveExamCommand(id));
+    this.logger.log(`[${cid(req)}] approveExam <- id=${id}`);
     return responseSuccess(cid(req), res, 'Exam approved successfully', pathOf(req));
+  }
+
+  @Post('quick-save')
+  @HttpCode(200)
+  async quickSave(@Body() body: any, @Req() req: Request) {
+    const c = cid(req);
+    const title = String(body?.title ?? 'Examen');
+
+    let courseId: number | string | undefined = body?.courseId;
+    let teacherId: string | undefined = body?.teacherId;
+
+    if (!courseId) {
+      const firstCourse = await this.prisma.course.findFirst({
+        select: { id: true, teacherId: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!firstCourse) {
+        return responseBadRequest(
+          'No hay courseId y no existe ningún Curso en la base. Crea un curso o envía courseId.',
+          c,
+          'Bad Request',
+          pathOf(req),
+        );
+      }
+      courseId = firstCourse.id; 
+      if (!teacherId && firstCourse.teacherId) teacherId = String(firstCourse.teacherId);
+    }
+
+    const rawQuestions =
+      Array.isArray(body?.questions)
+        ? body.questions
+        : Array.isArray(body?.content?.questions)
+        ? body.content.questions
+        : [];
+
+    const used = new Set<string>();
+    const ts = Date.now();
+    const questions = rawQuestions.map((q: any, i: number) => {
+      const t = String(q?.type ?? 'open_analysis');
+      let id = String(q?.id ?? `q_${ts}_${t}_${i}`);
+      while (used.has(id)) id = `${id}_${Math.random().toString(36).slice(2,6)}`;
+      used.add(id);
+      return {
+        id,
+        type: t,
+        text: String(q?.text ?? ''),
+        options: Array.isArray(q?.options) ? q.options.map(String) : undefined,
+      };
+    });
+
+    const content =
+      body?.content && typeof body.content === 'object'
+        ? body.content
+        : {
+            subject: String(body?.subject ?? 'Tema general'),
+            difficulty: String(body?.difficulty ?? 'medio'),
+            createdAt: new Date().toISOString(),
+            questions,
+          };
+
+    const data: any = {
+      title,
+      status: 'Guardado',
+      content,
+      courseId,                         
+      ...(teacherId ? { teacherId } : {}),
+    };
+
+    const saved = await this.prisma.savedExam.create({ data });
+    return responseSuccess(c, { id: saved.id, title: saved.title }, 'Quick exam saved', pathOf(req));
   }
 }

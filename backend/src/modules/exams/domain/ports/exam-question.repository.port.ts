@@ -20,4 +20,5 @@ export interface ExamQuestionRepositoryPort {
 
   findById(id: string): Promise<ExamQuestion | null>;
   update(id: string, patch: UpdateExamQuestionPatch): Promise<ExamQuestion>;
+  listByExam(examId: string): Promise<ExamQuestion[]>;
 }

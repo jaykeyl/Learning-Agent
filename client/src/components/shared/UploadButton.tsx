@@ -152,8 +152,8 @@ interface UploadButtonProps {
  *   onUpload={processDocument}
  *   fileConfig={{
  *     accept: ".pdf,application/pdf",
- *     maxSize: 10 * 1024 * 1024,
- *     validationMessage: "Solo archivos PDF de máximo 10MB"
+ *     maxSize: 100 * 1024 * 1024,
+ *     validationMessage: "Solo archivos PDF de máximo 100MB"
  *   }}
  *   processingConfig={{
  *     steps: [
@@ -551,8 +551,8 @@ const UploadButton: React.FC<UploadButtonProps> = ({
                   icon={<PlusOutlined />}
                   onClick={handleManualSelect}
                   style={{
-                    backgroundColor: 'var(--ant-color-primary)',
-                    borderColor: 'var(--ant-color-primary)',
+                    backgroundColor: isDark ? token.colorPrimary : '#1890ff',
+                    borderColor: isDark ? token.colorPrimary : '#1890ff',
                     borderRadius: '6px',
                     fontWeight: '500'
                   }}
@@ -568,7 +568,7 @@ const UploadButton: React.FC<UploadButtonProps> = ({
               padding: isSmallScreen ? '30px 16px' : '40px 20px',
               backgroundColor: isDark ? token.colorBgElevated : '#f6ffed',
               borderRadius: '8px',
-              border: `2px solid ${isDark ? token.colorSuccess : 'var(--ant-color-success)'}`
+              border: `2px solid ${isDark ? token.colorSuccess : '#52c41a'}`
             }}>
               <CheckCircleOutlined style={{ 
                 fontSize: isSmallScreen ? '48px' : '64px', 
@@ -602,8 +602,8 @@ const UploadButton: React.FC<UploadButtonProps> = ({
                 type="primary"
                 onClick={handleCloseModal}
                 style={{
-                  backgroundColor: isDark ? token.colorSuccess : 'var(--ant-color-success)',
-                  borderColor: isDark ? token.colorSuccess : 'var(--ant-color-success)',
+                  backgroundColor: isDark ? token.colorSuccess : '#52c41a',
+                  borderColor: isDark ? token.colorSuccess : '#52c41a',
                   marginTop: '16px'
                 }}
                 size={isSmallScreen ? "middle" : "large"}

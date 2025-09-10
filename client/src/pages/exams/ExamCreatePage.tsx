@@ -7,44 +7,61 @@ import type { ExamFormHandle } from '../../components/exams/ExamForm';
 import { Toast, useToast } from '../../components/shared/Toast';
 import { readJSON } from '../../services/storage/localStorage';
 import PageTemplate from '../../components/PageTemplate';
+import GlobalScrollbar from '../../components/GlobalScrollbar';
 import './ExamCreatePage.css';
-import { generateQuestions, type GeneratedQuestion } from '../../services/exams.service';
+import { generateQuestions, createExamApproved, type GeneratedQuestion } from '../../services/exams.service';
 import AiResults from './AiResults';
+import { normalizeToQuestions, cloneQuestion, replaceQuestion, reorderQuestions } from './ai-utils';
+import { isValidGeneratedQuestion } from '../../utils/aiValidation';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+
 
 const layoutStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  padding: '5px 100px',
 };
 
-function normalizeToQuestions(res: any): GeneratedQuestion[] {
-  if (Array.isArray(res)) return res as GeneratedQuestion[];
+async function repairInvalidQuestions(
+  list: GeneratedQuestion[],
+  baseDto: any,
+  generateFn: (dto: any) => Promise<any>,
+): Promise<GeneratedQuestion[]> {
+  const fixed = [...list];
+  for (let i = 0; i < fixed.length; i++) {
+    const q = fixed[i];
+    if (isValidGeneratedQuestion(q)) continue;
 
-  const buckets = res?.data?.questions;
-  if (res?.ok && buckets && typeof buckets === 'object') {
-    const types = ['multiple_choice', 'true_false', 'open_analysis', 'open_exercise'] as const;
-    const out: GeneratedQuestion[] = [];
-    types.forEach((t) => {
-      const arr = (buckets as any)[t] || [];
-      arr.forEach((q: any, idx: number) => {
-        out.push({
-          id: q.id ?? `${t}_${idx}_${Date.now()}`,
-          type: t,
-          text: q.text ?? '',
-          options: q.options ?? undefined,
-          include: q.include ?? true,
-        } as GeneratedQuestion);
-      });
-    });
-    return out;
+    const distribution = {
+      multiple_choice: q.type === 'multiple_choice' ? 1 : 0,
+      true_false: q.type === 'true_false' ? 1 : 0,
+      open_analysis: q.type === 'open_analysis' ? 1 : 0,
+      open_exercise: q.type === 'open_exercise' ? 1 : 0,
+    };
+    const oneDto = { ...baseDto, totalQuestions: 1, distribution };
+
+    let replacement: GeneratedQuestion | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const res = await generateFn(oneDto);
+      const [candidate] = normalizeToQuestions(res);
+      if (candidate && isValidGeneratedQuestion(candidate)) {
+        replacement = candidate;
+        break;
+      }
+    }
+
+    if (replacement) {
+      fixed[i] = { ...replacement, id: q.id, include: q.include };
+    }
   }
-
-  return [];
+  return fixed;
 }
 
 export default function ExamsCreatePage() {
   const { toasts, pushToast, removeToast } = useToast();
   const formRef = useRef<ExamFormHandle>(null!);
+  const [params] = useSearchParams();
+  const courseId = params.get('courseId') || '';
+  const navigate = useNavigate();
 
   const [aiOpen, setAiOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -90,18 +107,15 @@ export default function ExamsCreatePage() {
     const snap = formRef.current?.getSnapshot?.();
     const draft = readJSON('exam:draft');
     const data = snap?.values?.subject ? snap.values : draft;
-
     if (!data) {
       pushToast('Completa y guarda el formulario primero.', 'warn');
       return;
     }
-
     setAiMeta({
       subject: data.subject ?? 'Tema general',
       difficulty: data.difficulty ?? 'medio',
       reference: data.reference ?? '',
     });
-
     const dto = buildAiInputFromForm(data);
     if (dto.totalQuestions <= 0) {
       setAiOpen(true);
@@ -109,19 +123,17 @@ export default function ExamsCreatePage() {
       setAiError('La suma de la distribución debe ser al menos 1.');
       return;
     }
-
     setAiOpen(true);
     setAiLoading(true);
     setAiError(null);
-
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
     try {
       const res = await generateQuestions(dto as any);
       const list = normalizeToQuestions(res);
-      setAiQuestions(list);
-      if (!list.length) {
-        setAiError('No se generaron preguntas. Revisa el backend y/o el DTO.');
-      }
-    } catch (e) {
+      const fixed = await repairInvalidQuestions(list, dto, (p) => generateQuestions(p as any));
+      setAiQuestions(fixed);
+      if (!fixed.length) setAiError('No se generaron preguntas. Revisa el backend y/o el DTO.');
+    } catch {
       setAiError('Error inesperado generando preguntas.');
     } finally {
       setAiLoading(false);
@@ -129,16 +141,11 @@ export default function ExamsCreatePage() {
   };
 
   const onChangeQuestion = (q: GeneratedQuestion) => {
-    setAiQuestions((prev) => prev.map((x) => (x.id === q.id ? q : x)));
+    setAiQuestions(prev => replaceQuestion(prev, q));
   };
 
   const onReorderQuestion = (from: number, to: number) => {
-    setAiQuestions(prev => {
-      const updated = [...prev];
-      const [moved] = updated.splice(from, 1);
-      updated.splice(to, 0, moved);
-      return updated;
-    });
+    setAiQuestions(prev => reorderQuestions(prev, from, to));
   };
 
   const onRegenerateAll = async () => {
@@ -149,7 +156,9 @@ export default function ExamsCreatePage() {
     setAiError(null);
     try {
       const res = await generateQuestions(dto as any);
-      setAiQuestions(normalizeToQuestions(res));
+      const list = normalizeToQuestions(res);
+      const fixed = await repairInvalidQuestions(list, dto, (p) => generateQuestions(p as any));
+      setAiQuestions(fixed);
     } catch {
       setAiError('No se pudo regenerar el set completo.');
     } finally {
@@ -172,65 +181,80 @@ export default function ExamsCreatePage() {
       },
     };
     try {
-      const res = await generateQuestions(oneDto as any);
-      const [only] = normalizeToQuestions(res);
+      let only: GeneratedQuestion | undefined;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const res = await generateQuestions(oneDto as any);
+        const [candidate] = normalizeToQuestions(res);
+        if (candidate && isValidGeneratedQuestion(candidate)) {
+          only = candidate;
+          break;
+        }
+      }
       if (only) {
         setAiQuestions((prev) =>
           prev.map((x) => (x.id === q.id ? { ...only, id: q.id, include: q.include } : x))
         );
+      } else {
+        setAiError('No se pudo regenerar esa pregunta (intentos agotados).');
       }
     } catch {
       setAiError('No se pudo regenerar esa pregunta.');
     }
   };
 
-  const onAddManual = (type: GeneratedQuestion['type']) => {
-    const id = `manual_${Date.now()}`;
-    if (type === 'multiple_choice') {
-      setAiQuestions((prev) => ([
-        ...prev,
-        { id, type, text: 'Escribe aquí tu pregunta de opción múltiple…', options: ['Opción A', 'Opción B', 'Opción C', 'Opción D'], include: true } as GeneratedQuestion,
-      ]));
-    } else if (type === 'true_false') {
-      setAiQuestions((prev) => ([
-        ...prev,
-        { id, type, text: 'Enuncia aquí tu afirmación para Verdadero/Falso…', include: true } as GeneratedQuestion,
-      ]));
-    } else if (type === 'open_exercise') {
-      setAiQuestions((prev) => ([
-        ...prev,
-        { id, type, text: 'Describe aquí el enunciado del ejercicio abierto…', include: true } as GeneratedQuestion,
-      ]));
-    } else {
-      setAiQuestions((prev) => ([
-        ...prev,
-        { id, type, text: 'Escribe aquí tu consigna de análisis abierto…', include: true } as GeneratedQuestion,
-      ]));
-    }
-  };
-
   const onSave = async () => {
-    const selected = aiQuestions.filter((q) => q.include).length;
-    pushToast(`Cambios guardados. Preguntas incluidas: ${selected}.`, 'success');
+    if (!courseId) {
+      pushToast('Abre el creador desde la materia (Crear examen) para asociarlo.', 'error');
+      return;
+    }
+
+    const selected = aiQuestions.filter(q => q.include);
+    if (!selected.length) {
+      pushToast('Selecciona al menos una pregunta.', 'error');
+      return;
+    }
+
+    const ts = Date.now();
+    const used = new Set<string>();
+    const questions = selected.map((q, i) => {
+      const baseId = q.id || `q_${ts}_${q.type}_${i}`;
+      let id = baseId;
+      while (used.has(id)) id = `${id}_${Math.random().toString(36).slice(2,6)}`;
+      used.add(id);
+      return {
+        id,
+        type: q.type,
+        text: (q as any).text,
+        options: (q as any).options ?? undefined,
+      };
+    });
+
+    await createExamApproved({
+      courseId,
+      title: aiMeta.subject || 'Examen',
+      questions,
+    });
+
+    pushToast('Examen guardado en la base de datos.', 'success');
+    navigate(`/courses/${courseId}`);
   };
 
   return (
     <PageTemplate
       title="Exámenes"
-      subtitle="Creador de exámenes"
-      user={{
-        name: 'Nora Watson',
-        role: 'Sales Manager',
-        avatarUrl: 'https://i.pravatar.cc/128?img=5',
-      }}
+      subtitle="Creación de exámenes"
       breadcrumbs={[
         { label: 'Home', href: '/' },
-        { label: 'Exámenes', href: '/exams' },
-        { label: 'Crear' },
+        { label: 'Gestión de Exámenes', href: '/exams' },
+        { label: 'Crear examen' },
       ]}
     >
-      <div className="pantalla-scroll">
-        <section className="card subtle">
+      <GlobalScrollbar />
+      <div>
+        <section
+          className="card subtle readable-card"
+          style={{ display: aiOpen ? 'none' : 'block' }}
+        >
           <div style={layoutStyle}>
             <ExamForm
               ref={formRef}
@@ -241,7 +265,7 @@ export default function ExamsCreatePage() {
         </section>
 
         {aiOpen && (
-          <section className="card subtle" style={{ width: '100%', margin: '0 auto' }}>
+          <section className="card subtle readable-card">
             <AiResults
               subject={aiMeta.subject}
               difficulty={aiMeta.difficulty}
@@ -252,7 +276,30 @@ export default function ExamsCreatePage() {
               onChange={onChangeQuestion}
               onRegenerateAll={onRegenerateAll}
               onRegenerateOne={onRegenerateOne}
-              onAddManual={onAddManual}
+              onAddManual={(type) => {
+                const id = `manual_${Date.now()}`;
+                if (type === 'multiple_choice') {
+                  setAiQuestions((prev) => ([
+                    ...prev,
+                    cloneQuestion({ id, type, text: 'Escribe aquí tu pregunta de opción múltiple…', options: ['Opción A','Opción B','Opción C','Opción D'], include: true } as GeneratedQuestion),
+                  ]));
+                } else if (type === 'true_false') {
+                  setAiQuestions((prev) => ([
+                    ...prev,
+                    cloneQuestion({ id, type, text: 'Enuncia aquí tu afirmación para Verdadero/Falso…', include: true } as GeneratedQuestion),
+                  ]));
+                } else if (type === 'open_exercise') {
+                  setAiQuestions((prev) => ([
+                    ...prev,
+                    cloneQuestion({ id, type, text: 'Describe aquí el enunciado del ejercicio abierto…', include: true } as GeneratedQuestion),
+                  ]));
+                } else {
+                    setAiQuestions((prev) => ([
+                      ...prev,
+                      cloneQuestion({ id, type, text: 'Escribe aquí tu consigna de análisis abierto…', include: true } as GeneratedQuestion),
+                    ]));
+                }
+              }}
               onSave={onSave}
               onReorder={onReorderQuestion}
             />

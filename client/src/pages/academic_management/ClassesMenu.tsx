@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import useClasses from "../../hooks/useClasses";
-import { Card, Row, Col, Input, Space, Empty } from "antd";
+import { Input, Space, Empty } from "antd";
 import type { Clase } from "../../interfaces/claseInterface";
 import PageTemplate from "../../components/PageTemplate";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import { useUserStore } from "../../store/userStore";
 import AccessDenied from "../../components/shared/AccessDenied";
+import CustomCard from "../../components/shared/CustomCard";
+import { SolutionOutlined } from "@ant-design/icons";
 
 export function ClassMenu() {
   const user = useUserStore((s) => s.user);
@@ -53,43 +55,12 @@ export function ClassMenu() {
     navigate(`/reinforcement/${id}`)
   }
 
-  const renderGrid = (items: Clase[]) =>
-    items.length ? (
-      <Row gutter={[16, 16]}>
-        {items.map((clase) => (
-          <Col xs={24} sm={12} md={8} lg={6} key={clase.id}>
-            <Card
-              hoverable
-              onClick={() => goToReinforcement(clase.id)}
-              style={{
-                width: "100%",
-                height: 200,
-                textAlign: "center",
-                borderRadius: 20,
-              }}
-            >
-              <h2>{clase.name}</h2>
-              <p>Inicio: {dayjs(clase.dateBegin).format("DD/MM/YYYY")}</p>
-              <p>Fin: {dayjs(clase.dateEnd).format("DD/MM/YYYY")}</p>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-    ) : (
-      <Empty description="No hay cursos" />
-    );
-
   return (
     <>
       {user?.roles.includes("estudiante") ? (
         <PageTemplate
           title="Clases"
-          subtitle="Clases a las que te encuentras inscrito"
-          user={{
-            name: "Nora Watson",
-            role: "Sales Manager",
-            avatarUrl: "https://i.pravatar.cc/128?img=5",
-          }}
+          subtitle="Consulta a detalle información acerca de las clases en las que te encuentras inscrito"
           breadcrumbs={[{ label: "Home", href: "/" }, { label: "Clases" }]}
         >
           <div
@@ -118,11 +89,34 @@ export function ClassMenu() {
               </Space>
             </div>
 
-            <h1>Cursos Actuales</h1>
-            {renderGrid(filteredClasses)}
-
-            {/* <h1 style={{ marginTop: 24 }}>Cursos Pasados</h1>
-            {renderGrid(cursosPasados)} */}
+            {filteredClasses.length > 0 ? (
+              <>{filteredClasses.map((objClass) => (
+                <CustomCard
+                  status="default"
+                  style={{ marginBottom: "16px" }}
+                  onClick={() => goToReinforcement(objClass.id)}
+                  key={objClass.id}
+                >
+                  <CustomCard.Header
+                    icon={<SolutionOutlined />}
+                    title={objClass.name}
+                  />
+                  <CustomCard.Description>
+                    {`Consulta y mejora tu progreso en ${objClass.name} empleando recursos interactivos.`}
+                  </CustomCard.Description>
+                  <CustomCard.Body>
+                    <div style={{ marginBottom: "2px" }}>
+                      Inicio: {dayjs(objClass.dateBegin).format("DD/MM/YYYY")}
+                    </div>
+                    <div>
+                      Fin: {dayjs(objClass.dateEnd).format("DD/MM/YYYY")}
+                    </div>
+                  </CustomCard.Body>
+                </CustomCard>
+              ))}</>
+            ) : (
+              <Empty description="Todavía no te encuentras inscrito en ninguna clase." />
+            )}
           </div>
         </PageTemplate>
       ) : (

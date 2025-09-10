@@ -17,19 +17,16 @@ const useStudents = () => {
         prepareHook();
     }, [user]);
 
+    //Endpoints GET
     const fetchStudentsByClass = async (classId: string) => {
         const res = await studentService.getStudentsByClassId(classId);
-        if (res.code == 200) {
-            setStudents(res.data);
-            return {
-                success: true,
-                message: "Estudiantes recuperados exitosamente"
-            }
-        } else {
-            return {
-                success: false,
-                message: res.error
-            }
+        const success = res?.code == 200
+        if (success) {
+            setStudents(res.data);  
+        } 
+        return {
+            state: success ? "success" : "error",
+            message: success ? "Estudiantes recuperados" : res?.error
         }
     }
 

@@ -1,0 +1,1 @@
+export const EXAM_AI_GENERATOR = 'EXAM_AI_GENERATOR';

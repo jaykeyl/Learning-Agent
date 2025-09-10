@@ -1,0 +1,36 @@
+pipeline {
+    agent any
+
+    environment {
+        CI = 'true'
+        NODE_ENV = 'production'
+        REGISTRY_CREDENTIALS = credentials('DOCKERHUB_CREDENTIALS')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        stage('Build and Push Docker image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'DOCKERHUB_CREDENTIALS', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+                    script {
+                        def image = "${DOCKERHUB_USER}/learning-agent-backend:${env.BUILD_NUMBER}"
+                        dir('backend') {
+                            sh 'docker -v && docker info'
+                            sh 'echo "Directorio actual:" && pwd'
+                            sh 'echo "Contenido actual:" && ls -la'
+                            sh "docker build -t ${image} ."
+                        }
+                        sh """
+                            echo \"$DOCKERHUB_PASS\" | docker login -u \"$DOCKERHUB_USER\" --password-stdin
+                            docker push ${image}
+                        """
+                    }
+                }
+            }
+        }
+    }
+}

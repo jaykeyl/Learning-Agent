@@ -13,7 +13,6 @@ export class GetMeUseCase {
   async execute(input: { userId: string }) {
     const user = await this.users.findById(input.userId);
     if (!user) throw new NotFoundException();
-    console.log('User found:', user);
     const roles = await this.authz.getRolesForUser(user.id);
 
     return {

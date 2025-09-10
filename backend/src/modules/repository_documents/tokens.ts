@@ -13,3 +13,8 @@ export const DOCUMENT_CHUNK_REPOSITORY_PORT = Symbol(
 // Tokens para Phase 3 - Embeddings y búsqueda vectorial
 export const EMBEDDING_GENERATOR_PORT = Symbol('EmbeddingGeneratorPort');
 export const VECTOR_SEARCH_PORT = Symbol('VectorSearchPort');
+
+// Token para documentos eliminados
+export const DELETED_DOCUMENT_REPOSITORY_PORT = Symbol(
+  'DeletedDocumentRepositoryPort',
+);

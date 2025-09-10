@@ -2,13 +2,12 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../core/prisma/prisma.module';
 import { AiConfigService } from '../../core/ai/ai.config';
 import { LlmModule } from '../llm/llm.module';
-import { PromptTemplateModule } from '../prompt-template/prompt-template.module';
-import { ChatInterviewService } from './domain/services/deepseek/chat.service';
 import { ChatIntController } from './infrastructure/httpchat/chatInt.controller';
+import { DeepseekModule } from '../deepseek/deepseek.module';
 
 @Module({
-  imports: [PrismaModule, LlmModule, PromptTemplateModule],
+  imports: [PrismaModule, LlmModule, DeepseekModule],
   controllers: [ChatIntController],
-  providers: [AiConfigService, ChatInterviewService],
+  providers: [AiConfigService],
 })
 export class InterviewModule {}

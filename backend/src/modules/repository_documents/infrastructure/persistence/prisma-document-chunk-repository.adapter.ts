@@ -25,6 +25,7 @@ export class PrismaDocumentChunkRepositoryAdapter
    */
   async save(chunk: DocumentChunk): Promise<DocumentChunk> {
     try {
+
       const savedChunk = await this.prisma.documentChunk.create({
         data: {
           id: chunk.id,
@@ -40,10 +41,6 @@ export class PrismaDocumentChunkRepositoryAdapter
           createdAt: chunk.createdAt,
         },
       });
-
-      this.logger.debug(
-        `Chunk guardado: ${chunk.id} (${chunk.content.length} chars)`,
-      );
 
       return this.mapToEntity(savedChunk);
     } catch (error) {
@@ -215,7 +212,6 @@ export class PrismaDocumentChunkRepositoryAdapter
         where: { id },
       });
 
-      this.logger.debug(`Chunk eliminado: ${id}`);
     } catch (error) {
       this.logger.error(`Error eliminando chunk ${id}:`, error);
       throw new Error(`Error eliminando chunk: ${error}`);
@@ -286,7 +282,7 @@ export class PrismaDocumentChunkRepositoryAdapter
           MAX(LENGTH(content)) as max_length,
           AVG(LENGTH(content))::int as avg_length,
           SUM(LENGTH(content)) as total_length
-        FROM "DocumentChunk" 
+        FROM "document_chunks" 
         WHERE "documentId" = ${documentId}
       `;
 
@@ -335,7 +331,6 @@ export class PrismaDocumentChunkRepositoryAdapter
         WHERE id = ${chunkId}
       `;
 
-      this.logger.debug(`Embedding actualizado para chunk: ${chunkId}`);
     } catch (error) {
       this.logger.error(
         `Error actualizando embedding del chunk ${chunkId}:`,

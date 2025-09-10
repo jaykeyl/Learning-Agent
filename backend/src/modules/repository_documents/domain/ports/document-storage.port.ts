@@ -17,4 +17,18 @@ export interface DocumentStoragePort {
    * @returns Buffer con el contenido del archivo
    */
   downloadFileBuffer(fileName: string): Promise<Buffer>;
+
+  /**
+   * verifica si un archivo existe en el storage
+   * @param s3Key clave s3 del archivo
+   * @returns true si el archivo existe
+   */
+  exists(s3Key: string): Promise<boolean>;
+
+  /**
+   * mueve un archivo de una ubicación a otra en el storage
+   * @param sourceKey clave s3 de origen
+   * @param destinationKey clave s3 de destino
+   */
+  moveFile(sourceKey: string, destinationKey: string): Promise<void>;
 }

@@ -4,6 +4,8 @@ export interface MinioConfig {
   secretAccessKey: string;
   bucketName: string;
   region: string;
+  // Optional public endpoint for URLs returned to clients (e.g., http://localhost:9000 or Ingress URL)
+  publicEndpoint?: string;
 }
 
 export const minioConfig: MinioConfig = {
@@ -12,4 +14,6 @@ export const minioConfig: MinioConfig = {
   secretAccessKey: process.env.MINIO_SECRET_KEY || 'adminpassword',
   bucketName: process.env.MINIO_BUCKET_NAME || 'documents',
   region: process.env.MINIO_REGION || 'us-east-1',
+  // Use a separate public endpoint if provided, otherwise undefined
+  publicEndpoint: process.env.MINIO_PUBLIC_ENDPOINT,
 };

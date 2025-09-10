@@ -308,7 +308,6 @@ export class DocumentEmbeddingService {
       // Actualizar embeddings en lote
       await this.chunkRepository.updateBatchEmbeddings(updates);
 
-      console.log(`${chunks.length} embeddings almacenados en pgvector`);
     } catch (error) {
       console.error('Error almacenando embeddings:', error);
       throw new Error(`Error almacenando embeddings: ${error}`);

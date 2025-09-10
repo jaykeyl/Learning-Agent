@@ -1,10 +1,11 @@
 import axios from 'axios';
+import { readAuth } from '../../utils/storage';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE || 'http://localhost:3000',
 });
 api.interceptors.request.use((config) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  const token = readAuth().accessToken;
   if (token) {
     config.headers = config.headers ?? {};
     config.headers['Authorization'] = `Bearer ${token}`;
