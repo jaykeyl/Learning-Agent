@@ -249,14 +249,14 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
               <div className="form-group">
                 <label htmlFor="difficulty" className="block text-sm font-medium mb-1">
                   Dificultad *
-                  </label>
+                </label>
                   <div className="difficulty-selector" 
                     style={{
                       display: 'flex',
                       background: 'var(--app-colorBgElevated)',
                       borderRadius: '6px',
                       overflow: 'hidden',
-                      height: '34px',
+                      height: '44px',
                       border: '1px solid var(--app-colorBorder)'
                     }}
                   >
@@ -321,12 +321,13 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                       background: 'var(--app-colorBgElevated)',
                       borderRadius: '6px',
                       overflow: 'hidden',
-                      height: '34px',
+                      height: '44px',
                       border: '1px solid var(--app-colorBorder)'
+                      
                     }}
                   >
                     {[1, 2, 3].map((num) => (
-                      <div key={num} className="attempt-option" style={{ flex: 1, position: 'relative' }}>
+                      <div key={num} className="attempt-option" style={{ flex: 1, position: 'relative', }}>
                         <input
                           id={`attempts-${num}`}
                           className="attempt-input"
@@ -346,6 +347,7 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                           htmlFor={`attempts-${num}`}
                           className="attempt-label"
                           style={{
+                            flex: 1,
                             display: 'flex',
                             justifyContent: 'center',
                             alignItems: 'center',
@@ -355,8 +357,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                               : 'var(--app-colorBgContainer)',
                             cursor: 'pointer',
                             transition: 'all 0.2s ease',
-                            fontSize: '13px',
-                            fontWeight: values.attempts === String(num) ? 600 : 500,
+                            fontSize: '16px',
+                            fontWeight:  600, 
+                            lineHeight: '1', 
                             color: values.attempts === String(num) 
                               ? 'var(--app-colorTextOnPrimary)' 
                               : 'var(--app-colorText)',

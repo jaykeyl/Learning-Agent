@@ -10,7 +10,8 @@
     "lint": "eslint . --max-warnings=0",
     "lint-staged": "lint-staged",
     "preview": "vite preview",
-    "test": "jest --watchAll"
+    "test": "jest --watchAll",
+    "cypress": "npx cypress open"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
