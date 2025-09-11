@@ -385,9 +385,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   <input
                     id="multipleChoice"
                     name="multipleChoice"
-                    type="number"
-                    min={0}
-                    step={1}
+                    type="text"
+                    pattern="[0-9]*"
+                    inputMode="numeric"
                     placeholder="0"
                     className="
                       input-hover w-full rounded-lg border-2 px-1 py-1
@@ -396,6 +396,20 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     "
                     value={values.multipleChoice || ''}
                     onChange={(e) => onChange('multipleChoice', e.target.value)}
+                    onKeyDown={(e) => {
+                      if (![
+                        'Backspace',
+                        'Delete',
+                        'ArrowLeft',
+                        'ArrowRight',
+                        'Tab',
+                        'Home',
+                        'End',
+                        ...[...Array(10)].map((_, i) => i.toString())
+                      ].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     style={{
                       background: token.colorBgContainer,
                       color: token.colorText,
@@ -415,9 +429,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   <input
                     id="trueFalse"
                     name="trueFalse"
-                    type="number"
-                    min={0}
-                    step={1}
+                    type="text"
+                    pattern="[0-9]*"
+                    inputMode="numeric"
                     placeholder="0"
                     className="
                       input-hover w-full rounded-lg border-2 px-3 py-2
@@ -426,6 +440,20 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     "
                     value={values.trueFalse || ''}
                     onChange={(e) => onChange('trueFalse', e.target.value)}
+                    onKeyDown={(e) => {
+                      if (![
+                        'Backspace',
+                        'Delete',
+                        'ArrowLeft',
+                        'ArrowRight',
+                        'Tab',
+                        'Home',
+                        'End',
+                        ...[...Array(10)].map((_, i) => i.toString())
+                      ].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     style={{
                       background: token.colorBgContainer,
                       color: token.colorText,
@@ -445,9 +473,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   <input
                     id="analysis"
                     name="analysis"
-                    type="number"
-                    min={0}
-                    step={1}
+                    type="text"
+                    pattern="[0-9]*"
+                    inputMode="numeric"
                     placeholder="0"
                     className="
                       input-hover w-full rounded-lg border-2 px-3 py-2
@@ -456,6 +484,20 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     "
                     value={values.analysis || ''}
                     onChange={(e) => onChange('analysis', e.target.value)}
+                    onKeyDown={(e) => {
+                      if (![
+                        'Backspace',
+                        'Delete',
+                        'ArrowLeft',
+                        'ArrowRight',
+                        'Tab',
+                        'Home',
+                        'End',
+                        ...[...Array(10)].map((_, i) => i.toString())
+                      ].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     style={{
                       background: token.colorBgContainer,
                       color: token.colorText,
@@ -475,9 +517,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   <input
                     id="openEnded"
                     name="openEnded"
-                    type="number"
-                    min={0}
-                    step={1}
+                    type="text"
+                    pattern="[0-9]*"
+                    inputMode="numeric"
                     placeholder="0"
                     className="
                       input-hover w-full rounded-lg border-2 px-3 py-2
@@ -486,6 +528,20 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     "
                     value={values.openEnded || ''}
                     onChange={(e) => onChange('openEnded', e.target.value)}
+                    onKeyDown={(e) => {
+                      if (![
+                        'Backspace',
+                        'Delete',
+                        'ArrowLeft',
+                        'ArrowRight',
+                        'Tab',
+                        'Home',
+                        'End',
+                        ...[...Array(10)].map((_, i) => i.toString())
+                      ].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     style={{
                       background: token.colorBgContainer,
                       color: token.colorText,
