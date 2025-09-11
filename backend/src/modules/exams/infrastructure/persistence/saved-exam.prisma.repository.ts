@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../core/prisma/prisma.service';
 import type {
-  SaveApprovedExamInput,
+  SaveSavedExamInput,
   SavedExamDTO,
   SavedExamRepositoryPort,
   SavedExamReadModel,
@@ -11,33 +11,32 @@ import type {
 
 function asSavedExamStatus(s: unknown): SavedExamStatus {
   if (s === 'Guardado' || s === 'Publicado') return s;
-  // Optional: be strict to catch bad data early
   throw new Error(`Unexpected SavedExam.status from DB: ${String(s)}`);
 }
 @Injectable()
 export class SavedExamPrismaRepository implements SavedExamRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
-  async save(data: SaveApprovedExamInput): Promise<SavedExamDTO> {
+  async save(data: SaveSavedExamInput): Promise<SavedExamDTO> {
     const row = await this.prisma.savedExam.create({
       data: {
         title: data.title,
-        content: data.content as any,
         status: (data.status ?? 'Guardado') as any,
         courseId: data.courseId,
         teacherId: data.teacherId,
+        exam: { connect: { id: data.examId } },
       },
     });
 
     return {
       id: row.id,
       title: row.title,
-      content: row.content,
       status: row.status as any,
       courseId: row.courseId,
       teacherId: row.teacherId,
       createdAt: row.createdAt,
       source: 'saved',
+      examId: row.examId,
     };
   }
 
@@ -50,12 +49,12 @@ export class SavedExamPrismaRepository implements SavedExamRepositoryPort {
     return rows.map((r) => ({
       id: r.id,
       title: r.title,
-      content: r.content,
       status: r.status as any,
       courseId: r.courseId,
       teacherId: r.teacherId,
       createdAt: r.createdAt,
       source: 'saved',
+      examId: r.examId,
     }));
     }
 
@@ -66,12 +65,11 @@ async findByExamId(examId: string): Promise<SavedExamReadModel | null> {
     return {
       id: r.id,
       title: r.title,
-      content: r.content,
       status: asSavedExamStatus(r.status), // <-- narrow to the union
       courseId: r.courseId,
       teacherId: r.teacherId,
       createdAt: r.createdAt,
-      examId: r.examId ?? null,
+      examId: r.examId,
     };
   }
 

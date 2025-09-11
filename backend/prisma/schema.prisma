@@ -320,7 +320,7 @@ model Exam {
   trueFalseCount    Int   @default(0) // verdadero/falso
   openAnalysisCount Int   @default(0) // abiertas: análisis
   openExerciseCount Int   @default(0) // abiertas: ejercicio
-  approvedAt      DateTime?  
+  content         Json?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   questions       ExamQuestion[]
@@ -344,12 +344,11 @@ enum ExamStorageStatus {
 }
 
 model SavedExam {
-  id        Int               @id @default(autoincrement())
+  id        String            @id @default(uuid())
   title     String
-  content   Json
   status    ExamStorageStatus @default(Guardado)
 
-  examId    String?           @unique
+  examId    String            @unique
   exam      Exam?             @relation(fields: [examId], references: [id], onDelete: Cascade)
 
   // FK “lógicas” (sin relación Prisma)
