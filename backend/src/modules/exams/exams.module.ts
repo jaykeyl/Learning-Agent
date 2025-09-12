@@ -13,13 +13,11 @@ import { GenerateExamUseCase } from './application/commands/generate-exam.usecas
 import { ExamQuestionPrismaRepository } from './infrastructure/persistence/exam-question.prisma.repository';
 import { AddExamQuestionCommandHandler } from './application/commands/add-exam-question.handler';
 import { UpdateExamQuestionCommandHandler } from './application/commands/update-exam-question.handler';
-import { ApproveExamCommandHandler } from './application/commands/approve-exam.handler';
 import { SavedExamPrismaRepository } from './infrastructure/persistence/saved-exam.prisma.repository';
-import { SaveApprovedExamUseCase } from './application/commands/save-approved-exam.usecase';
+import { SaveSavedExamUseCase } from './application/commands/save-saved-exam.usecase';
 import { ListCourseExamsUseCase } from './application/queries/list-course-exams.usecase';
 import { GetExamByIdUseCase } from './application/queries/get-exam-by-id.usecase';
 import { SAVED_EXAM_REPO,} from './tokens';
-import { SimpleCourseExamsProvider } from './infrastructure/http/providers/course-hardcoded-exams.provider';
 import { ApprovedExamsController } from './infrastructure/http/approved-exams.controller';
 import { TOKEN_SERVICE } from '../identity/tokens';
 
@@ -64,8 +62,7 @@ const DevTokenService = {
     GenerateQuestionsCommandHandler,
     AddExamQuestionCommandHandler,
     UpdateExamQuestionCommandHandler,
-    ApproveExamCommandHandler,
-    SaveApprovedExamUseCase,
+    SaveSavedExamUseCase,
     ListCourseExamsUseCase,
     GetExamByIdUseCase,
     

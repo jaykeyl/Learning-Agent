@@ -29,9 +29,9 @@ export default function Test() {
     }
   };
 
-  const handleTimeUp = () => {
-    navigate("/reinforcement");
-  };
+  // const handleTimeUp = () => {
+  //   navigate("/reinforcement");
+  // };
 
   return (
     <PageTemplate

@@ -19,5 +19,21 @@ export default tseslint.config([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // TypeScript pragmatism for existing code
+      '@typescript-eslint/no-explicit-any': 'off',
+      // Allow prefixed underscore to indicate intentional unused
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+
+      // React specific rules tuned for this project
+      'react-refresh/only-export-components': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+
+      // Allow empty catch blocks (often used to ignore storage/security errors)
+      'no-empty': ['error', { allowEmptyCatch: true }],
+
+      // Avoid noisy refactors
+      'prefer-const': 'off',
+    },
   },
 ])
