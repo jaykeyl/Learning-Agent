@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { theme } from "antd";
 import { useNavigate } from "react-router-dom";
 
-export function TestTimer({ questionCount = 1, onTimeUp }) {
+type Props = { questionCount?: number; onTimeUp?: () => void };
+
+export function TestTimer({ questionCount = 1, onTimeUp }: Props) {
   const { token } = theme.useToken();
   const navigate = useNavigate();
   const totalTime = questionCount * 30;

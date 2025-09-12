@@ -128,8 +128,9 @@ export function StudentsByClass() {
         studentRows: payloadRows,
       });
 
+      const meta = res?.data;
       message.success(
-        `Procesado: ${res.totalRows} · Éxito: ${res.successRows} · Ya inscritos: ${res.existingRows} · Errores: ${res.errorRows}`
+        `Procesado: ${meta?.totalRows ?? 0} · Éxito: ${meta?.successRows ?? 0} · Ya inscritos: ${meta?.existingRows ?? 0} · Errores: ${meta?.errorRows ?? 0}`
       );
 
       setPreviewOpen(false);

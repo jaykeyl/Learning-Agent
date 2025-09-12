@@ -1,0 +1,62 @@
+name: CI (client)
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'client/**'
+      - '.github/workflows/ci-client.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'client/**'
+      - '.github/workflows/ci-client.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint, Test, Build (${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        node: [18, 20]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a74815f3d7
+
+      - name: Setup Node
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install
+        working-directory: client
+        run: npm ci
+
+      - name: Lint
+        working-directory: client
+        run: npm run lint --if-present
+
+      - name: Test
+        working-directory: client
+        run: npm run test --if-present -- --ci --reporters=default --reporters=junit --outputFile=junit.xml
+
+      - name: Build
+        working-directory: client
+        run: npm run build --if-present
+
+      - name: Upload artifacts (build y reportes)
+        if: always()
+        uses: actions/upload-artifact@834d307f3a2f3c78a219c1a5b2dede422a8767b0
+        with:
+          name: build-and-reports-${{ matrix.node }}
+          path: |
+            client/dist/**
+            client/junit.xml
+

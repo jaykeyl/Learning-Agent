@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Checkbox, Button, Typography, theme, Card } from 'antd';
 import { RightOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 

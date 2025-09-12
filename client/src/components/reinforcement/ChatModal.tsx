@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
+import type { CSSProperties } from 'react';
 import { Input, Button, Typography, theme } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import { useChatLogic } from '../../hooks/useChatLogic';
@@ -40,7 +41,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isChatOpen, onClose }) => 
       border: 'none',
       outline: 'none',
       zIndex: 9999,
-    } as React.CSSProperties,
+    } as CSSProperties,
     header: {
       padding: 16,
       borderBottom: 'none',
@@ -49,19 +50,19 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isChatOpen, onClose }) => 
       alignItems: 'center',
       position: 'relative',
       background: token.colorPrimary,
-    } as React.CSSProperties,
+    } as CSSProperties,
     headerText: {
       color: token.colorWhite,
       margin: 0,
       fontSize: 16,
       fontWeight: 600,
-    } as React.CSSProperties,
+    } as CSSProperties,
     closeButton: {
       position: 'absolute',
       right: 10,
       top: 10,
       color: token.colorWhite,
-    } as React.CSSProperties,
+    } as CSSProperties,
     body: {
       flex: 1,
       overflowY: 'auto',
@@ -70,7 +71,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isChatOpen, onClose }) => 
       flexDirection: 'column',
       gap: 12,
       background: token.colorBgLayout,
-    } as React.CSSProperties,
+    } as CSSProperties,
     messageBubble: (isUser: boolean) =>
       ({
         padding: '10px 14px',
@@ -93,19 +94,19 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isChatOpen, onClose }) => 
       background: token.colorBgContainer,
       borderRadius: 16,
       boxShadow: token.boxShadow,
-    } as React.CSSProperties,
+    } as CSSProperties,
     typingDot: {
       width: 10,
       height: 10,
       backgroundColor: token.colorPrimary,
       borderRadius: '50%',
       animation: 'typing-dot-bounce 1.4s infinite ease-in-out both',
-    } as React.CSSProperties,
+    } as CSSProperties,
     footer: {
       padding: 16,
       borderTop: 'none',
       background: token.colorBgContainer,
-    } as React.CSSProperties,
+    } as CSSProperties,
     input: {
       borderRadius: 20,
       border: `1px solid ${token.colorBorder}`,
@@ -137,11 +138,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isChatOpen, onClose }) => 
       >
         <div style={styles.container}>
           <div style={styles.header}>
-            <Typography.Title
-              level={4}
-              component="div"
-              style={styles.headerText}
-            >
+            <Typography.Title level={4} style={styles.headerText}>
               Asistente Virtual
             </Typography.Title>
             <Button type="text" onClick={onClose} style={styles.closeButton}>

@@ -1,4 +1,3 @@
-import React from "react";
 import { Modal, Button, Typography, Space, Divider, theme } from "antd";
 import { BookOutlined } from "@ant-design/icons";
 

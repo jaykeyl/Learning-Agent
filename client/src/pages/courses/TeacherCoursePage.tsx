@@ -65,7 +65,7 @@ export function TeacherCoursePage() {
     navigate(`/courses/${id}/periods`);
   };
 
-  const goToExams = (id: string, e: React.MouseEvent) => {
+  const goToExams = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigate(`/exams/`);
   };
@@ -155,7 +155,7 @@ export function TeacherCoursePage() {
                     <CustomCard.Actions>
                       <Button
                         type="primary"
-                        onClick={(e) => goToExams(course.id, e)}
+                        onClick={(e) => goToExams(e)}
                       >
                         Exámenes
                       </Button>
