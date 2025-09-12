@@ -75,7 +75,17 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
   }, []);
 
   const onChange = (name: string, value: string) => {
-    const v = name === 'subject' ? value.replace(/\s+/g, ' ').trimStart() : value;
+    let v = name === 'subject' ? value.replace(/\s+/g, ' ').trimStart() : value;
+    
+    if (['multipleChoice', 'trueFalse', 'analysis', 'openEnded'].includes(name)) {
+      if (value === '' || !/^\d+$/.test(value)) {
+        v = '';
+      } else {
+        const num = parseInt(value);
+        v = num.toString();
+      }
+    }
+    
     setValues((prev) => ({ ...prev, [name]: v }));
     setValue(name as any, v);
     setTouched((prev) => ({ ...prev, [name]: true }));
@@ -664,13 +674,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
           {step === 2 && onGenerateAI && (
             <Button
             type="primary"
-            disabled={sending || !validStep()}
-            onClick={() => {
-              if (validStep()) {
-                onGenerateAI?.();
-              }
-             }}
-             >
+            disabled={sending}
+            onClick={onGenerateAI}
+            >
               Generar preguntas con IA
               </Button>
             )}

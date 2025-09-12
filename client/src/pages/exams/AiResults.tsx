@@ -237,7 +237,10 @@ export default function AiResults({
     setSaveLoading(true);
     try {
       await onSave();
-      const summary = addFromQuestions({ title: subject || 'Examen', questions, publish: true });
+      const summary = addFromQuestions({ 
+        title: subject || 'Examen', 
+        questions
+      });
 
       const printable = {
         examId: summary.id,
@@ -368,8 +371,16 @@ export default function AiResults({
             type="primary"
             icon={<SaveOutlined />}
             loading={saveLoading}
+            disabled={loading || !!error || questions.length === 0 || selected === 0}
             onClick={handleSave}
             aria-label="Guardar y Finalizar"
+            title={
+              loading ? 'Espera mientras se genera el examen' :
+              error ? 'Hay errores que necesitan ser corregidos' :
+              questions.length === 0 ? 'No hay preguntas generadas' :
+              selected === 0 ? 'Selecciona al menos una pregunta' :
+              'Guardar y finalizar el examen'
+            }
           >
             Guardar y Finalizar
           </Button>
