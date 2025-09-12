@@ -20,8 +20,6 @@ import { AddExamQuestionCommandHandler } from '../../application/commands/add-ex
 import { UpdateExamQuestionDto } from './dtos/update-exam-question.dto';
 import { UpdateExamQuestionCommand } from '../../application/commands/update-exam-question.command';
 import { UpdateExamQuestionCommandHandler } from '../../application/commands/update-exam-question.handler';
-import { ApproveExamCommand } from '../../application/commands/approve-exam.command';
-import { ApproveExamCommandHandler } from '../../application/commands/approve-exam.handler';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import {
   responseSuccess,
@@ -47,7 +45,6 @@ export class ExamsController {
     private readonly generateExamHandler: GenerateExamUseCase,
     private readonly addExamQuestionHandler: AddExamQuestionCommandHandler,
     private readonly updateExamQuestionHandler: UpdateExamQuestionCommandHandler,
-    private readonly approveExamHandler: ApproveExamCommandHandler,
     private readonly prisma: PrismaService,
   ) {}
   private readonly logger = new Logger(ExamsController.name);
@@ -149,15 +146,6 @@ export class ExamsController {
     const updated = await this.updateExamQuestionHandler.execute(new UpdateExamQuestionCommand(id, dto));
     this.logger.log(`[${cid(req)}] updateQuestion <- id=${updated.id}`);
     return responseSuccess(cid(req), updated, 'Question updated successfully', pathOf(req));
-  }
-
-  @Post(':id/approve')
-  @HttpCode(200)
-  async approveExam(@Param('id') id: string, @Req() req: Request) {
-    this.logger.log(`[${cid(req)}] approveExam -> id=${id}`);
-    const res = await this.approveExamHandler.execute(new ApproveExamCommand(id));
-    this.logger.log(`[${cid(req)}] approveExam <- id=${id}`);
-    return responseSuccess(cid(req), res, 'Exam approved successfully', pathOf(req));
   }
 
   @Post('quick-save')

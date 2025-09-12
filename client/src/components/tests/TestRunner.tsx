@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Spin, Alert, Button } from "antd";
 import TestQuestion from "./TestQuestion";
 import TrueOrFalseQuestion from "./TrueOrFalseQuestion";

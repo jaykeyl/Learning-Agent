@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Button, Typography, Empty, message } from 'antd';
-import { listCourseExams, type CourseExamRow, deleteExamByCandidates } from '../../services/exams.service';
+import { Button, Typography, Empty } from 'antd';
+import { listCourseExams, type CourseExamRow } from '../../services/exams.service';
 import ExamTable from '../../components/exams/ExamTable';
 import { useNavigate } from 'react-router-dom';
 import type { ExamSummary } from '../../store/examsStore';
@@ -78,56 +78,6 @@ export default function CourseExamsPanel({ courseId }: Props) {
       .finally(() => setLoading(false));
   }, [courseId]);
 
-  const handleToggleVisibility = async (exam: ExamSummary, next: 'visible' | 'hidden') => {
-    setTableData((prev) => prev.map((it) => (it.id === exam.id ? { ...it, visibility: next } : it)));
-    message.success(next === 'visible' ? 'Examen hecho público' : 'Examen ocultado');
-  };
-
-  const handleDelete = async (exam: ExamSummary) => {
-    const prev = tableData;
-    setTableData((p) => p.filter((it) => it.id !== exam.id)); 
-
-    try {
-      const candidates = Array.isArray((exam as any).__candidates)
-        ? (exam as any).__candidates
-        : [exam.id];
-
-      await deleteExamByCandidates(courseId, candidates);
-      message.success('Examen eliminado');
-    } catch (e: any) {
-      const status = e?.response?.status;
-      if (status === 404) {
-        message.warning('No se encontró el recurso en el servidor; lo doy por eliminado.');
-        return;
-      }
-      setTableData(prev); 
-      const msg = e?.response?.data?.message || e?.message || 'No se pudo eliminar el examen';
-      message.error(msg);
-    }
-  };
-
-  const handleChangeStatus = async (
-    exam: ExamSummary,
-    mode: 'now' | 'schedule' | 'draft',
-    whenIso?: string
-  ) => {
-    setTableData((prev) =>
-      prev.map((it) => {
-        if (it.id !== exam.id) return it;
-        if (mode === 'now') {
-          return { ...it, status: 'published', visibility: 'visible', publishedAt: new Date().toISOString() };
-        }
-        if (mode === 'schedule') {
-          return { ...it, status: 'scheduled', visibility: 'visible', publishedAt: whenIso ?? new Date().toISOString() };
-        }
-        return { ...it, status: 'draft', publishedAt: undefined };
-      })
-    );
-    if (mode === 'now') message.success('Examen publicado');
-    else if (mode === 'schedule') message.success('Examen programado');
-    else message.success('Examen guardado como borrador');
-  };
-
   const Header = (
     <div className="flex items-center justify-between mb-2">
       <Title level={4} style={{ margin: 0 }}>Exámenes de esta materia</Title>
@@ -148,9 +98,6 @@ export default function CourseExamsPanel({ courseId }: Props) {
             <ExamTable
               data={tableData}
               onEdit={() => navigate(`/exams/create?courseId=${courseId}`)}
-              onToggleVisibility={handleToggleVisibility}
-              onChangeStatus={handleChangeStatus}
-              onDelete={handleDelete}
             />
           </div>
         </>

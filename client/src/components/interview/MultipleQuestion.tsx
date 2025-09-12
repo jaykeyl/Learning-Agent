@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Typography, Checkbox, Button, Card, theme } from 'antd';
 import { RightOutlined, CodeOutlined } from '@ant-design/icons';
-import type { CheckboxValueType } from 'antd/lib/checkbox/Group';
 
 const { Paragraph } = Typography;
 
@@ -21,11 +20,10 @@ interface DoubleOptionResponse {
 
 export default function MultipleQuestion({ onNext }: MultipleQuestionProps) {
   const { token } = theme.useToken();
-  const [selectedValues, setSelectedValues] = useState<CheckboxValueType[]>([]);
+  const [selectedValues, setSelectedValues] = useState<string[]>([]);
   const [doubleOption , setDoubleOption] = useState<DoubleOptionResponse>();
 
-
-  const handleCheckboxChange = (values: CheckboxValueType[]) => {
+  const handleCheckboxChange = (values: string[]) => {
     setSelectedValues(values);
   };
 
@@ -102,7 +100,7 @@ export default function MultipleQuestion({ onNext }: MultipleQuestionProps) {
         </div>
 
         <Checkbox.Group
-          onChange={handleCheckboxChange}
+          onChange={(vals) => handleCheckboxChange(vals as string[])}
           value={selectedValues}
           style={{
             width: '100%',
@@ -114,7 +112,7 @@ export default function MultipleQuestion({ onNext }: MultipleQuestionProps) {
           }}
         >
           {doubleOption?.options.map((opt, i) => {
-            const selected = selectedValues.includes(opt);
+            const selected = selectedValues.includes(opt.answer);
             return (
               <Checkbox key={i} value={opt.answer} style={{ margin: 0 }}>
                 <div
