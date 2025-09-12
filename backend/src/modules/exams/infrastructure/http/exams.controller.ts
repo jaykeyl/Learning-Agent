@@ -1,30 +1,28 @@
-import { Controller, Post, Put, Body, Param, HttpCode, Req, Logger } from '@nestjs/common';
+import {Body, Controller, Delete, Get, HttpCode, Logger, Param, Post, Put, Req, UseGuards,} from '@nestjs/common';
 import type { Request } from 'express';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'crypto'; 
+
+import { JwtAuthGuard } from 'src/shared/guards/jwt-auth.guard';
+import {responseBadRequest, responseForbidden, responseInternalServerError, responseNotFound, responseSuccess,} from 'src/shared/handler/http.handler';
+import { PrismaService } from 'src/core/prisma/prisma.service';
 
 import { CreateExamDto } from './dtos/create-exam.dto';
 import { GenerateQuestionsDto } from './dtos/generate-questions.dto';
-import {
-  CreateExamCommand,
-  CreateExamCommandHandler,
-} from '../../application/commands/create-exam.command';
-import {
-  GenerateQuestionsCommand,
-  GenerateQuestionsCommandHandler,
-} from '../../application/commands/generate-questions.command';
-import type { GenerateExamInput } from './dtos/exam.types';
-import { GenerateExamUseCase } from '../../application/commands/generate-exam.usecase';
 import { AddExamQuestionDto } from './dtos/add-exam-question.dto';
+import { UpdateExamQuestionDto } from './dtos/update-exam-question.dto';
+
+import { CreateExamCommand, CreateExamCommandHandler } from '../../application/commands/create-exam.command';
+import { GenerateQuestionsCommand, GenerateQuestionsCommandHandler } from '../../application/commands/generate-questions.command';
 import { AddExamQuestionCommand } from '../../application/commands/add-exam-question.command';
 import { AddExamQuestionCommandHandler } from '../../application/commands/add-exam-question.handler';
-import { UpdateExamQuestionDto } from './dtos/update-exam-question.dto';
 import { UpdateExamQuestionCommand } from '../../application/commands/update-exam-question.command';
 import { UpdateExamQuestionCommandHandler } from '../../application/commands/update-exam-question.handler';
-import { PrismaService } from 'src/core/prisma/prisma.service';
-import {
-  responseSuccess,
-  responseBadRequest,
-} from 'src/shared/handler/http.handler';
+
+import { ListCourseExamsUseCase } from '../../application/queries/list-course-exams.usecase';
+import { GetExamByIdUseCase } from '../../application/queries/get-exam-by-id.usecase';
+
+const cid = (req: Request) => req.header('x-correlation-id') ?? randomUUID();
+const pathOf = (req: Request) => (req as any).originalUrl || req.url || '';
 
 function sumDistribution(d?: { multiple_choice: number; true_false: number; open_analysis: number; open_exercise: number; }) {
   if (!d) return 0;
@@ -34,42 +32,21 @@ function sumDistribution(d?: { multiple_choice: number; true_false: number; open
       + (d.open_exercise ?? 0);
 }
 
-const cid = (req: Request) => req.header('x-correlation-id') ?? randomUUID();
-const pathOf = (req: Request) => (req as any).originalUrl || req.url || '';
-
-@Controller('exams')
+@UseGuards(JwtAuthGuard)
+@Controller('api')
 export class ExamsController {
   constructor(
     private readonly createExamHandler: CreateExamCommandHandler,
     private readonly generateQuestionsHandler: GenerateQuestionsCommandHandler,
-    private readonly generateExamHandler: GenerateExamUseCase,
     private readonly addExamQuestionHandler: AddExamQuestionCommandHandler,
     private readonly updateExamQuestionHandler: UpdateExamQuestionCommandHandler,
     private readonly prisma: PrismaService,
+    private readonly listCourseExams: ListCourseExamsUseCase,
+    private readonly getByIdUseCase: GetExamByIdUseCase,
   ) {}
   private readonly logger = new Logger(ExamsController.name);
 
-  @Post(':id/questions')
-  async addQuestion(
-    @Param('id') id: string,
-    @Body() dto: AddExamQuestionDto,
-    @Req() req: Request,
-  ) {
-    this.logger.log(`[${cid(req)}] addQuestion -> examId=${id}, kind=${dto.kind}, position=${dto.position}`);
-    const cmd = new AddExamQuestionCommand(id, dto.position, {
-      kind: dto.kind,
-      text: dto.text,
-      options: dto.options,
-      correctOptionIndex: dto.correctOptionIndex,
-      correctBoolean: dto.correctBoolean,
-      expectedAnswer: dto.expectedAnswer,
-    });
-    const created = await this.addExamQuestionHandler.execute(cmd);
-    this.logger.log(`[${cid(req)}] addQuestion <- created question id=${created.id} order=${created.order}`);
-    return responseSuccess(cid(req), created, 'Question added to exam', pathOf(req));
-  }
-
-  @Post()
+  @Post('exams')
   @HttpCode(200)
   async create(@Body() dto: CreateExamDto, @Req() req: Request) {
     this.logger.log(`[${cid(req)}] createExam -> subject=${dto.subject}, difficulty=${dto.difficulty}, total=${dto.totalQuestions}, time=${dto.timeMinutes}`);
@@ -96,7 +73,7 @@ export class ExamsController {
     return responseSuccess(cid(req), exam, 'Exam created successfully', pathOf(req));
   }
 
-  @Post('questions')
+  @Post('exams/questions')
   @HttpCode(200)
   async generate(@Body() dto: GenerateQuestionsDto, @Req() req: Request) {
     this.logger.log(`[${cid(req)}] generateQuestions -> subject=${dto.subject}, difficulty=${dto.difficulty}, total=${dto.totalQuestions}`);
@@ -128,27 +105,84 @@ export class ExamsController {
     return responseSuccess(cid(req), { questions: grouped }, 'Questions generated successfully', pathOf(req));
   }
 
-  @Post('generate-exam')
-  async generateExam(@Body() dto: GenerateExamInput, @Req() req: Request) {
-    this.logger.log(`[${cid(req)}] generateExam -> templateId=${dto.templateId}, subject=${dto.subject}, level=${dto.level}, numQuestions=${dto.numQuestions}`);
-    const exam = await this.generateExamHandler.execute(dto);
-    this.logger.log(`[${cid(req)}] generateExam <- provider=${exam.provider}, model=${exam.model}, outputLength=${exam.output?.length ?? 0}`);
-    return responseSuccess(cid(req), exam, 'Exam generated successfully', pathOf(req));
+
+  @Post('exams/:examId/questions')
+  async addQuestion(
+    @Param('examId') examId: string,
+    @Body() dto: AddExamQuestionDto,
+    @Req() req: Request,
+  ) {
+    this.logger.log(
+      `[${cid(req)}] addQuestion -> examId=${examId}, kind=${dto.kind}, position=${dto.position}`,
+    );
+    const cmd = new AddExamQuestionCommand(examId, dto.position, {
+      kind: dto.kind,
+      text: dto.text,
+      options: dto.options,
+      correctOptionIndex: dto.correctOptionIndex,
+      correctBoolean: dto.correctBoolean,
+      expectedAnswer: dto.expectedAnswer,
+    });
+    const created = await this.addExamQuestionHandler.execute(cmd);
+    this.logger.log(
+      `[${cid(req)}] addQuestion <- created question id=${created.id} order=${created.order}`,
+    );
+    return responseSuccess(cid(req), created, 'Question added to exam', pathOf(req));
   }
 
-  @Put('questions/:id')
+  @Put('exams/questions/:questionId')
   async updateQuestion(
-    @Param('id') id: string,
+    @Param('questionId') questionId: string,
     @Body() dto: UpdateExamQuestionDto,
-    @Req() req: Request
+    @Req() req: Request,
   ) {
-    this.logger.log(`[${cid(req)}] updateQuestion -> id=${id}`);
-    const updated = await this.updateExamQuestionHandler.execute(new UpdateExamQuestionCommand(id, dto));
+    this.logger.log(`[${cid(req)}] updateQuestion -> questionId=${questionId}`);
+    const updated = await this.updateExamQuestionHandler.execute(
+      new UpdateExamQuestionCommand(questionId, dto),
+    );
     this.logger.log(`[${cid(req)}] updateQuestion <- id=${updated.id}`);
     return responseSuccess(cid(req), updated, 'Question updated successfully', pathOf(req));
   }
 
-  @Post('quick-save')
+  @Get('/exams/:examId')
+  async getExamById(@Param('examId') examId: string, @Req() req: Request) {
+    const user = (req as any).user as { sub: string } | undefined;
+    if (!user?.sub) {
+      return responseForbidden('Acceso no autorizado', cid(req), 'Falta token', pathOf(req));
+    }
+
+    try {
+      const data = await this.getByIdUseCase.execute({ examId, teacherId: user.sub });
+      return responseSuccess(cid(req), data, 'Examen recuperado', pathOf(req));
+    } catch (e: any) {
+      const msg = (e?.message ?? '').toString();
+      if (msg.includes('Acceso no autorizado')) {
+        return responseForbidden('Acceso no autorizado', cid(req), msg, pathOf(req));
+      }
+      if (msg.includes('Examen no encontrado')) {
+        return responseNotFound('Examen no encontrado', cid(req), msg, pathOf(req));
+      }
+      return responseInternalServerError('Error interno', cid(req), msg || 'Error obteniendo examen', pathOf(req));
+    }
+  }
+
+    @Get('courses/:courseId/exams')
+  async byCourse(@Param('courseId') courseId: string, @Req() req: Request) {
+    const user = (req as any).user as { sub: string } | undefined;
+    if (!user?.sub) {
+      return responseForbidden('Acceso no autorizado', cid(req), 'Falta token', pathOf(req));
+    }
+
+    try {
+      const data = await this.listCourseExams.execute({ courseId, teacherId: user.sub });
+      return responseSuccess(cid(req), data, 'Exámenes del curso', pathOf(req));
+    } catch (e: any) {
+      const msg = e?.message ?? 'Error listando exámenes';
+      return responseInternalServerError('Error interno', cid(req), msg, pathOf(req));
+    }
+  }
+
+  @Post('/exams/quick-save')
   @HttpCode(200)
   async quickSave(@Body() body: any, @Req() req: Request) {
     const c = cid(req);
@@ -217,4 +251,12 @@ export class ExamsController {
     const saved = await this.prisma.savedExam.create({ data });
     return responseSuccess(c, { id: saved.id, title: saved.title }, 'Quick exam saved', pathOf(req));
   }
+
+    // @Post('exams/generate-exam')
+  // async generateExam(@Body() dto: GenerateExamInput, @Req() req: Request) {
+  //   this.logger.log(`[${cid(req)}] generateExam -> templateId=${dto.templateId}, subject=${dto.subject}, level=${dto.level}, numQuestions=${dto.numQuestions}`);
+  //   const exam = await this.generateExamHandler.execute(dto);
+  //   this.logger.log(`[${cid(req)}] generateExam <- provider=${exam.provider}, model=${exam.model}, outputLength=${exam.output?.length ?? 0}`);
+  //   return responseSuccess(cid(req), exam, 'Exam generated successfully', pathOf(req));
+  // }
 }

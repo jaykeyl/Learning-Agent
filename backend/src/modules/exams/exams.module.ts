@@ -18,7 +18,6 @@ import { SaveSavedExamUseCase } from './application/commands/save-saved-exam.use
 import { ListCourseExamsUseCase } from './application/queries/list-course-exams.usecase';
 import { GetExamByIdUseCase } from './application/queries/get-exam-by-id.usecase';
 import { SAVED_EXAM_REPO,} from './tokens';
-import { ApprovedExamsController } from './infrastructure/http/approved-exams.controller';
 import { TOKEN_SERVICE } from '../identity/tokens';
 
 function decodeJwtPayload(token: string): any {
@@ -68,6 +67,6 @@ const DevTokenService = {
     
     { provide: TOKEN_SERVICE, useValue: DevTokenService },
   ],
-  controllers: [ExamsController, ApprovedExamsController],
+  controllers: [ExamsController],
 })
 export class ExamsModule {}

@@ -249,7 +249,7 @@ export async function generateQuestions(input: Record<string, unknown>): Promise
   const wanted = dto.distribution;
   const subject = dto.subject;
 
-  const res = await api.post('/exams/questions', dto);
+  const res = await api.post('/api/exams/questions', dto);
   const payload = (res as any)?.data;
 
   const grouped =
@@ -312,7 +312,7 @@ export async function createExam(payload: any): Promise<any> {
   if (USE_MOCK) {
     return { ok: true, data: { id: `exam_${Date.now()}`, ...payload } };
   }
-  const res = await api.post('/exams', payload);
+  const res = await api.post('/api/exams', payload);
   return (res as any)?.data ?? res;
 }
 
@@ -388,7 +388,7 @@ export async function quickSaveExam(p: { title: string; questions: any[]; conten
         ...(p.teacherId ? { teacherId: p.teacherId } : {}),
       };
 
-  const { data } = await api.post('/exams/quick-save', body);
+  const { data } = await api.post('/api/exams/quick-save', body);
   return data?.data ?? data;
 }
 
@@ -420,7 +420,7 @@ export async function setExamVisibility(
 }
 
 export async function listCourseExams(courseId: string): Promise<CourseExamRow[]> {
-  const { data } = await api.get(`/courses/${courseId}/exams`);
+  const { data } = await api.get(`/api/courses/${courseId}/exams`);
   const rows = data?.data ?? data ?? [];
   return Array.isArray(rows) ? rows : [];
 }
