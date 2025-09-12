@@ -2,8 +2,7 @@ import { Body, Controller, Get, Param, Post, Req, UseGuards, BadRequestException
 import type { Request } from 'express';
 import { JwtAuthGuard } from 'src/shared/guards/jwt-auth.guard';
 import { responseSuccess, responseBadRequest, responseForbidden, responseInternalServerError, responseNotFound, } from 'src/shared/handler/http.handler';
-import { SaveApprovedExamDto } from './dtos/save-approved-exam.dto';
-import { SaveApprovedExamUseCase } from '../../application/commands/save-approved-exam.usecase';
+import { SaveSavedExamUseCase } from '../../application/commands/save-saved-exam.usecase';
 import { ListCourseExamsUseCase } from '../../application/queries/list-course-exams.usecase';
 import { GetExamByIdUseCase } from '../../application/queries/get-exam-by-id.usecase';
 import * as crypto from 'crypto';
@@ -15,38 +14,10 @@ const pathOf = (req: Request) => (req as any).originalUrl || req.url || '';
 @Controller()
 export class ApprovedExamsController {
   constructor(
-    private readonly saveUseCase: SaveApprovedExamUseCase,
+    private readonly saveUseCase: SaveSavedExamUseCase,
     private readonly listUseCase: ListCourseExamsUseCase,
     private readonly getByIdUseCase: GetExamByIdUseCase,
   ) {}
-
-  @Post('exams/approved')
-  async save(@Body() dto: SaveApprovedExamDto, @Req() req: Request) {
-    const user = (req as any).user as { sub: string } | undefined;
-    if (!user?.sub) {
-      return responseForbidden('Acceso no autorizado', cid(req), 'Falta token', pathOf(req));
-    }
-
-    try {
-      const saved = await this.saveUseCase.execute({
-        title: dto.title,
-        content: dto.content,
-        courseId: dto.courseId,
-        status: dto.status ?? 'Guardado',
-        teacherId: user.sub,
-      });
-      return responseSuccess(cid(req), saved, 'Examen guardado', pathOf(req));
-    } catch (e: any) {
-      const msg = e?.message ?? 'Error guardando examen';
-      if (e instanceof ForbiddenException || msg.includes('autorizado')) {
-        return responseForbidden('Acceso no autorizado', cid(req), msg, pathOf(req));
-      }
-      if (e instanceof BadRequestException || msg.includes('Datos inválidos')) {
-        return responseBadRequest('Datos inválidos', cid(req), msg, pathOf(req));
-      }
-      return responseInternalServerError('Error interno', cid(req), msg, pathOf(req));
-    }
-  }
 
   @Get('courses/:courseId/exams')
   async byCourse(@Param('courseId') courseId: string, @Req() req: Request) {

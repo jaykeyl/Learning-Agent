@@ -20,11 +20,6 @@ export class UpdateExamQuestionCommandHandler {
         const exam = await this.examRepo.findById(current.examId);
         if (!exam) throw new NotFoundException('Exam not found for question');
 
-        // lock edits if approved, uncomment console line to test
-        if (exam.approvedAt) {
-            throw new BadRequestException('This exam is already approved. Questions cannot be edited.');
-        }
-
         const patch = cmd.patch;
 
         if (patch.text != null && !patch.text.trim()) {
