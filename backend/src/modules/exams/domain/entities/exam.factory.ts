@@ -26,13 +26,17 @@ export class ExamFactory {
   static create(p: ExamProps): Exam {
     const title = String(p.title ?? '').trim();
     if (!title) throw new DomainError('El título es obligatorio.');
-    const courseId = String(p.classId ?? '').trim();
-    if (!courseId) throw new DomainError('classId es obligatorio.');
+    const classId = String(p.classId ?? '').trim();
+    if (!classId) throw new DomainError('classId es obligatorio.');
 
     const status = (p.status ?? 'Guardado') as 'Guardado' | 'Publicado';
     if (!['Guardado', 'Publicado'].includes(status)) {
       throw new DomainError('status inválido (Guardado|Publicado).');
     }
+
+    if (p.timeMinutes < 45 || p.timeMinutes > 240) {
+      throw new DomainError('Tiempo (minutos) debe estar entre 45 y 240.');
+    } 
 
     const difficulty = Difficulty.create(p.difficulty);
     const attempts = PositiveInt.create('attempts', p.attempts);
