@@ -3,12 +3,14 @@ import ExamTable from "../../components/exams/ExamTable";
 import { useExamsStore } from "../../store/examsStore";
 import PageTemplate from "../../components/PageTemplate";
 import GlobalScrollbar from "../../components/GlobalScrollbar";
+import { useNavigate } from "react-router-dom";
 
 const { Title, Text } = Typography;
 
 export default function ExamManagementPage() {
   const { token } = theme.useToken();
   const exams = useExamsStore((s) => s.exams);
+  const navigate = useNavigate();
 
   const total = exams.length;
   const published = exams.filter((e) => e.status === "published").length;
@@ -46,12 +48,7 @@ export default function ExamManagementPage() {
       </div>
 
       <div id="tabla-examenes" style={{ marginTop: 24 }}>
-        <ExamTable
-          data={exams}
-          onEdit={() => {
-            window.location.href = "/exams/create";
-          }}
-        />
+        <ExamTable data={exams} />
       </div>
 
       <div id="fin-examenes" />
