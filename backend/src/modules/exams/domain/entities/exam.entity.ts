@@ -14,6 +14,7 @@ export class Exam {
     public readonly distribution: DistributionVO | null,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
+    public readonly approvedAt?: Date,
   ) {}
   
   toJSON() {
@@ -27,6 +28,7 @@ export class Exam {
       reference: this.reference,
       createdAt: this.createdAt ?? null,
       updatedAt: this.updatedAt,
+      approvedAt: this.approvedAt ?? null,
     };
 
     if (this.distribution) {

@@ -1,17 +1,16 @@
 import { IsEnum, IsNotEmpty, IsOptional, IsString, IsDefined } from 'class-validator';
 
-export class SaveSavedExamDto {
+export class SaveApprovedExamDto {
   @IsString()
   @IsNotEmpty()
   title!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  courseId!: string;
+  @IsDefined()
+  content!: any;
 
   @IsString()
   @IsNotEmpty()
-  examId!: string;
+  courseId!: string;
 
   @IsOptional()
   @IsEnum(['Guardado', 'Publicado'] as any)
