@@ -27,7 +27,9 @@ export class CreateExamDto {
   @IsInt() @Min(1) @Max(1000)
   totalQuestions!: number;
 
-  @IsInt() @Min(1) @Max(1000)
+  @IsInt()
+  @Min(45, { message: 'Tiempo (minutos) mínimo: 45.' })
+  @Max(240, { message: 'Tiempo (minutos) máximo: 240.' })
   timeMinutes!: number;
 
   @IsOptional() @IsString() @MaxLength(2000)

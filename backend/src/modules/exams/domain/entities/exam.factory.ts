@@ -33,6 +33,9 @@ export class ExamFactory {
     if (!['Guardado', 'Publicado'].includes(status)) {
       throw new DomainError('status inválido (Guardado|Publicado).');
     }
+    if (props.timeMinutes < 45 || props.timeMinutes > 240) {
+      throw new DomainError('Tiempo (minutos) debe estar entre 45 y 240.');
+    } 
 
     if (p.timeMinutes < 45 || p.timeMinutes > 240) {
       throw new DomainError('Tiempo (minutos) debe estar entre 45 y 240.');
