@@ -8,24 +8,71 @@ import type { ToastKind } from '../shared/Toast';
 type Props = {
   onToast: (msg: string, type?: ToastKind) => void;
   onGenerateAI?: () => void | Promise<void>;
+  initialData?: {
+    id?: string;
+    title?: string;
+    subject?: string;
+    difficulty?: string;
+    attempts?: string;
+    timeMinutes?: number;
+    reference?: string;
+    questions?: Array<{
+      type: 'multiple_choice' | 'true_false' | 'open_analysis' | 'open_exercise';
+      text: string;
+      options?: string[];
+      correctOptionIndex?: number;
+      correctBoolean?: boolean;
+      expectedAnswer?: string;
+    }>;
+  };
 };
 
 export type ExamFormHandle = { getSnapshot: () => any };
 
 export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
-  { onToast, onGenerateAI },
+  { onToast, onGenerateAI, initialData },
   ref
 ) {
   const { setValue, validate, getSnapshot, values: hookValues, getTotalQuestions } = useExamForm();
   const { token } = theme.useToken();
 
-  const [values, setValues] = useState({
-    ...hookValues,
-    multipleChoice: '',
-    trueFalse: '',
-    analysis: '',
-    openEnded: '',
-    timeMinutes: 45,
+  const [values, setValues] = useState(() => {
+    if (initialData) {
+      const mcCount = initialData.questions?.filter(q => q.type === 'multiple_choice').length || 0;
+      const tfCount = initialData.questions?.filter(q => q.type === 'true_false').length || 0;
+      const anCount = initialData.questions?.filter(q => q.type === 'open_analysis').length || 0;
+      const oeCount = initialData.questions?.filter(q => q.type === 'open_exercise').length || 0;
+
+      setValue('subject', initialData.subject || '');
+      setValue('difficulty', initialData.difficulty || 'medio');
+      setValue('attempts', initialData.attempts || '1');
+      setValue('multipleChoice', String(mcCount));
+      setValue('trueFalse', String(tfCount));
+      setValue('analysis', String(anCount));
+      setValue('openEnded', String(oeCount));
+      setValue('timeMinutes', '45');
+
+      return {
+        ...hookValues,
+        subject: initialData.subject || '',
+        difficulty: initialData.difficulty || 'medio',
+        attempts: initialData.attempts || '1',
+        multipleChoice: String(mcCount),
+        trueFalse: String(tfCount),
+        analysis: String(anCount),
+        openEnded: String(oeCount),
+        timeMinutes: 45,
+      };
+    }
+
+    return {
+      ...hookValues,
+      multipleChoice: '',
+      trueFalse: '',
+      analysis: '',
+      openEnded: '',
+      timeMinutes: 45,
+    };
   });
   
 

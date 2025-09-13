@@ -5,15 +5,16 @@ import '../../components/shared/Toast.css';
 import { ExamForm } from '../../components/exams/ExamForm';
 import type { ExamFormHandle } from '../../components/exams/ExamForm';
 import { Toast, useToast } from '../../components/shared/Toast';
-import { readJSON } from '../../services/storage/localStorage';
+import { readJSON, saveJSON } from '../../services/storage/localStorage';
 import PageTemplate from '../../components/PageTemplate';
 import GlobalScrollbar from '../../components/GlobalScrollbar';
 import './ExamCreatePage.css';
-import { generateQuestions, createExamApproved, type GeneratedQuestion } from '../../services/exams.service';
+import { generateQuestions, createExamApproved, updateExamApproved, type GeneratedQuestion } from '../../services/exams.service';
 import AiResults from './AiResults';
 import { normalizeToQuestions, cloneQuestion, replaceQuestion, reorderQuestions } from './ai-utils';
 import { isValidGeneratedQuestion } from '../../utils/aiValidation';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useExamsStore, type ExamsState } from '../../store/examsStore';
 
 
 const layoutStyle: CSSProperties = {
@@ -62,15 +63,22 @@ export default function ExamsCreatePage() {
   const [params] = useSearchParams();
   const classId = params.get('classId') || '';
   const navigate = useNavigate();
+  const location = useLocation();
+  const editData = location.state?.examData;
+  
+  const updateExam = useExamsStore(state => state.updateExam);
+  const addFromQuestions = useExamsStore(state => state.addFromQuestions);
 
-  const [aiOpen, setAiOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(!!editData);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [aiQuestions, setAiQuestions] = useState<GeneratedQuestion[]>([]);
+  const [aiQuestions, setAiQuestions] = useState<GeneratedQuestion[]>(
+    (editData?.questions || []).map((q: GeneratedQuestion) => ({...q, include: true}))
+  );
   const [aiMeta, setAiMeta] = useState<{ subject: string; difficulty: string; reference?: string }>({
-    subject: 'Tema general',
-    difficulty: 'medio',
-    reference: '',
+    subject: editData?.subject || 'Tema general',
+    difficulty: editData?.difficulty || 'medio',
+    reference: editData?.reference || '',
   });
 
   const buildAiInputFromForm = (raw: Record<string, any>) => {
@@ -203,11 +211,6 @@ export default function ExamsCreatePage() {
   };
 
   const onSave = async () => {
-    if (!classId) {
-      pushToast('Abre el creador desde la materia (Crear examen) para asociarlo.', 'error');
-      return;
-    }
-
     const selected = aiQuestions.filter(q => q.include);
     if (!selected.length) {
       pushToast('Selecciona al menos una pregunta.', 'error');
@@ -216,7 +219,7 @@ export default function ExamsCreatePage() {
 
     const ts = Date.now();
     const used = new Set<string>();
-    const questions = selected.map((q, i) => {
+    const questions: GeneratedQuestion[] = selected.map((q, i) => {
       const baseId = q.id || `q_${ts}_${q.type}_${i}`;
       let id = baseId;
       while (used.has(id)) id = `${id}_${Math.random().toString(36).slice(2,6)}`;
@@ -226,17 +229,73 @@ export default function ExamsCreatePage() {
         type: q.type,
         text: (q as any).text,
         options: (q as any).options ?? undefined,
-      };
+        include: true
+      } as GeneratedQuestion;
     });
 
-    await createExamApproved({
-      classId,
+    const data = {
       title: aiMeta.subject || 'Examen',
+      className: classId || undefined,
       questions,
+      publish: false
+    };
+
+    let summary;
+    try {
+      if (editData?.id) {
+        localStorage.removeItem(`exam:content:${editData.id}`);
+        
+        const examIndex = readJSON<string[]>('exam:content:index') || [];
+        const newIndex = examIndex.filter(id => !id.includes(editData.id));
+        saveJSON('exam:content:index', newIndex);
+        
+        await updateExamApproved({
+          examId: editData.id,
+          title: aiMeta.subject || 'Examen',
+          questions: questions
+        });
+        summary = updateExam(editData.id, data);
+      } else {
+        if (!classId) {
+          pushToast('Abre el creador desde la materia (Crear examen) para asociarlo.', 'error');
+          return;
+        }
+        await createExamApproved({
+          classId,
+          title: data.title,
+          questions,
+        });
+        summary = addFromQuestions(data);
+      }
+    } catch (error) {
+      console.error('Error al guardar:', error);
+      pushToast('Error al guardar el examen', 'error');
+      return;
+    }
+
+    const examKey = `exam:content:${summary.id}`;
+    saveJSON(examKey, {
+      examId: summary.id,
+      title: summary.title,
+      subject: data.title || summary.className || '—',
+      teacher: '—',
+      createdAt: summary.createdAt,
+      questions: questions.map((q, i) => ({
+        ...q,
+        n: i + 1,
+        source: q.id.startsWith('manual_') ? 'manual' : 'ai',
+        include: true
+      }))
     });
 
-    pushToast('Examen guardado en la base de datos.', 'success');
-    navigate(`/courses/${classId}`);
+    const examIndex = readJSON<string[]>('exam:content:index') || [];
+    if (!examIndex.includes(examKey)) {
+      examIndex.push(examKey);
+      saveJSON('exam:content:index', examIndex);
+    }
+
+    pushToast('Examen guardado exitosamente.', 'success');
+    navigate('/exams');
   };
 
   return (
@@ -260,6 +319,7 @@ export default function ExamsCreatePage() {
               ref={formRef}
               onToast={pushToast}
               onGenerateAI={handleAIPropose}
+              initialData={editData}
             />
           </div>
         </section>
