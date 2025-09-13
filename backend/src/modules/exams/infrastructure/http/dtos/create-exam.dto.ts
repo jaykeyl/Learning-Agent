@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, MaxLength, ValidateNested, Min } from 'class-validator';
+import { IsIn, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, MaxLength, ValidateNested, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class DistributionDto {
@@ -39,7 +39,8 @@ export class CreateExamDto {
   totalQuestions!: number;
 
   @IsInt()
-  @IsPositive({ message: 'Tiempo (minutos) debe ser > 0.' })
+  @Min(45, { message: 'Tiempo (minutos) mínimo: 45.' })
+  @Max(240, { message: 'Tiempo (minutos) máximo: 240.' })
   timeMinutes!: number;
 
   @ValidateNested()
