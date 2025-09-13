@@ -110,19 +110,45 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
   async updateOwned(id: string, teacherId: string, patch: UpdateExamQuestionPatch) {
     const current = await this.prisma.examQuestion.findUnique({
       where: { id },
-      select: { examId: true },
+      select: { examId: true, kind: true, options: true },
     });
     if (!current) throw new Error('Pregunta no encontrada o acceso no autorizado');
 
     const owned = await this.isExamOwnedByTeacher(current.examId, teacherId);
     if (!owned) throw new Error('Pregunta no encontrada o acceso no autorizado');
 
+    const kind = current.kind;
+    const newOptions = patch.options ?? (current.options as any[] | null);
+
+    if (kind === 'MULTIPLE_CHOICE') {
+      if (patch.correctOptionIndex != null) {
+        if (!Number.isInteger(patch.correctOptionIndex)) {
+          throw new Error('correctAnswer inválido: se esperaba un índice entero para MULTIPLE_CHOICE.');
+        }
+        if (!Array.isArray(newOptions) || patch.correctOptionIndex < 0 || patch.correctOptionIndex >= newOptions.length) {
+          throw new Error('correctAnswer fuera de rango: índice no corresponde a options.');
+        }
+      }
+    } else if (kind === 'TRUE_FALSE') {
+      if (patch.correctBoolean != null && typeof patch.correctBoolean !== 'boolean') {
+        throw new Error('correctAnswer inválido: se esperaba boolean para TRUE_FALSE.');
+      }
+    } else { // OPEN_*
+      if (patch.expectedAnswer != null) {
+      }
+    }
+
     await this.prisma.examQuestion.update({
       where: { id },
       data: {
         ...(patch.text !== undefined ? { text: patch.text } : {}),
         ...(patch.options !== undefined
-          ? { options: patch.options === null ? Prisma.JsonNull : (patch.options as unknown as Prisma.InputJsonValue) }
+          ? {
+              options:
+                patch.options === null
+                  ? Prisma.JsonNull
+                  : (patch.options as unknown as Prisma.InputJsonValue),
+            }
           : {}),
         ...(patch.correctOptionIndex !== undefined ? { correctOptionIndex: patch.correctOptionIndex } : {}),
         ...(patch.correctBoolean !== undefined ? { correctBoolean: patch.correctBoolean } : {}),

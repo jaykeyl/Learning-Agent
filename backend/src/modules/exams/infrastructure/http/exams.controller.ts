@@ -35,6 +35,88 @@ function sumDistribution(d?: { multiple_choice: number; true_false: number; open
       + (d.open_exercise ?? 0);
 }
 
+function normalizeFromCorrectAnswerForCreate(dto: {
+  kind: 'MULTIPLE_CHOICE'|'TRUE_FALSE'|'OPEN_ANALYSIS'|'OPEN_EXERCISE';
+  options?: string[];
+  correctAnswer?: number | boolean | null;
+  correctOptionIndex?: number;
+  correctBoolean?: boolean;
+  expectedAnswer?: string;
+}) {
+  if ('correctAnswer' in dto && dto.correctAnswer !== undefined) {
+    switch (dto.kind) {
+      case 'MULTIPLE_CHOICE':
+        return {
+          options: dto.options,                
+          correctOptionIndex: dto.correctAnswer as number,
+          correctBoolean: undefined,
+          expectedAnswer: undefined,
+        };
+      case 'TRUE_FALSE':
+        return {
+          options: undefined,
+          correctOptionIndex: undefined,
+          correctBoolean: dto.correctAnswer as boolean,
+          expectedAnswer: undefined,
+        };
+      default: // OPEN_*
+        return {
+          options: undefined,
+          correctOptionIndex: undefined,
+          correctBoolean: undefined,
+          expectedAnswer: undefined,
+        };
+    }
+  }
+  return {
+    options: dto.options,                   
+    correctOptionIndex: dto.correctOptionIndex,
+    correctBoolean: dto.correctBoolean,
+    expectedAnswer: dto.expectedAnswer,
+  };
+}
+
+function normalizeFromCorrectAnswerForUpdate(dto: {
+  kind: 'MULTIPLE_CHOICE'|'TRUE_FALSE'|'OPEN_ANALYSIS'|'OPEN_EXERCISE';
+  options?: string[];
+  correctAnswer?: number | boolean | null;
+  correctOptionIndex?: number;
+  correctBoolean?: boolean;
+  expectedAnswer?: string;
+}) {
+  if ('correctAnswer' in dto && dto.correctAnswer !== undefined) {
+    switch (dto.kind) {
+      case 'MULTIPLE_CHOICE':
+        return {
+          options: dto.options,               
+          correctOptionIndex: dto.correctAnswer as number,
+          correctBoolean: undefined,
+          expectedAnswer: undefined,
+        };
+      case 'TRUE_FALSE':
+        return {
+          options: undefined,
+          correctOptionIndex: undefined,
+          correctBoolean: dto.correctAnswer as boolean,
+          expectedAnswer: undefined,
+        };
+      default: // OPEN_*
+        return {
+          options: undefined,
+          correctOptionIndex: undefined,
+          correctBoolean: undefined,
+          expectedAnswer: undefined,
+        };
+    }
+  }
+  return {
+    options: dto.options,
+    correctOptionIndex: dto.correctOptionIndex,
+    correctBoolean: dto.correctBoolean,
+    expectedAnswer: dto.expectedAnswer,
+  };
+}
+
 @UseGuards(JwtAuthGuard)
 @Controller('api')
 export class ExamsController {
@@ -212,27 +294,30 @@ async addQuestion(
   if (!['start', 'middle', 'end'].includes(dto.position)) {
     return bad("position debe ser uno de: 'start' | 'middle' | 'end'.");
   }
+
+  const norm = normalizeFromCorrectAnswerForCreate(dto);
+
   switch (dto.kind) {
     case 'MULTIPLE_CHOICE': {
-      const opts = dto.options;
+      const opts = (norm.options ?? dto.options) as string[];
       if (!Array.isArray(opts) || opts.length < 2 || !opts.every(o => typeof o === 'string' && o.trim())) {
         return bad('Para MULTIPLE_CHOICE, options debe tener ≥ 2 strings no vacios.');
       }
       if (
-        typeof dto.correctOptionIndex !== 'number' ||
-        dto.correctOptionIndex < 0 ||
-        dto.correctOptionIndex >= opts.length
+        typeof norm.correctOptionIndex !== 'number' ||
+        norm.correctOptionIndex < 0 ||
+        norm.correctOptionIndex >= opts.length
       ) {
-        return bad('correctOptionIndex fuera de rango.');
+        return bad('correctOptionIndex (o correctAnswer) fuera de rango.');
       }
       break;
     }
     case 'TRUE_FALSE':
-      if (typeof dto.correctBoolean !== 'boolean') return bad('Para TRUE_FALSE, correctBoolean debe ser boolean.');
+      if (typeof norm.correctBoolean !== 'boolean') return bad('Para TRUE_FALSE, correctBoolean (o correctAnswer) debe ser boolean.');
       break;
     case 'OPEN_ANALYSIS':
     case 'OPEN_EXERCISE':
-      if (dto.expectedAnswer !== undefined && dto.expectedAnswer !== null && !dto.expectedAnswer.trim()) {
+      if (norm.expectedAnswer !== undefined && norm.expectedAnswer !== null && !norm.expectedAnswer.trim()) {
         return bad('expectedAnswer no puede estar vacío al enviar.');
       }
       break;
@@ -247,10 +332,10 @@ async addQuestion(
     {
       kind: dto.kind,
       text: dto.text,
-      options: dto.options,
-      correctOptionIndex: dto.correctOptionIndex,
-      correctBoolean: dto.correctBoolean,
-      expectedAnswer: dto.expectedAnswer,
+      options: dto.kind === 'MULTIPLE_CHOICE' ? (norm.options ?? dto.options) as string[] : undefined,
+      correctOptionIndex: norm.correctOptionIndex,
+      correctBoolean: norm.correctBoolean,
+      expectedAnswer: norm.expectedAnswer,
     },
   );
 
@@ -261,8 +346,6 @@ async addQuestion(
   );
   return responseSuccess(cid(req), created, 'Pregunta anadida con exito', pathOf(req));
 }
-
-
 
 @Put('exams/questions/:questionId')
 @HttpCode(200)
@@ -278,7 +361,8 @@ async updateQuestion(
     dto.options === undefined &&
     dto.correctOptionIndex === undefined &&
     dto.correctBoolean === undefined &&
-    dto.expectedAnswer === undefined
+    dto.expectedAnswer === undefined &&
+    (dto as any).correctAnswer === undefined
   ) {
     return responseBadRequest(
       'Debe enviar al menos un campo para actualizar.',
@@ -289,20 +373,21 @@ async updateQuestion(
   }
 
   const teacherId = (req as any).user?.sub as string;
+
+  const norm = normalizeFromCorrectAnswerForUpdate(dto);
+
   const cmd = new UpdateExamQuestionCommand(questionId, teacherId, {
     text: dto.text,
-    options: dto.options,
-    correctOptionIndex: dto.correctOptionIndex,
-    correctBoolean: dto.correctBoolean,
-    expectedAnswer: dto.expectedAnswer,
+    options: dto.options !== undefined ? dto.options : norm.options, 
+    correctOptionIndex: norm.correctOptionIndex,
+    correctBoolean: norm.correctBoolean,
+    expectedAnswer: norm.expectedAnswer,
   });
 
   const updated = await this.updateExamQuestionHandler.execute(cmd);
   this.logger.log(`[${cid(req)}] updateQuestion <- id=${updated.id}`);
   return responseSuccess(cid(req), updated, 'Pregunta editada correctamente', pathOf(req));
 }
-
-
 
 @Get('exams/:examId')
 @HttpCode(200)
@@ -337,7 +422,6 @@ async getExamById(@Param('examId') examId: string, @Req() req: Request) {
     return responseInternalServerError('Error interno', cid(req), msg || 'Error obteniendo examen', pathOf(req));
   }
 }
-
 
 @Get('classes/:classId/exams')
 @HttpCode(200)

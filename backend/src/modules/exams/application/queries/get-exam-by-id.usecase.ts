@@ -29,6 +29,11 @@ export class GetExamByIdUseCase {
             open_exercise: counts.openExerciseCount,
             }
         : null;
+        const toCorrectAnswer = (q: any): boolean | number | null => {
+            if (q.kind === 'MULTIPLE_CHOICE') return Number.isInteger(q.correctOptionIndex) ? q.correctOptionIndex : null;
+            if (q.kind === 'TRUE_FALSE') return typeof q.correctBoolean === 'boolean' ? q.correctBoolean : null;
+            return null; 
+        };
 
         return {
         id: exam.id,
@@ -54,6 +59,7 @@ export class GetExamByIdUseCase {
             kind: q.kind,                // MULTIPLE_CHOICE | TRUE_FALSE | OPEN_ANALYSIS | OPEN_EXERCISE
             text: q.text,
             options: q.options ?? null,
+            correctAnswer: toCorrectAnswer(q),
             correctOptionIndex: q.correctOptionIndex ?? null,
             correctBoolean: q.correctBoolean ?? null,
             expectedAnswer: q.expectedAnswer ?? null,
