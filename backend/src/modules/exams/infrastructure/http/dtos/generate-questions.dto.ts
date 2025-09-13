@@ -1,15 +1,4 @@
-import {
-  IsIn,
-  IsInt,
-  IsNotEmpty,
-  IsOptional,
-  IsPositive,
-  IsString,
-  IsUUID,
-  MaxLength,
-  ValidateNested,
-  Min,
-} from 'class-validator';
+import { IsIn, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, MaxLength, ValidateNested, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class DistributionDto {
@@ -45,14 +34,7 @@ export class GenerateQuestionsDto {
   @MaxLength(1000)
   reference?: string;
 
-  @IsOptional()
   @ValidateNested()
   @Type(() => DistributionDto)
-  distribution?: DistributionDto;
-
-  @IsOptional() @IsUUID()
-  examId?: string;
-
-  @IsOptional() @IsUUID()
-  classId?: string;
+  distribution!: DistributionDto;
 }

@@ -11,57 +11,49 @@ export class AddExamQuestionCommandHandler {
   private readonly logger = new Logger(AddExamQuestionCommandHandler.name);
 
   async execute(cmd: AddExamQuestionCommand) {
-    const { examId, teacherId, position, question } = cmd;
+    const { examId, position, question } = cmd;
     this.logger.log(`execute -> examId=${examId}, position=${position}, kind=${question.kind}`);
 
-    const exists = await this.repo.existsExamOwned(examId, teacherId);
-    if (!exists) throw new NotFoundException('Examen no encontrado o acceso no autorizado');
+    if (!(await this.repo.existsExam(examId))) {
+      this.logger.warn(`execute x exam not found id=${examId}`);
+      throw new NotFoundException('Exam not found');
+    }
 
     this.validateQuestion(question);
-
-    // Optional: you can use count to enforce order bounds if needed
-    await this.repo.countByExamOwned(examId, teacherId);
-
-    const created = await this.repo.addToExamOwned(examId, teacherId, question, position);
+    const created = await this.repo.addToExam(examId, question, position);
     this.logger.log(`execute <- created question id=${created.id} order=${created.order}`);
     return created;
   }
 
   private validateQuestion(q: any) {
-    if (!q || typeof q !== 'object') throw new BadRequestException('Pregunta inválida');
-
-    if (typeof q.text !== 'string' || !q.text.trim()) {
-      throw new BadRequestException('text es requerido');
+    const allowed = ['MULTIPLE_CHOICE', 'TRUE_FALSE', 'OPEN_ANALYSIS', 'OPEN_EXERCISE'];
+    if (!allowed.includes(q.kind)) {
+      throw new BadRequestException(`Unsupported kind. Allowed: ${allowed.join(', ')}`);
+    }
+    if (!q.text || typeof q.text !== 'string' || q.text.trim().length < 5) {
+      throw new BadRequestException('Question text is required (min 5 chars).');
     }
 
-    switch (q.kind) {
-      case 'MULTIPLE_CHOICE': {
-        if (!Array.isArray(q.options) || q.options.length < 2) {
-          throw new BadRequestException('MCQ requiere options (≥2)');
-        }
-        if (typeof q.correctOptionIndex !== 'number') {
-          throw new BadRequestException('MCQ requiere correctOptionIndex');
-        }
-        if (q.correctOptionIndex < 0 || q.correctOptionIndex >= q.options.length) {
-          throw new BadRequestException('correctOptionIndex fuera de rango');
-        }
-        break;
+    if (q.kind === 'MULTIPLE_CHOICE') {
+      if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 8) {
+        throw new BadRequestException('MCQ requires 2..8 options.');
       }
-      case 'TRUE_FALSE': {
-        if (typeof q.correctBoolean !== 'boolean') {
-          throw new BadRequestException('TRUE_FALSE requiere correctBoolean');
-        }
-        break;
+      if (typeof q.correctOptionIndex !== 'number') {
+        throw new BadRequestException('MCQ requires correctOptionIndex.');
       }
-      case 'OPEN_ANALYSIS':
-      case 'OPEN_EXERCISE': {
-        if (q.expectedAnswer != null && typeof q.expectedAnswer !== 'string') {
-          throw new BadRequestException('expectedAnswer debe ser string si se provee');
-        }
-        break;
+      if (q.correctOptionIndex < 0 || q.correctOptionIndex >= q.options.length) {
+        throw new BadRequestException('correctOptionIndex out of range.');
       }
-      default:
-        throw new BadRequestException('kind inválido');
+    }
+
+    if (q.kind === 'TRUE_FALSE' && typeof q.correctBoolean !== 'boolean') {
+      throw new BadRequestException('TRUE_FALSE requires correctBoolean (true|false).');
+    }
+
+    if ((q.kind === 'OPEN_ANALYSIS' || q.kind === 'OPEN_EXERCISE') && q.expectedAnswer != null) {
+      if (typeof q.expectedAnswer !== 'string') {
+        throw new BadRequestException('expectedAnswer must be a string if provided.');
+      }
     }
   }
 }
