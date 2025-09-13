@@ -315,19 +315,23 @@ model Exam {
   reference      String?  @db.Text
 
   // distribución por tipo
-  
   mcqCount          Int   @default(0) // opción múltiple
   trueFalseCount    Int   @default(0) // verdadero/falso
   openAnalysisCount Int   @default(0) // abiertas: análisis
   openExerciseCount Int   @default(0) // abiertas: ejercicio
-  content         Json?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   questions       ExamQuestion[]
 
-  @@index([subject])
+  title           String      @default("Examen")
+  status          ExamStorageStatus @default(Guardado)
 
-  savedExam      SavedExam?
+  // relacion 1:N 
+  classId         String
+  class           Classes @relation("ClassExams", fields: [classId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([subject])
+  @@index([classId, createdAt])
 }
 
 // === Preguntas de Examen ===
@@ -341,24 +345,6 @@ enum QuestionKind {
 enum ExamStorageStatus {
   Guardado
   Publicado
-}
-
-model SavedExam {
-  id        String            @id @default(uuid())
-  title     String
-  status    ExamStorageStatus @default(Guardado)
-
-  examId    String            @unique
-  exam      Exam?             @relation(fields: [examId], references: [id], onDelete: Cascade)
-
-  // FK “lógicas” (sin relación Prisma)
-  courseId  String
-  teacherId String
-
-  createdAt DateTime          @default(now())
-
-  @@index([courseId, createdAt])
-  @@index([teacherId, createdAt])
 }
 
 model ExamQuestion {
@@ -417,6 +403,9 @@ model Classes {
 
   courseId      String            
   course        Course            @relation(fields: [courseId], references: [id])
+
+  // relation 1:N
+  exams         Exam[]            @relation("ClassExams")
   
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt @default(now())

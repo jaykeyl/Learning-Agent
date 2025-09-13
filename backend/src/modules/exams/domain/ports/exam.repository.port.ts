@@ -1,7 +1,14 @@
 import { Exam } from '../entities/exam.entity';
 
+export type ExamStatus = 'Guardado' | 'Publicado';
+
 export interface ExamRepositoryPort {
   create(exam: Exam): Promise<Exam>;
-  findById(id: string): Promise<Exam | null>;
-  approve(id: string): Promise<void>;
+  findByIdOwned(id: string, teacherId: string): Promise<Exam | null>;
+  listByClassOwned(classId: string, teacherId: string): Promise<Exam[]>;
+  updateMetaOwned(
+    id: string,
+    teacherId: string,
+    patch: Partial<Pick<Exam, 'title' | 'status' | 'classId'>>
+  ): Promise<Exam>;
 }

@@ -6,6 +6,9 @@ import { DomainError } from './domain-error';
 import { DistributionVO, type Distribution } from './distribution.vo';
 
 export type ExamProps = {
+  title: string;
+  status?: 'Guardado' | 'Publicado';
+  classId: string;
   subject: string;
   difficulty: string;
   attempts: number;
@@ -13,43 +16,65 @@ export type ExamProps = {
   timeMinutes: number;
   reference?: string | null;
   distribution?: Distribution;
+  mcqCount?: number;
+  trueFalseCount?: number;
+  openAnalysisCount?: number;
+  openExerciseCount?: number;
 };
 
 export class ExamFactory {
-  static create(props: ExamProps): Exam {
-    const subject = props.subject?.trim();
-    if (!subject) throw new DomainError('Materia (subject) es obligatoria y no puede estar vacía.');
+  static create(p: ExamProps): Exam {
+    const title = String(p.title ?? '').trim();
+    if (!title) throw new DomainError('El título es obligatorio.');
+    const courseId = String(p.classId ?? '').trim();
+    if (!courseId) throw new DomainError('classId es obligatorio.');
 
-    const reference = props.reference?.trim();
-    if (reference && /[<>]/.test(reference)) {
-      throw new DomainError('Referencia contiene caracteres no permitidos.');
+    const status = (p.status ?? 'Guardado') as 'Guardado' | 'Publicado';
+    if (!['Guardado', 'Publicado'].includes(status)) {
+      throw new DomainError('status inválido (Guardado|Publicado).');
     }
 
-    const difficulty = Difficulty.create(props.difficulty);
-    const attempts = PositiveInt.create('Intentos', props.attempts);
-    const total = PositiveInt.create('Total de preguntas', props.totalQuestions);
-    const time = PositiveInt.create('Tiempo (min)', props.timeMinutes);
+    const difficulty = Difficulty.create(p.difficulty);
+    const attempts = PositiveInt.create('attempts', p.attempts);
+    const total = PositiveInt.create('totalQuestions', p.totalQuestions);
+    const time = PositiveInt.create('timeMinutes', p.timeMinutes);
+    const reference = p.reference ?? null;
 
-    let distributionVO: DistributionVO | null = null;
-    if (props.distribution) {
-      try {
-        distributionVO = new DistributionVO(props.distribution, total.getValue());
-      } catch (e: any) {
-        throw new DomainError(e?.message ?? 'Distribución inválida.');
-      }
+    let mcq = p.mcqCount ?? 0;
+    let tf = p.trueFalseCount ?? 0;
+    let oa = p.openAnalysisCount ?? 0;
+    let oe = p.openExerciseCount ?? 0;
+
+    if (p.distribution) {
+      const dist = new DistributionVO(p.distribution, total.getValue());
+      mcq = dist.value.multiple_choice;
+      tf = dist.value.true_false;
+      oa = dist.value.open_analysis;
+      oe = dist.value.open_exercise;
+    }
+
+    const sum = mcq + tf + oa + oe;
+    if (sum !== total.getValue()) {
+      throw new DomainError(`La suma de counts (${sum}) debe ser igual a totalQuestions (${total.getValue()}).`);
     }
 
     return new Exam(
       randomUUID(),
-      subject,
+      title,
+      status,
+      p.classId,
+      p.subject,
       difficulty,
       attempts,
       total,
       time,
-      reference ?? null,
-      distributionVO,      
+      reference,
+      mcq,
+      tf,
+      oa,
+      oe,
       new Date(),
-      new Date(),            
+      new Date(),
     );
   }
 }

@@ -1,133 +1,119 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../core/prisma/prisma.service';
-import { ExamRepositoryPort } from '../../domain/ports/exam.repository.port';
+import type { ExamRepositoryPort } from '../../domain/ports/exam.repository.port';
 import { Exam } from '../../domain/entities/exam.entity';
 import { Difficulty } from '../../domain/entities/difficulty.vo';
 import { PositiveInt } from '../../domain/entities/positive-int.vo';
-import { DistributionVO } from '../../domain/entities/distribution.vo';
-import { SavedExamDTO } from '../../domain/ports/saved-exam.repository.port';
+
+const selectExam = {
+  id: true,
+  title: true,
+  status: true,
+  classId: true,
+  subject: true,
+  difficulty: true,      
+  attempts: true,        
+  totalQuestions: true,  
+  timeMinutes: true,     
+  reference: true,
+  mcqCount: true,
+  trueFalseCount: true,
+  openAnalysisCount: true,
+  openExerciseCount: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+function unwrap<T>(x: any): T {
+  return typeof x?.getValue === 'function' ? x.getValue() : x;
+}
+
+function mapRowToDomain(r: any): Exam {
+  return new Exam(
+    r.id,
+    r.title,
+    r.status,
+    r.classId,
+    r.subject,
+    Difficulty.create(r.difficulty),
+    PositiveInt.create('attempts', r.attempts),
+    PositiveInt.create('totalQuestions', r.totalQuestions),
+    PositiveInt.create('timeMinutes', r.timeMinutes),
+    r.reference,
+    r.mcqCount,
+    r.trueFalseCount,
+    r.openAnalysisCount,
+    r.openExerciseCount,
+    r.createdAt,
+    r.updatedAt,
+  );
+}
 
 @Injectable()
 export class ExamPrismaRepository implements ExamRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
-  approve(id: string): Promise<void> {
-    throw new Error('Method not implemented.');
-  }
-  private readonly logger = new Logger(ExamPrismaRepository.name);
 
   async create(exam: Exam): Promise<Exam> {
-    this.logger.log(
-      `create -> id=${exam.id}, subject=${exam.subject}, total=${exam.totalQuestions.getValue()}`
-    );
-
     const row = await this.prisma.exam.create({
       data: {
         id: exam.id,
+        title: exam.title,
+        status: exam.status as any,
+        classId: exam.classId,
         subject: exam.subject,
-        difficulty: exam.difficulty.getValue(),
-        attempts: exam.attempts.getValue(),
-        totalQuestions: exam.totalQuestions.getValue(),
-        timeMinutes: exam.timeMinutes.getValue(),
-        reference: exam.reference ?? null,
-        content: (exam as any).content ?? null,
 
-        mcqCount:          exam.distribution?.value.multiple_choice ?? 0,
-        trueFalseCount:    exam.distribution?.value.true_false ?? 0,
-        openAnalysisCount: exam.distribution?.value.open_analysis ?? 0,
-        openExerciseCount: exam.distribution?.value.open_exercise ?? 0,
+        difficulty: unwrap<string>(exam.difficulty),
+        attempts: unwrap<number>(exam.attempts),
+        totalQuestions: unwrap<number>(exam.totalQuestions),
+        timeMinutes: unwrap<number>(exam.timeMinutes),
 
-        createdAt: exam.createdAt,
+        reference: exam.reference,
+        mcqCount: exam.mcqCount,
+        trueFalseCount: exam.trueFalseCount,
+        openAnalysisCount: exam.openAnalysisCount,
+        openExerciseCount: exam.openExerciseCount,
+      },
+      select: selectExam,
+    });
+    return mapRowToDomain(row);
+  }
+
+  async findByIdOwned(id: string, teacherId: string): Promise<Exam | null> {
+    const row = await this.prisma.exam.findFirst({
+      where: { id, class: { is: { course: { teacherId } } } }, 
+      select: selectExam,
+    });
+    return row ? mapRowToDomain(row) : null;
+  }
+
+  async listByClassOwned(classId: string, teacherId: string): Promise<Exam[]> {
+    const rows = await this.prisma.exam.findMany({
+      where: { classId, class: { is: { course: { teacherId } } } },
+      orderBy: { createdAt: 'desc' },
+      select: selectExam,
+    });
+    return rows.map(mapRowToDomain);
+  }
+
+  async updateMetaOwned(
+    id: string,
+    teacherId: string,
+    patch: Partial<Pick<Exam, 'title' | 'status' | 'classId'>>,
+  ): Promise<Exam> {
+    await this.prisma.exam.updateMany({
+      where: { id, class: { is: { course: { teacherId } } } },
+      data: {
+        ...(patch.title !== undefined ? { title: patch.title } : {}),
+        ...(patch.status !== undefined ? { status: patch.status as any } : {}),
+        ...(patch.classId !== undefined ? { classId: patch.classId } : {}),
       },
     });
 
-    this.logger.log(`create <- prisma created id=${row.id}`);
-
-    const sum =
-      row.mcqCount +
-      row.trueFalseCount +
-      row.openAnalysisCount +
-      row.openExerciseCount;
-
-    const distVO =
-      sum > 0
-        ? new DistributionVO(
-            {
-              multiple_choice: row.mcqCount,
-              true_false: row.trueFalseCount,
-              open_analysis: row.openAnalysisCount,
-              open_exercise: row.openExerciseCount,
-            },
-            row.totalQuestions,
-          )
-        : null;
-
-    return new Exam(
-      row.id,
-      row.subject,
-      Difficulty.create(row.difficulty),
-      PositiveInt.create('Intentos', row.attempts),
-      PositiveInt.create('Total de preguntas', row.totalQuestions),
-      PositiveInt.create('Tiempo (min)', row.timeMinutes),
-      row.reference ?? null,
-      distVO,
-      row.createdAt,
-      row.updatedAt,
-    );
-  }
-
-  async findById(id: string): Promise<Exam | null> {
-    const row = await this.prisma.exam.findUnique({ where: { id } });
-    if (!row) return null;
-
-    const sum =
-      row.mcqCount +
-      row.trueFalseCount +
-      row.openAnalysisCount +
-      row.openExerciseCount;
-
-    const distVO =
-      sum > 0
-        ? new DistributionVO(
-            {
-              multiple_choice: row.mcqCount,
-              true_false: row.trueFalseCount,
-              open_analysis: row.openAnalysisCount,
-              open_exercise: row.openExerciseCount,
-            },
-            row.totalQuestions,
-          )
-        : null;
-
-    return new Exam(
-      row.id,
-      row.subject,
-      Difficulty.create(row.difficulty),
-      PositiveInt.create('Intentos', row.attempts),
-      PositiveInt.create('Total de preguntas', row.totalQuestions),
-      PositiveInt.create('Tiempo (min)', row.timeMinutes),
-      row.reference ?? null,
-      distVO,
-      row.createdAt,
-      row.updatedAt,
-    );
-  }
-
-
-  async findByExamId(examId: string): Promise<SavedExamDTO | null> {
-    const r = await this.prisma.savedExam.findUnique({
-      where: { examId },
+    const row = await this.prisma.exam.findFirst({
+      where: { id, class: { is: { course: { teacherId } } } },
+      select: selectExam,
     });
-    if (!r) return null;
-
-    // SavedExam.content was removed; id is now UUID (string); examId is required.
-    return {
-      id: r.id,
-      title: r.title,
-      status: r.status as any,
-      courseId: r.courseId,
-      teacherId: r.teacherId,
-      createdAt: r.createdAt,
-      examId: r.examId,
-    };
+    if (!row) throw new Error('Examen no encontrado o acceso no autorizado');
+    return mapRowToDomain(row);
   }
 }
