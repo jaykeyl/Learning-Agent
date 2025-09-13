@@ -143,9 +143,11 @@ export function CoursePeriodsPage() {
         >
           <div
             style={{
-              maxWidth: 1200,
-              margin: "0 auto",
-              padding: "24px",
+              maxWidth: '100%',
+              width: '100%',
+              margin: '0 auto',
+              padding: '24px 16px',
+              boxSizing: 'border-box',
             }}
           >
             {/* Header con búsqueda y botón crear */}
@@ -161,14 +163,17 @@ export function CoursePeriodsPage() {
             >
               <div>
                 <Input
-                  placeholder="Buscar período..."
+                  placeholder="Buscar período"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   allowClear
                   style={{
-                    width: 240,
-                    borderRadius: 8
+                    minWidth: 120,
+                    maxWidth: 300,
+                    width: '100%',
+                    borderRadius: 8,
                   }}
+                  className="placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 />
               </div>
               {user?.roles.includes("docente") && (
@@ -187,30 +192,33 @@ export function CoursePeriodsPage() {
             </div>
 
             {filteredPeriods.length > 0 ? (
-              <>{filteredPeriods.map((period) => (
-                <CustomCard
-                  status="default"
-                  style={{ marginBottom: "16px" }}
-                  onClick={() => goToPeriod(period.id)}
-                  key={period.id}
-                >
-                  <CustomCard.Header
-                    icon={<ReadOutlined />}
-                    title={period.semester}
-                  />
-                  <CustomCard.Description>
-                    {`Consulte la información de ${period.name}`}
-                  </CustomCard.Description>
-                  <CustomCard.Body>
-                    <div style={{ marginBottom: "2px" }}>
-                      Inicio: {dayjs(period.dateBegin).format("DD/MM/YYYY")}
-                    </div>
-                    <div>
-                      Fin: {dayjs(period.dateEnd).format("DD/MM/YYYY")}
-                    </div>
-                  </CustomCard.Body>
-                </CustomCard>
-              ))}</>
+              <div className="grid grid-cols-1 min-[1000px]:grid-cols-2 min-[1367px]:grid-cols-3 gap-4 md:gap-6">
+                {filteredPeriods.map((period) => (
+                  <div key={period.id}>
+                    <CustomCard
+                      status="default"
+                      onClick={() => goToPeriod(period.id)}
+                      style={{ width: '100%' }}
+                    >
+                      <CustomCard.Header
+                        icon={<ReadOutlined />}
+                        title={period.semester}
+                      />
+                      <CustomCard.Description>
+                        {`Consulte la información de ${period.name}`}
+                      </CustomCard.Description>
+                      <CustomCard.Body>
+                        <div style={{ marginBottom: "2px" }}>
+                          Inicio: {dayjs(period.dateBegin).format("DD/MM/YYYY")}
+                        </div>
+                        <div>
+                          Fin: {dayjs(period.dateEnd).format("DD/MM/YYYY")}
+                        </div>
+                      </CustomCard.Body>
+                    </CustomCard>
+                  </div>
+                ))}
+              </div>
             ) : (
               <Empty
                 description="No hay períodos creados para esta materia"

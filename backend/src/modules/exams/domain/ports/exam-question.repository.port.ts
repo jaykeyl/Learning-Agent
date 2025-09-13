@@ -9,16 +9,26 @@ export type UpdateExamQuestionPatch = {
   correctBoolean?: boolean;
   expectedAnswer?: string;
 };
+
 export interface ExamQuestionRepositoryPort {
-  existsExam(examId: string): Promise<boolean>;
-  countByExam(examId: string): Promise<number>;
-  addToExam(
+  existsExamOwned(examId: string, teacherId: string): Promise<boolean>;
+
+  countByExamOwned(examId: string, teacherId: string): Promise<number>;
+
+  addToExamOwned(
     examId: string,
+    teacherId: string,
     question: NewExamQuestion,
     position: InsertPosition
   ): Promise<ExamQuestion>;
 
-  findById(id: string): Promise<ExamQuestion | null>;
-  update(id: string, patch: UpdateExamQuestionPatch): Promise<ExamQuestion>;
-  listByExam(examId: string): Promise<ExamQuestion[]>;
+  findByIdOwned(id: string, teacherId: string): Promise<ExamQuestion | null>;
+
+  updateOwned(
+    id: string,
+    teacherId: string,
+    patch: UpdateExamQuestionPatch
+  ): Promise<ExamQuestion>;
+
+  listByExamOwned(examId: string, teacherId: string): Promise<ExamQuestion[]>;
 }

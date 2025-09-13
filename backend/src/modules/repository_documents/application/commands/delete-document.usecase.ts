@@ -58,23 +58,8 @@ export class DeleteDocumentUseCase {
       await this.storageAdapter.softDeleteDocument(document.fileName);
       this.logger.log(`Soft delete en storage completado`);
 
-      // Hacer soft delete en la base de datos (cambiar status a DELETED)
-      this.logger.log(`Cambiando status a DELETED en base de datos...`);
-      const updatedDocument = await this.documentRepository.updateStatus(
-        documentId,
-        DocumentStatus.DELETED,
-      );
-
-      if (updatedDocument) {
-        this.logger.log(
-          `Documento marcado como DELETED exitosamente: ${updatedDocument.id}, Status: ${updatedDocument.status}`,
-        );
-      } else {
-        this.logger.error(
-          `Error: No se pudo actualizar el status del documento`,
-        );
-        throw new Error('Failed to update document status to DELETED');
-      }
+      this.logger.log(`Eliminando registro en base de datos...`);
+      await this.documentRepository.delete(documentId);
 
       this.logger.log(
         `Eliminación completada exitosamente: ${document.originalName}`,

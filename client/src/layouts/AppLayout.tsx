@@ -79,6 +79,9 @@ export default function AppLayout() {
       return false;
     }
   });
+  const [isMobile, setIsMobile] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 999px)').matches : false
+  );
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { theme, setTheme } = useThemeStore();
@@ -94,6 +97,18 @@ export default function AppLayout() {
       setSystemTheme(e.matches ? "dark" : "light");
     media.addEventListener("change", listener);
     return () => media.removeEventListener("change", listener);
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 999px)');
+    const onResize = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches);
+      if (e.matches) setCollapsed(true); // auto-colapsar en móviles
+    };
+    setIsMobile(mq.matches);
+    if (mq.matches) setCollapsed(true);
+    mq.addEventListener('change', onResize);
+    return () => mq.removeEventListener('change', onResize);
   }, []);
 
   useEffect(() => {
@@ -116,6 +131,15 @@ export default function AppLayout() {
 
   return (
     <Layout className="h-screen">
+      {/* Backdrop overlay when sidebar is open on mobile */}
+      {isMobile && !collapsed && (
+        <div
+          className="fixed inset-0 bg-black/30 z-40"
+          onClick={() => setCollapsed(true)}
+          aria-hidden
+        />
+      )}
+
       <Sider
         width={260}
         collapsedWidth={96}
@@ -124,7 +148,11 @@ export default function AppLayout() {
         onCollapse={setCollapsed}
         theme={currentTheme}
         trigger={null}
-        className="bg-[var(--app-colorBgLayout)]"
+        className={
+          "bg-[var(--app-colorBgLayout)] " +
+          (isMobile && !collapsed ? "fixed left-0 top-0 h-screen z-50 shadow-2xl" : "")
+        }
+        style={isMobile && !collapsed ? { position: 'fixed', inset: 0, left: 0, top: 0, height: '100vh' } : undefined}
       >
         <div className="h-full ">
           <div className="h-full w-full pb-2 bg-[var(--app-colorBgContainer)] shadow-sm ring-1 ring-[var(--app-colorBorder)] flex flex-col overflow-hidden">
