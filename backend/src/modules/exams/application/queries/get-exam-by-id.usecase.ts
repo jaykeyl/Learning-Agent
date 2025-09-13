@@ -19,13 +19,14 @@ export class GetExamByIdUseCase {
         }
 
         const questions = await this.questionRepo.listByExamOwned(q.examId, q.teacherId);
+        const counts = await this.questionRepo.countsByExamOwned(q.examId, q.teacherId);
 
         const distribution = exam.distribution
         ? {
-            multiple_choice: exam.mcqCount,
-            true_false: exam.trueFalseCount,
-            open_analysis: exam.openAnalysisCount,
-            open_exercise: exam.openExerciseCount,
+            multiple_choice: counts.mcqCount,
+            true_false: counts.trueFalseCount,
+            open_analysis: counts.openAnalysisCount,
+            open_exercise: counts.openExerciseCount,
             }
         : null;
 
@@ -38,14 +39,14 @@ export class GetExamByIdUseCase {
         subject: exam.subject,
         difficulty: exam.difficulty.getValue ? exam.difficulty.getValue() : exam.difficulty,
         attempts: exam.attempts.getValue ? exam.attempts.getValue() : exam.attempts,
-        totalQuestions: exam.totalQuestions.getValue ? exam.totalQuestions.getValue() : exam.totalQuestions,
+        totalQuestions: counts.totalQuestions,
         timeMinutes: exam.timeMinutes.getValue ? exam.timeMinutes.getValue() : exam.timeMinutes,
         reference: exam.reference,
 
-        mcqCount: exam.mcqCount,
-        trueFalseCount: exam.trueFalseCount,
-        openAnalysisCount: exam.openAnalysisCount,
-        openExerciseCount: exam.openExerciseCount,
+        mcqCount: counts.mcqCount,
+        trueFalseCount: counts.trueFalseCount,
+        openAnalysisCount: counts.openAnalysisCount,
+        openExerciseCount: counts.openExerciseCount,
 
         distribution,
         questions: questions.map(q => ({
