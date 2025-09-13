@@ -197,11 +197,9 @@ function openPrint(html: string) {
 }
 
 function loadPrintableExam(exam: ExamSummary): PrintableExam | null {
-  // Intentar primero con el ID directo
   let stored = readJSON<PrintableExam>(`exam:content:${exam.id}`);
   
   if (!stored) {
-    // Si no se encuentra, intentar buscar en el índice
     const index = readJSON<string[]>('exam:content:index') || [];
     const examId = index.find(id => id.includes(exam.id));
     if (examId) {
@@ -332,13 +330,11 @@ export default function ExamTable({ data }: Props) {
 
                   console.log('Examen encontrado:', examContent);
 
-                  // Calcular las cantidades por tipo
                   const mcCount = examContent.questions.filter(q => q.type === 'multiple_choice').length;
                   const tfCount = examContent.questions.filter(q => q.type === 'true_false').length;
                   const anCount = examContent.questions.filter(q => q.type === 'open_analysis').length;
                   const oeCount = examContent.questions.filter(q => q.type === 'open_exercise').length;
 
-                  // Preparar los datos para el formulario
                   const formData = {
                     id: record.id,
                     title: record.title,
@@ -362,7 +358,6 @@ export default function ExamTable({ data }: Props) {
                     }))
                   };
 
-                  // Navegar a la página de creación con los datos
                   navigate('/exams/create', { 
                     state: { 
                       editMode: true,

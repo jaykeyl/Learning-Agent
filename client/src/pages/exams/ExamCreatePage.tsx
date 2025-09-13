@@ -66,7 +66,6 @@ export default function ExamsCreatePage() {
   const location = useLocation();
   const editData = location.state?.examData;
   
-  // Mover los hooks al nivel superior del componente
   const updateExam = useExamsStore(state => state.updateExam);
   const addFromQuestions = useExamsStore(state => state.addFromQuestions);
 
@@ -244,15 +243,12 @@ export default function ExamsCreatePage() {
     let summary;
     try {
       if (editData?.id) {
-        // En modo edición, primero limpiamos todas las referencias en localStorage
         localStorage.removeItem(`exam:content:${editData.id}`);
         
-        // Limpiar el índice de exámenes
         const examIndex = readJSON<string[]>('exam:content:index') || [];
         const newIndex = examIndex.filter(id => !id.includes(editData.id));
         saveJSON('exam:content:index', newIndex);
         
-        // Luego actualizamos tanto el backend como el store
         await updateExamApproved({
           examId: editData.id,
           title: aiMeta.subject || 'Examen',
@@ -260,7 +256,6 @@ export default function ExamsCreatePage() {
         });
         summary = updateExam(editData.id, data);
       } else {
-        // En modo creación
         if (!classId) {
           pushToast('Abre el creador desde la materia (Crear examen) para asociarlo.', 'error');
           return;
@@ -278,7 +273,6 @@ export default function ExamsCreatePage() {
       return;
     }
 
-    // Guardar en localStorage (tanto para creación como edición)
     const examKey = `exam:content:${summary.id}`;
     saveJSON(examKey, {
       examId: summary.id,
@@ -294,7 +288,6 @@ export default function ExamsCreatePage() {
       }))
     });
 
-    // Actualizar el índice
     const examIndex = readJSON<string[]>('exam:content:index') || [];
     if (!examIndex.includes(examKey)) {
       examIndex.push(examKey);

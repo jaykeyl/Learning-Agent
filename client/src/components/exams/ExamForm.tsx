@@ -38,13 +38,11 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
 
   const [values, setValues] = useState(() => {
     if (initialData) {
-      // Si tenemos datos iniciales, los usamos para pre-llenar el formulario
       const mcCount = initialData.questions?.filter(q => q.type === 'multiple_choice').length || 0;
       const tfCount = initialData.questions?.filter(q => q.type === 'true_false').length || 0;
       const anCount = initialData.questions?.filter(q => q.type === 'open_analysis').length || 0;
       const oeCount = initialData.questions?.filter(q => q.type === 'open_exercise').length || 0;
 
-      // También actualizamos los valores en el hook del formulario
       setValue('subject', initialData.subject || '');
       setValue('difficulty', initialData.difficulty || 'medio');
       setValue('attempts', initialData.attempts || '1');

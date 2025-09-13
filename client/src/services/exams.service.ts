@@ -425,13 +425,11 @@ export async function createExamApproved(input: CreateExamApprovedInput) {
 export async function updateExamApproved(input: UpdateExamApprovedInput) {
   const { examId, ...rest } = input;
   
-  // Primero eliminamos todas las preguntas existentes
   const questions = await api.get(`/api/exams/${examId}/questions`);
   for (const question of questions.data) {
     await api.delete(`/api/exams/${examId}/questions/${question.id}`);
   }
 
-  // Luego actualizamos el examen base
   await api.put(`/api/exams/${examId}`, {
     title: input.title,
     subject: input.content?.subject ?? 'Tema general',
@@ -441,7 +439,6 @@ export async function updateExamApproved(input: UpdateExamApprovedInput) {
     timeMinutes: 45,
   });
 
-  // Finalmente agregamos las nuevas preguntas
   const newQuestions = input.content?.questions ?? input.questions ?? [];
   for (const q of newQuestions) {
     const kind =
