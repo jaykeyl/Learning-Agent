@@ -3,7 +3,6 @@ import { UpdateExamQuestionPatch } from '../../domain/ports/exam-question.reposi
 export class UpdateExamQuestionCommand {
     constructor(
         public readonly questionId: string,
-        public readonly teacherId: string,
         public readonly patch: UpdateExamQuestionPatch,
     ) {}
 }
