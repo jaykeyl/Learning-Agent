@@ -3,6 +3,7 @@ import { PrismaService } from '../../../../core/prisma/prisma.service';
 import type {
   ExamQuestionRepositoryPort,
   UpdateExamQuestionPatch,
+  DerivedCounts,
 } from '../../domain/ports/exam-question.repository.port';
 import { ExamQuestion, NewExamQuestion } from '../../domain/entities/exam-question.entity';
 import { Prisma } from '@prisma/client'; 
@@ -25,22 +26,33 @@ const map = (q: any): ExamQuestion => ({
 export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async isExamOwnedByTeacher(examId: string, teacherId: string): Promise<boolean> {
+    const rows = await this.prisma.$queryRaw<Array<{ ok: number }>>`
+      SELECT 1 AS ok
+      FROM "Exam" e
+      JOIN "Classes" c ON c."id" = e."classId"
+      JOIN "Course"  cr ON cr."id" = c."courseId"
+      WHERE e."id" = ${examId} AND cr."teacherId" = ${teacherId}
+      LIMIT 1
+    `;
+    return rows.length > 0;
+  }
+
   async existsExamOwned(examId: string, teacherId: string): Promise<boolean> {
-    const count = await this.prisma.exam.count({
-      where: { id: examId, class: { is: { course: { teacherId } } } }, 
-    });
-    return count > 0;
+    return this.isExamOwnedByTeacher(examId, teacherId);
   }
 
   async countByExamOwned(examId: string, teacherId: string): Promise<number> {
-    return this.prisma.examQuestion.count({
-      where: { examId, exam: { is: { class: { is: { course: { teacherId } } } } } }, 
-    });
+    const owned = await this.isExamOwnedByTeacher(examId, teacherId);
+    if (!owned) return 0;
+    return this.prisma.examQuestion.count({ where: { examId } });
   }
 
   async listByExamOwned(examId: string, teacherId: string) {
+    const owned = await this.isExamOwnedByTeacher(examId, teacherId);
+    if (!owned) return [];
     const rows = await this.prisma.examQuestion.findMany({
-      where: { examId, exam: { is: { class: { is: { course: { teacherId } } } } } },
+      where: { examId },
       orderBy: { order: 'asc' },
     });
     return rows.map(map);
@@ -52,19 +64,20 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
     q: NewExamQuestion,
     position: 'start' | 'middle' | 'end',
   ): Promise<ExamQuestion> {
-    const owned = await this.existsExamOwned(examId, teacherId);
+    const owned = await this.isExamOwnedByTeacher(examId, teacherId);
     if (!owned) throw new Error('Examen no encontrado o acceso no autorizado');
 
-    const count = await this.countByExamOwned(examId, teacherId);
+    const count = await this.prisma.examQuestion.count({ where: { examId } });
     let newOrder = count;
     if (position === 'start') newOrder = 0;
     else if (position === 'middle') newOrder = Math.floor(count / 2);
 
     if (position !== 'end') {
-      await this.prisma.$executeRawUnsafe(
-        `UPDATE "ExamQuestion" SET "order" = "order" + 1 WHERE "examId" = $1`,
-        examId,
-      );
+      await this.prisma.$executeRaw`
+        UPDATE "ExamQuestion"
+        SET "order" = "order" + 1
+        WHERE "examId" = ${examId} AND "order" >= ${newOrder}
+      `;
     }
 
     const data: Parameters<typeof this.prisma.examQuestion.create>[0]['data'] = {
@@ -85,15 +98,27 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
   }
 
   async findByIdOwned(id: string, teacherId: string) {
-    const row = await this.prisma.examQuestion.findFirst({
-      where: { id, exam: { is: { class: { is: { course: { teacherId } } } } } },
-    });
-    return row ? map(row) : null;
+    const row = await this.prisma.examQuestion.findUnique({ where: { id } });
+    if (!row) return null;
+
+    const owned = await this.isExamOwnedByTeacher(row.examId, teacherId);
+    if (!owned) return null;
+
+    return map(row);
   }
 
   async updateOwned(id: string, teacherId: string, patch: UpdateExamQuestionPatch) {
-    await this.prisma.examQuestion.updateMany({
-      where: { id, exam: { is: { class: { is: { course: { teacherId } } } } } },
+    const current = await this.prisma.examQuestion.findUnique({
+      where: { id },
+      select: { examId: true },
+    });
+    if (!current) throw new Error('Pregunta no encontrada o acceso no autorizado');
+
+    const owned = await this.isExamOwnedByTeacher(current.examId, teacherId);
+    if (!owned) throw new Error('Pregunta no encontrada o acceso no autorizado');
+
+    await this.prisma.examQuestion.update({
+      where: { id },
       data: {
         ...(patch.text !== undefined ? { text: patch.text } : {}),
         ...(patch.options !== undefined
@@ -105,10 +130,66 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
       },
     });
 
-    const row = await this.prisma.examQuestion.findFirst({
-      where: { id, exam: { is: { class: { is: { course: { teacherId } } } } } },
-    });
+    const row = await this.prisma.examQuestion.findUnique({ where: { id } });
     if (!row) throw new Error('Pregunta no encontrada o acceso no autorizado');
     return map(row);
+  }
+
+  async countsByExamOwned(examId: string, teacherId: string): Promise<DerivedCounts> {
+    const rows = await this.prisma.$queryRaw<Array<{ kind: string; count: number }>>`
+      SELECT q."kind", COUNT(*)::int AS count
+      FROM "ExamQuestion" q
+      JOIN "Exam"     e  ON e."id"      = q."examId"
+      JOIN "Classes"  c  ON c."id"      = e."classId"
+      JOIN "Course"   cr ON cr."id"     = c."courseId"
+      WHERE q."examId" = ${examId} AND cr."teacherId" = ${teacherId}
+      GROUP BY q."kind"
+    `;
+    const get = (k: string) => rows.find(r => r.kind === k)?.count ?? 0;
+    const total = rows.reduce((s, r) => s + r.count, 0);
+    return {
+      totalQuestions: total,
+      mcqCount: get('MULTIPLE_CHOICE'),
+      trueFalseCount: get('TRUE_FALSE'),
+      openAnalysisCount: get('OPEN_ANALYSIS'),
+      openExerciseCount: get('OPEN_EXERCISE'),
+    };
+  }
+
+  async bulkCountsByExamIdsOwned(
+    examIds: string[],
+    teacherId: string,
+  ): Promise<Map<string, DerivedCounts>> {
+    const acc = new Map<string, DerivedCounts>();
+    if (examIds.length === 0) return acc;
+
+    const rows = await this.prisma.$queryRaw<Array<{ examId: string; kind: string; count: number }>>`
+      SELECT q."examId", q."kind", COUNT(*)::int AS count
+      FROM "ExamQuestion" q
+      JOIN "Exam"     e  ON e."id"      = q."examId"
+      JOIN "Classes"  c  ON c."id"      = e."classId"
+      JOIN "Course"   cr ON cr."id"     = c."courseId"
+      WHERE q."examId" IN (${Prisma.join(examIds)}) AND cr."teacherId" = ${teacherId}
+      GROUP BY q."examId", q."kind"
+    `;
+
+    for (const { examId, kind, count } of rows) {
+      const cur = acc.get(examId) ?? {
+        totalQuestions: 0, mcqCount: 0, trueFalseCount: 0, openAnalysisCount: 0, openExerciseCount: 0,
+      };
+      cur.totalQuestions += count;
+      if (kind === 'MULTIPLE_CHOICE') cur.mcqCount += count;
+      else if (kind === 'TRUE_FALSE') cur.trueFalseCount += count;
+      else if (kind === 'OPEN_ANALYSIS') cur.openAnalysisCount += count;
+      else if (kind === 'OPEN_EXERCISE') cur.openExerciseCount += count;
+      acc.set(examId, cur);
+    }
+
+    for (const id of examIds) {
+      if (!acc.has(id)) {
+        acc.set(id, { totalQuestions: 0, mcqCount: 0, trueFalseCount: 0, openAnalysisCount: 0, openExerciseCount: 0 });
+      }
+    }
+    return acc;
   }
 }
