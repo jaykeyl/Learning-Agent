@@ -1,7 +1,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { useExamForm } from '../../hooks/useExamForm.ts';
 import { createExam } from '../../services/exams.service';
-import { Button, theme } from 'antd';
+import { Button, theme, Tag, Tooltip, message } from 'antd';
+
+import { SelectIndicesDialog, type IndexNode } from './SelectIndicesDialog';
 
 import type { ToastKind } from '../shared/Toast';
 
@@ -28,6 +30,19 @@ type Props = {
 };
 
 export type ExamFormHandle = { getSnapshot: () => any };
+
+const indicesDelCurso: IndexNode[] = [
+  { id: 'tema1', label: 'Tema 1' },
+  {
+    id: 'tema2',
+    label: 'Tema 2',
+    children: [
+      { id: 'subtema2.1', label: 'Subtema 2.1' },
+      { id: 'subtema2.2', label: 'Subtema 2.2' },
+    ],
+  },
+  { id: 'tema3', label: 'Tema 3' },
+];
 
 export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
   { onToast, onGenerateAI, initialData },
@@ -74,7 +89,6 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
       timeMinutes: 45,
     };
   });
-  
 
   const [step, setStep] = useState(0);
   const steps = ['Datos generales', 'Cantidad de preguntas', 'Tiempo y referencia'];
@@ -93,6 +107,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [sending, setSending] = useState(false);
+  const [selectIndicesOpen, setSelectIndicesOpen] = useState(false);
+  const [selectedIndices, setSelectedIndices] = useState<string[]>([]);
+  const canGenerateExam = selectedIndices.length > 0;
 
   useImperativeHandle(ref, () => ({ getSnapshot }), [getSnapshot]);
 
@@ -118,21 +135,13 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
       setValue('openEnded', '');
       setValue('timeMinutes', '');
       setValue('reference', '');
+      setSelectedIndices([]);
+      setValue('indices' as any, []);
     };
   }, []);
 
   const onChange = (name: string, value: string) => {
-    let v = name === 'subject' ? value.replace(/\s+/g, ' ').trimStart() : value;
-    
-    if (['multipleChoice', 'trueFalse', 'analysis', 'openEnded'].includes(name)) {
-      if (value === '' || !/^\d+$/.test(value)) {
-        v = '';
-      } else {
-        const num = parseInt(value);
-        v = num.toString();
-      }
-    }
-    
+    const v = name === 'subject' ? value.replace(/\s+/g, ' ').trimStart() : value;
     setValues((prev) => ({ ...prev, [name]: v }));
     setValue(name as any, v);
     setTouched((prev) => ({ ...prev, [name]: true }));
@@ -210,7 +219,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
       }));
       setValue('timeMinutes', 45);
       setValue('reference', '');
-      onToast('Tiempo y referencia limpiados.', 'info');
+      setSelectedIndices([]);
+      setValue('indices' as any, []);
+      onToast('Tiempo, referencia e índices limpiados.', 'info');
     }
     touchAndValidate();
   };
@@ -251,6 +262,22 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
       return 'El número de intentos no puede ser mayor a 3.';
     }
     return '';
+  };
+
+  const handleGenerateAIWithIndices = async () => {
+    if (!canGenerateExam) {
+      message.warning('Debes elegir al menos un índice para generar el examen.');
+      setSelectIndicesOpen(true);
+      return;
+    }
+
+    setValue('indices' as any, selectedIndices);
+    try {
+      await onGenerateAI?.();
+      message.success('Solicitud de generación enviada.');
+    } catch {
+      message.error('Error al solicitar la generación de examen.');
+    }
   };
 
   return (
@@ -497,9 +524,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   <input
                     id="multipleChoice"
                     name="multipleChoice"
-                    type="text"
-                    pattern="[0-9]*"
-                    inputMode="numeric"
+                    type="number"
+                    min={0}
+                    step={1}
                     placeholder="0"
                     className="
                       input-hover w-full rounded-lg border-2 px-1 py-1
@@ -508,20 +535,6 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     "
                     value={values.multipleChoice || ''}
                     onChange={(e) => onChange('multipleChoice', e.target.value)}
-                    onKeyDown={(e) => {
-                      if (![
-                        'Backspace',
-                        'Delete',
-                        'ArrowLeft',
-                        'ArrowRight',
-                        'Tab',
-                        'Home',
-                        'End',
-                        ...[...Array(10)].map((_, i) => i.toString())
-                      ].includes(e.key)) {
-                        e.preventDefault();
-                      }
-                    }}
                     style={{
                       background: token.colorBgContainer,
                       color: token.colorText,
@@ -541,9 +554,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   <input
                     id="trueFalse"
                     name="trueFalse"
-                    type="text"
-                    pattern="[0-9]*"
-                    inputMode="numeric"
+                    type="number"
+                    min={0}
+                    step={1}
                     placeholder="0"
                     className="
                       input-hover w-full rounded-lg border-2 px-3 py-2
@@ -552,20 +565,6 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     "
                     value={values.trueFalse || ''}
                     onChange={(e) => onChange('trueFalse', e.target.value)}
-                    onKeyDown={(e) => {
-                      if (![
-                        'Backspace',
-                        'Delete',
-                        'ArrowLeft',
-                        'ArrowRight',
-                        'Tab',
-                        'Home',
-                        'End',
-                        ...[...Array(10)].map((_, i) => i.toString())
-                      ].includes(e.key)) {
-                        e.preventDefault();
-                      }
-                    }}
                     style={{
                       background: token.colorBgContainer,
                       color: token.colorText,
@@ -585,9 +584,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   <input
                     id="analysis"
                     name="analysis"
-                    type="text"
-                    pattern="[0-9]*"
-                    inputMode="numeric"
+                    type="number"
+                    min={0}
+                    step={1}
                     placeholder="0"
                     className="
                       input-hover w-full rounded-lg border-2 px-3 py-2
@@ -596,20 +595,6 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     "
                     value={values.analysis || ''}
                     onChange={(e) => onChange('analysis', e.target.value)}
-                    onKeyDown={(e) => {
-                      if (![
-                        'Backspace',
-                        'Delete',
-                        'ArrowLeft',
-                        'ArrowRight',
-                        'Tab',
-                        'Home',
-                        'End',
-                        ...[...Array(10)].map((_, i) => i.toString())
-                      ].includes(e.key)) {
-                        e.preventDefault();
-                      }
-                    }}
                     style={{
                       background: token.colorBgContainer,
                       color: token.colorText,
@@ -629,9 +614,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   <input
                     id="openEnded"
                     name="openEnded"
-                    type="text"
-                    pattern="[0-9]*"
-                    inputMode="numeric"
+                    type="number"
+                    min={0}
+                    step={1}
                     placeholder="0"
                     className="
                       input-hover w-full rounded-lg border-2 px-3 py-2
@@ -640,20 +625,6 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     "
                     value={values.openEnded || ''}
                     onChange={(e) => onChange('openEnded', e.target.value)}
-                    onKeyDown={(e) => {
-                      if (![
-                        'Backspace',
-                        'Delete',
-                        'ArrowLeft',
-                        'ArrowRight',
-                        'Tab',
-                        'Home',
-                        'End',
-                        ...[...Array(10)].map((_, i) => i.toString())
-                      ].includes(e.key)) {
-                        e.preventDefault();
-                      }
-                    }}
                     style={{
                       background: token.colorBgContainer,
                       color: token.colorText,
@@ -726,6 +697,33 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                   <small className="error block mt-1 text-xs text-red-500">{errors.reference}</small>
                 )}
               </div>
+
+              <div className="form-group sm:col-span-2" style={{ margin: '12px 0' }}>
+                <label className="block text-sm font-medium mb-1">Índices del curso</label>
+                <div>
+                  <span>Índices seleccionados: </span>
+                  {selectedIndices.length === 0 ? (
+                    <Tooltip title="Debes elegir al menos un índice">
+                      <Tag color="red">Ninguno</Tag>
+                    </Tooltip>
+                  ) : (
+                    selectedIndices.map((id) => <Tag key={id}>{id}</Tag>)
+                  )}
+                  <Button
+                    type="default"
+                    size="small"
+                    style={{ marginLeft: 10 }}
+                    onClick={() => setSelectIndicesOpen(true)}
+                  >
+                    Elegir índices
+                  </Button>
+                  {selectedIndices.length > 0 && (
+                    <span style={{ marginLeft: 8, color: '#888' }}>
+                      ({selectedIndices.length} seleccionados)
+                    </span>
+                  )}
+                </div>
+              </div>
             </>
           )}
         </div>
@@ -753,7 +751,7 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
             disabled={
               (step === 0 && !values.subject && !values.difficulty && !values.attempts) ||
               (step === 1 && !values.multipleChoice && !values.trueFalse && !values.analysis && !values.openEnded) ||
-              (step === 2 && !values.timeMinutes && !values.reference)
+              (step === 2 && !values.timeMinutes && !values.reference && selectedIndices.length === 0)
             }
             style={{ marginLeft: 8 }}
           >
@@ -775,15 +773,31 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
           )}
           {step === 2 && onGenerateAI && (
             <Button
-            type="primary"
-            disabled={sending}
-            onClick={onGenerateAI}
+              type="primary"
+              disabled={sending || !validStep()}
+              onClick={() => {
+                if (validStep()) {
+                  handleGenerateAIWithIndices();
+                }
+              }}
             >
               Generar preguntas con IA
-              </Button>
-            )}
+            </Button>
+          )}
         </div>
       </div>
+
+      <SelectIndicesDialog
+        open={selectIndicesOpen}
+        indices={indicesDelCurso}
+        selectedIds={selectedIndices}
+        onClose={() => setSelectIndicesOpen(false)}
+        onConfirm={(ids) => {
+          setSelectedIndices(ids);
+          setValue('indices' as any, ids); 
+          setSelectIndicesOpen(false);
+        }}
+      />
     </form>
   );
 });
