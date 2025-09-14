@@ -1,18 +1,35 @@
-import { IsArray, IsBoolean, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, MaxLength, Min, ValidateIf } from 'class-validator';
 
 export class UpdateExamQuestionDto {
-    @IsOptional() @IsString() @MaxLength(4000)
-    text?: string;
+  @IsEnum(['MULTIPLE_CHOICE','TRUE_FALSE','OPEN_ANALYSIS','OPEN_EXERCISE'] as any)
+  kind!: 'MULTIPLE_CHOICE'|'TRUE_FALSE'|'OPEN_ANALYSIS'|'OPEN_EXERCISE';
 
-    @IsOptional() @IsArray()
-    options?: string[];
+  // PATCH: todo opcional
+  @IsOptional() @IsString() @MaxLength(4000)
+  text?: string;
 
-    @IsOptional() @IsInt() @Min(0)
-    correctOptionIndex?: number;
+  // MCQ
+  @IsOptional() @IsArray()
+  options?: string[];
 
-    @IsOptional() @IsBoolean()
-    correctBoolean?: boolean;
+  @IsOptional() @IsInt() @Min(0)
+  correctOptionIndex?: number;
 
-    @IsOptional() @IsString()
-    expectedAnswer?: string;
+  // TRUE_FALSE
+  @IsOptional() @IsBoolean()
+  correctBoolean?: boolean;
+
+  // OPEN_*
+  @IsOptional() @IsString()
+  expectedAnswer?: string;
+
+  @IsOptional()
+    @ValidateIf(o => o.kind === 'MULTIPLE_CHOICE')
+    @IsInt()
+    @Min(0)
+    @ValidateIf(o => o.kind === 'TRUE_FALSE')
+    @IsBoolean({ message: 'correctAnswer debe ser boolean.' })
+    @ValidateIf(o => o.kind === 'OPEN_ANALYSIS' || o.kind === 'OPEN_EXERCISE')
+    @IsIn([null], { message: 'correctAnswer debe ser null para preguntas abiertas.' })
+    correctAnswer?: number | boolean | null;
 }

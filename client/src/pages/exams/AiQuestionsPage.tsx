@@ -8,8 +8,8 @@ import type { ExamFormHandle } from '../../components/exams/ExamForm';
 import { Toast, useToast } from '../../components/shared/Toast';
 import { readJSON } from '../../services/storage/localStorage';
 import PageTemplate from '../../components/PageTemplate';
-import './ExamCreatePage.css';
 import { generateQuestions, type GeneratedQuestion } from '../../services/exams.service';
+import './ExamCreatePage.css';
 import AiResults from './AiResults';
 import {
   normalizeToQuestions,

@@ -60,7 +60,7 @@ export default function ExamsCreatePage() {
   const { toasts, pushToast, removeToast } = useToast();
   const formRef = useRef<ExamFormHandle>(null!);
   const [params] = useSearchParams();
-  const courseId = params.get('courseId') || '';
+  const classId = params.get('classId') || '';
   const navigate = useNavigate();
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -203,7 +203,7 @@ export default function ExamsCreatePage() {
   };
 
   const onSave = async () => {
-    if (!courseId) {
+    if (!classId) {
       pushToast('Abre el creador desde la materia (Crear examen) para asociarlo.', 'error');
       return;
     }
@@ -230,13 +230,13 @@ export default function ExamsCreatePage() {
     });
 
     await createExamApproved({
-      courseId,
+      classId,
       title: aiMeta.subject || 'Examen',
       questions,
     });
 
     pushToast('Examen guardado en la base de datos.', 'success');
-    navigate(`/courses/${courseId}`);
+    navigate(`/courses/${classId}`);
   };
 
   return (

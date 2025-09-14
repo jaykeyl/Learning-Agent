@@ -625,7 +625,8 @@ const ChunkedUploadButton: React.FC<ChunkedUploadButtonProps> = ({
             alignItems: 'center', 
             color: isDark ? '#ffffff' : FIXED_COLOR,
             fontSize: '18px',
-            fontWeight: '600'
+            fontWeight: '600',
+            textShadow: 'none'
           }}>
             {title}
           </div>
@@ -639,7 +640,9 @@ const ChunkedUploadButton: React.FC<ChunkedUploadButtonProps> = ({
         styles={{
           header: {
             backgroundColor: isDark ? token.colorBgContainer : '#f8f9ff',
-            borderBottom: `1px solid ${isDark ? token.colorBorder : '#e8eaed'}`
+            borderBottom: 'none',
+            boxShadow: 'none',
+            filter: 'none'
           },
           body: {
             padding: isSmallScreen ? '16px' : '24px'

@@ -1,4 +1,4 @@
-import { Modal, Table, Alert, Typography } from 'antd';
+import { Modal, Table, Alert, Typography, Descriptions } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Text } = Typography;
@@ -37,6 +37,14 @@ export default function StudentPreviewModal({
     }, new Set<string>())
   );
 
+  const toTitleCase = (s: any) => {
+    const str = String(s ?? '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+    return str.replace(/(^|\s|[-_/])(\p{L})/gu, (m, sep, ch) => sep + ch.toUpperCase());
+  };
+
   const columns: ColumnsType<RowIn> = [
     {
       title: 'Código',
@@ -46,10 +54,10 @@ export default function StudentPreviewModal({
         dupSet.has(String(v || '').trim().toLowerCase())
           ? <Text type="danger">{String(v)} (duplicado)</Text>
           : <Text>{String(v)}</Text>,
-      width: 160,
+      width: 100,
     },
-    { title: 'Nombre', dataIndex: 'nombres', key: 'nombres' },
-    { title: 'Apellido', dataIndex: 'apellidos', key: 'apellidos' },
+    { title: 'Nombre', dataIndex: 'nombres', key: 'nombres', render: (v: any) => <Text>{toTitleCase(v)}</Text> },
+    { title: 'Apellido', dataIndex: 'apellidos', key: 'apellidos', render: (v: any) => <Text>{toTitleCase(v)}</Text> },
     ...(hasCorreo ? [{ title: 'Correo', dataIndex: 'correo', key: 'correo' } as const] : []),
     ...extraCols.map((k) => ({
       title: k,
@@ -70,30 +78,45 @@ export default function StudentPreviewModal({
       confirmLoading={loading}
       width={900}
     >
-      <div className="space-y-3">
-        <Alert
-          type="info"
-          showIcon
-          message={
-            <div className="flex flex-col gap-1">
-              <span><b>Archivo:</b> {meta.fileName}</span>
-              <span><b>Filas detectadas:</b> {meta.totalRows}</span>
-              {duplicates.length > 0 && (
-                <span><b>Duplicados locales:</b> <Text type="danger">{duplicates.join(', ')}</Text></span>
-              )}
-              <span>
-                Al confirmar, los estudiantes se inscribirán en el curso.<br />
-                Los duplicados por código solo se registrarán una vez.
-              </span>
-            </div>
-          }
-        />
+      <div className="space-y-4 px-1 sm:px-2">
+        <Alert type="info" showIcon message={
+          <Descriptions
+            size="small"
+            colon
+            column={{ xs: 1, sm: 1, md: 2 }}
+            items={[
+              {
+                key: 'summary',
+                label: 'Resumen',
+                children: (
+                  <div className="space-y-1">
+                    <div><b>Archivo:</b> {meta.fileName}</div>
+                    <div><b>Filas detectadas:</b> {String(meta.totalRows)}</div>
+                    {duplicates.length > 0 && (
+                      <div><b>Duplicados:</b> <Text type="danger">{duplicates.join(', ')}</Text></div>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                key: 'note',
+                label: 'Nota',
+                children: (
+                  <span>
+                    Al confirmar se inscribirán. Los duplicados por código se omiten.
+                  </span>
+                ),
+              },
+            ]}
+          />
+        }/>
         <Table
+          className="mt-3"
           size="small"
           rowKey={(_, i) => String(i)}
           columns={columns}
           dataSource={data}
-          pagination={{ pageSize: 10 }}
+          pagination={{ pageSize: 8 }}
           bordered
         />
       </div>

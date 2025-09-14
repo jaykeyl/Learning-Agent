@@ -273,40 +273,62 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                 <label htmlFor="difficulty" className="block text-sm font-medium mb-1">
                   Dificultad
                 </label>
-                <select
-                  id="difficulty"
-                  name="difficulty"
-                  className="
-                    w-full rounded-lg
-                    border-2 px-3 py-2
-                    text-[clamp(0.95rem,0.7vw+0.75rem,1.05rem)]
-                    outline-none transition
-                    focus:ring-2
-                  "
-                  value={values.difficulty || ''}
-                  onChange={(e) => onChange('difficulty', e.target.value)}
-                  style={{
-                    background: token.colorBgContainer,
-                    color: token.colorText,
-                    borderColor: token.colorBorder,
-                    boxShadow: 'none',
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.boxShadow = `0 0 0 2px ${token.colorPrimary}`)}
-                  onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
-                >
-                  <option value="" style={{ background: token.colorBgContainer, color: token.colorText }}>
-                    Selecciona…
-                  </option>
-                  <option value="fácil" style={{ background: token.colorBgContainer, color: token.colorText }}>
-                    Fácil
-                  </option>
-                  <option value="medio" style={{ background: token.colorBgContainer, color: token.colorText }}>
-                    Medio
-                  </option>
-                  <option value="difícil" style={{ background: token.colorBgContainer, color: token.colorText }}>
-                    Difícil
-                  </option>
-                </select>
+                  <div className="difficulty-selector" 
+                    style={{
+                      display: 'flex',
+                      background: 'var(--app-colorBgElevated)',
+                      borderRadius: '6px',
+                      overflow: 'hidden',
+                      height: '44px',
+                      border: '1px solid var(--app-colorBorder)'
+                    }}
+                  >
+                    {['fácil', 'medio', 'difícil'].map((level) => (
+                      <div key={level} className="difficulty-option" style={{ flex: 1, position: 'relative' }}>
+                        <input
+                          id={`difficulty-${level}`}
+                          className="difficulty-input"
+                          type="radio"
+                          name="difficulty"
+                          value={level}
+                          checked={values.difficulty === level}
+                          onChange={(e) => onChange('difficulty', e.target.value)}
+                          style={{
+                            position: 'absolute',
+                            opacity: 0,
+                            width: 0,
+                            height: 0
+                          }}
+                        />
+                        <label
+                          htmlFor={`difficulty-${level}`}
+                          className="difficulty-label"
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            height: '100%',
+                            background: values.difficulty === level 
+                              ? 'var(--app-colorPrimary)' 
+                              : 'var(--app-colorBgContainer)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            fontSize: '13px',
+                            fontWeight: values.difficulty === level ? 600 : 500,
+                            color: values.difficulty === level 
+                              ? 'var(--app-colorTextOnPrimary)' 
+                              : 'var(--app-colorText)',
+                            borderRight: level !== 'difícil' 
+                            ? '1px solid var(--app-colorBorder)' 
+                            : 'none',
+                            textTransform: 'capitalize'
+                          }}
+                        >
+                          {level}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 {touched.difficulty && errors.difficulty && (
                   <small className="error block mt-1 text-xs text-red-500">{errors.difficulty}</small>
                 )}
@@ -316,31 +338,64 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                 <label htmlFor="attempts" className="block text-sm font-medium mb-1">
                   N.º de intentos
                 </label>
-                <input
-                  id="attempts"
-                  name="attempts"
-                  type="number"
-                  min={1}
-                  step={1}
-                  placeholder="1"
-                  className="
-                    w-full rounded-lg
-                    border-2 px-3 py-2
-                    text-[clamp(0.95rem,0.7vw+0.75rem,1.05rem)]
-                    outline-none transition
-                    focus:ring-2
-                  "
-                  value={values.attempts || ''}
-                  onChange={(e) => onChange('attempts', e.target.value)}
-                  style={{
-                    background: token.colorBgContainer,
-                    color: token.colorText,
-                    borderColor: token.colorBorder,
-                    boxShadow: 'none',
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.boxShadow = `0 0 0 2px ${token.colorPrimary}`)}
-                  onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
-                />
+                <div className="attempts-selector" 
+                    style={{
+                      display: 'flex',
+                      background: 'var(--app-colorBgElevated)',
+                      borderRadius: '6px',
+                      overflow: 'hidden',
+                      height: '44px',
+                      border: '1px solid var(--app-colorBorder)'
+                      
+                    }}
+                  >
+                    {[1, 2, 3].map((num) => (
+                      <div key={num} className="attempt-option" style={{ flex: 1, position: 'relative', }}>
+                        <input
+                          id={`attempts-${num}`}
+                          className="attempt-input"
+                          type="radio"
+                          name="attempts"
+                          value={num}
+                          checked={values.attempts === String(num)}
+                          onChange={(e) => onChange('attempts', e.target.value)}
+                          style={{
+                            position: 'absolute',
+                            opacity: 0,
+                            width: 0,
+                            height: 0
+                          }}
+                        />
+                        <label
+                          htmlFor={`attempts-${num}`}
+                          className="attempt-label"
+                          style={{
+                            flex: 1,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            height: '100%',
+                            background: values.attempts === String(num) 
+                              ? 'var(--app-colorPrimary)' 
+                              : 'var(--app-colorBgContainer)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            fontSize: '16px',
+                            fontWeight:  600, 
+                            lineHeight: '1', 
+                            color: values.attempts === String(num) 
+                              ? 'var(--app-colorTextOnPrimary)' 
+                              : 'var(--app-colorText)',
+                            borderRight: num < 3 
+                            ? '1px solid var(--app-colorBorder)' 
+                            : 'none'
+                          }}
+                        >
+                          {num}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 {touched.attempts && errors.attempts && (
                   <small className="error block mt-1 text-xs text-red-500">{errors.attempts}</small>
                 )}

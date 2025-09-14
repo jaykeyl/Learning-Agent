@@ -15,6 +15,7 @@ export function ThemedVars({ children }: PropsWithChildren) {
         // Text
         ["--app-colorText"]: token.colorText,
         ["--app-colorTextSecondary"]: token.colorTextSecondary,
+        ["--app-colorTextOnPrimary"]: token.colorTextLightSolid,
 
         // Links / Borders / Primary
         ["--app-colorLink"]: token.colorLink,
