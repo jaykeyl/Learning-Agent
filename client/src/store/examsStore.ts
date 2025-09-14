@@ -12,6 +12,7 @@ export interface ExamSummary {
   status: ExamStatus;
   visibility: ExamVisibility;
   totalQuestions: number;
+  difficulty?: string;
   counts: {
     multiple_choice: number;
     true_false: number;
@@ -33,6 +34,7 @@ type AddFromQuestionsArgs = {
 export interface ExamsState {
   exams: ExamSummary[];
   addFromQuestions: (args: AddFromQuestionsArgs) => ExamSummary;
+  updateExam: (id: string, args: AddFromQuestionsArgs) => ExamSummary;
   toggleVisibility: (id: string) => void;
   setVisibility: (id: string, v: ExamVisibility) => void;
   setStatus: (id: string, status: ExamStatus, publishedAt?: string) => void;
@@ -61,6 +63,7 @@ function buildSummary({ title, className, questions, publish, scheduleAt }: AddF
     id: `exam_${Date.now()}`,
     title: title || 'Examen sin título',
     className,
+    difficulty: 'Media',
     status,
     visibility: 'visible',
     totalQuestions: total,
@@ -78,6 +81,21 @@ export const useExamsStore = create(
         const summary = buildSummary(args);
         set({ exams: [summary, ...get().exams] });
         return summary;
+      },
+      updateExam: (id, args) => {
+        const oldExam = get().exams.find(e => e.id === id);
+        const updatedSummary = {
+          ...buildSummary(args),
+          id,
+          createdAt: oldExam?.createdAt || new Date().toISOString(),
+          status: oldExam?.status || 'draft',
+          visibility: oldExam?.visibility || 'visible',
+          publishedAt: oldExam?.publishedAt
+        };
+        set({
+          exams: get().exams.map(e => e.id === id ? updatedSummary : e)
+        });
+        return updatedSummary;
       },
       toggleVisibility: (id) => {
         set({

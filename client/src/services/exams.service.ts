@@ -316,8 +316,9 @@ export async function createExam(payload: any): Promise<any> {
   return (res as any)?.data ?? res;
 }
 
-export type CreateExamApprovedInput = {
-  courseId?: string;
+export type ExamInput = {
+  classId?: string;        
+  courseId?: string;       
   title: string;
   status?: 'Guardado' | 'Publicado';
   content?: {
@@ -339,57 +340,167 @@ export type CreateExamApprovedInput = {
   }>;
 };
 
-export async function createExamApproved(input: CreateExamApprovedInput) {
-  const body = input.content
-    ? {
-        title: input.title,
-        courseId: input.courseId,
-        status: input.status ?? 'Guardado',
-        content: input.content,
-      }
-    : {
-        title: input.title,
-        courseId: input.courseId,
-        status: input.status ?? 'Guardado',
-        content: {
-          subject: 'Tema general',
-          difficulty: 'medio',
-          createdAt: new Date().toISOString(),
-          questions: (input.questions ?? []).map((q) => ({
-            id: String(q.id),
-            type: q.type,
-            text: String(q.text ?? ''),
-            options: Array.isArray(q.options) ? q.options.map(String) : undefined,
-          })),
-        },
-      };
+export type CreateExamApprovedInput = ExamInput;
+export type UpdateExamApprovedInput = ExamInput & { examId: string };
 
-  const { data } = await api.post('/exams/approved', body);
-  return data?.data ?? data;
+export async function createExamApproved(input: CreateExamApprovedInput) {
+  const classId = input.classId ?? null;
+  if (!classId) {
+    if (input.courseId) {
+      throw new Error('Debes especificar classId (período/clase). Ya no se acepta courseId en este flujo.');
+    }
+    throw new Error('classId es obligatorio para crear el examen.');
+  }
+
+  const questions =
+    input.content?.questions ??
+    input.questions ??
+    [];
+
+  const createBody = {
+    title: input.title,
+    classId,
+    status: input.status ?? 'Guardado',
+    subject: input.content?.subject ?? 'Tema general',
+    difficulty: toSpanishDifficulty(input.content?.difficulty ?? 'medio'),
+    attempts: 1,
+    totalQuestions: Math.max(1, questions.length || 1),
+    timeMinutes: 45,
+  };
+
+  const createdExam = await createExam(createBody);
+  const examId = createdExam?.data?.id ?? createdExam?.id;
+
+  if (!examId) {
+    throw new Error('No se pudo crear el examen (sin id).');
+  }
+
+  for (const q of questions) {
+    const kind =
+      q.type === 'multiple_choice' ? 'MULTIPLE_CHOICE'
+      : q.type === 'true_false' ? 'TRUE_FALSE'
+      : q.type === 'open_analysis' ? 'OPEN_ANALYSIS'
+      : 'OPEN_EXERCISE';
+
+    const dto: any = {
+      kind,
+      text: String(q.text ?? ''),
+      position: 'end',
+    };
+
+    if (q.type === 'multiple_choice') {
+      dto.options = Array.isArray(q.options) ? q.options.map(String) : ['Opción A','Opción B'];
+      dto.correctOptionIndex = 0;
+    }
+    if (q.type === 'true_false') {
+      dto.correctBoolean = true;
+    }
+    if (q.type === 'open_analysis' || q.type === 'open_exercise') {
+      dto.expectedAnswer = undefined;
+    }
+
+    await api.post(`/api/exams/${examId}/questions`, dto);
+  }
+
+  return createdExam?.data ?? createdExam;
 }
 
-export async function quickSaveExam(p: { title: string; questions: any[]; content?: any; courseId?: string; teacherId?: string }) {
-  const body = p.content
-    ? p
-    : {
-        title: p.title,
-        content: {
-          subject: 'Tema general',
-          difficulty: 'medio',
-          createdAt: new Date().toISOString(),
-          questions: (p.questions ?? []).map((q: any, i: number) => ({
-            id: String(q?.id ?? `q_${Date.now()}_${i}`),
-            type: String(q?.type),
-            text: String(q?.text ?? ''),
-            options: Array.isArray(q?.options) ? q.options.map(String) : undefined,
-          })),
-        },
-        ...(p.courseId ? { courseId: p.courseId } : {}),
-        ...(p.teacherId ? { teacherId: p.teacherId } : {}),
-      };
+export async function updateExamApprovedFull(input: UpdateExamApprovedInput) {
+  const { examId } = input;
+  
+  const questions = await api.get(`/api/exams/${examId}/questions`);
+  for (const question of questions.data) {
+    await api.delete(`/api/exams/${examId}/questions/${question.id}`);
+  }
 
-  const { data } = await api.post('/exams/quick-save', body);
-  return data?.data ?? data;
+  await api.put(`/api/exams/${examId}`, {
+    title: input.title,
+    subject: input.content?.subject ?? 'Tema general',
+    difficulty: toSpanishDifficulty(input.content?.difficulty ?? 'medio'),
+    attempts: 1,
+    totalQuestions: Math.max(1, (input.questions?.length || 1)),
+    timeMinutes: 45,
+  });
+
+  const newQuestions = input.content?.questions ?? input.questions ?? [];
+  for (const q of newQuestions) {
+    const kind =
+      q.type === 'multiple_choice' ? 'MULTIPLE_CHOICE'
+      : q.type === 'true_false' ? 'TRUE_FALSE'
+      : q.type === 'open_analysis' ? 'OPEN_ANALYSIS'
+      : 'OPEN_EXERCISE';
+
+    const dto: any = {
+      kind,
+      text: String(q.text ?? ''),
+      position: 'end',
+    };
+
+    if (q.type === 'multiple_choice') {
+      dto.options = Array.isArray(q.options) ? q.options.map(String) : ['Opción A','Opción B'];
+      dto.correctOptionIndex = 0;
+    }
+    if (q.type === 'true_false') {
+      dto.correctBoolean = true;
+    }
+    if (q.type === 'open_analysis' || q.type === 'open_exercise') {
+      dto.expectedAnswer = undefined;
+    }
+
+    await api.post(`/api/exams/${examId}/questions`, dto);
+  }
+
+  return { id: examId };
+}
+
+export async function quickSaveExam(p: { title: string; questions: any[]; content?: any; classId?: string; courseId?: string; teacherId?: string }) {
+  const classId = p.classId ?? null;
+  if (!classId) {
+    if (p.courseId) {
+      throw new Error('Debes especificar classId (período/clase). Ya no se acepta courseId en este flujo.');
+    }
+    throw new Error('classId es obligatorio para guardar el examen.');
+  }
+
+  const questions = (p.questions ?? []).map((q: any, i: number) => ({
+    id: String(q?.id ?? `q_${Date.now()}_${i}`),
+    type: String(q?.type),
+    text: String(q?.text ?? ''),
+    options: Array.isArray(q?.options) ? q.options.map(String) : undefined,
+  }));
+
+  const created = await createExam({
+    title: p.title,
+    classId,
+    status: 'Guardado',
+    subject: p.content?.subject ?? 'Tema general',
+    difficulty: toSpanishDifficulty(p.content?.difficulty ?? 'medio'),
+    attempts: 1,
+    totalQuestions: Math.max(1, questions.length || 1),
+    timeMinutes: 45,
+  });
+
+  const examId = created?.data?.id ?? created?.id;
+  if (!examId) throw new Error('No se pudo crear el examen (sin id).');
+
+  for (const q of questions) {
+    const kind =
+      q.type === 'multiple_choice' ? 'MULTIPLE_CHOICE'
+      : q.type === 'true_false' ? 'TRUE_FALSE'
+      : q.type === 'open_analysis' ? 'OPEN_ANALYSIS'
+      : 'OPEN_EXERCISE';
+
+    const dto: any = { kind, text: q.text, position: 'end' };
+    if (q.type === 'multiple_choice') {
+      dto.options = q.options ?? ['Opción A', 'Opción B'];
+      dto.correctOptionIndex = 0;
+    }
+    if (q.type === 'true_false') dto.correctBoolean = true;
+
+    await api.post(`/api/exams/${examId}/questions`, dto);
+  }
+
+  return created?.data ?? created;
 }
 
 export type CourseExamRow = {

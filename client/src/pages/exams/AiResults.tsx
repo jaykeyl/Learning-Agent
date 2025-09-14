@@ -237,7 +237,11 @@ export default function AiResults({
     setSaveLoading(true);
     try {
       await onSave();
-      const summary = addFromQuestions({ title: subject || 'Examen', questions, publish: true });
+      const summary = addFromQuestions({ 
+        title: subject || 'Examen', 
+        questions, 
+        publish: true 
+      });
 
       const printable = {
         examId: summary.id,
