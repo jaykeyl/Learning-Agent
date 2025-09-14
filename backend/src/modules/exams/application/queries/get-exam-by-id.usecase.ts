@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { EXAM_REPO, EXAM_QUESTION_REPO } from '../../tokens';
 import type { ExamRepositoryPort } from '../../domain/ports/exam.repository.port';
 import type { ExamQuestionRepositoryPort } from '../../domain/ports/exam-question.repository.port';
+import { NotFoundError } from 'src/shared/handler/errors';
 
 export type GetExamByIdQuery = { examId: string; teacherId: string };
 
@@ -15,7 +16,7 @@ export class GetExamByIdUseCase {
     async execute(q: GetExamByIdQuery) {
         const exam = await this.examRepo.findByIdOwned(q.examId, q.teacherId);
         if (!exam) {
-        throw new Error('Examen no encontrado o acceso no autorizado');
+            throw new NotFoundError('Examen no encontrado');
         }
 
         const questions = await this.questionRepo.listByExamOwned(q.examId, q.teacherId);

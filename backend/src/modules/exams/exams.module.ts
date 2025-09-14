@@ -23,6 +23,7 @@ import { ListClassExamsUseCase } from './application/queries/list-class-exams.us
 import { GetExamByIdUseCase } from './application/queries/get-exam-by-id.usecase';
 
 import { TOKEN_SERVICE } from '../identity/tokens';
+import { ExamsStartupCheck } from './infrastructure/startup/exams-startup.check';
 
 function decodeJwtPayload(token: string): any {
   const raw = token.startsWith('Bearer ') ? token.slice(7) : token;
@@ -37,9 +38,21 @@ function decodeJwtPayload(token: string): any {
   const json = Buffer.from(b64, 'base64').toString('utf8');
   return JSON.parse(json);
 }
+
 const DevTokenService = {
   verifyAccess: (token: string) => decodeJwtPayload(token),
 };
+
+const devTokenAllowed = process.env.USE_DEV_TOKEN === '1';
+const isProd = process.env.NODE_ENV === 'production';
+
+if (isProd && devTokenAllowed) {
+  throw new Error('USE_DEV_TOKEN no está permitido en producción');
+}
+
+const DEV_ONLY_PROVIDERS = devTokenAllowed && !isProd
+  ? [{ provide: TOKEN_SERVICE, useValue: DevTokenService }]
+  : [];
 
 @Module({
   imports: [
@@ -63,7 +76,9 @@ const DevTokenService = {
     ListClassExamsUseCase,
     GetExamByIdUseCase,
 
-    { provide: TOKEN_SERVICE, useValue: DevTokenService },
+    ExamsStartupCheck,
+
+    ...DEV_ONLY_PROVIDERS,
   ],
   controllers: [ExamsController],
 })

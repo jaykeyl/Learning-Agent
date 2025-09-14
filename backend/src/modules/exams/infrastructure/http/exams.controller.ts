@@ -1,11 +1,13 @@
-import {Body, Controller, Delete, Get, HttpCode, Logger, Param, Post, Put, Req, UseGuards, ForbiddenException, } from '@nestjs/common';
+import {Body, Controller, Delete, Get, HttpCode, Logger, Param, Post, Put, Req, UseGuards, UseFilters, UsePipes, ValidationPipe, } from '@nestjs/common';
 import type { Request } from 'express';
 import { randomUUID } from 'crypto'; 
 
 import { JwtAuthGuard } from 'src/shared/guards/jwt-auth.guard';
 import {responseBadRequest, responseForbidden, responseInternalServerError, responseNotFound, responseSuccess,} from 'src/shared/handler/http.handler';
 import { PrismaService } from 'src/core/prisma/prisma.service';
+import { BadRequestError, ForbiddenError, UnauthorizedError } from 'src/shared/handler/errors';
 
+import { ExamsErrorFilter } from './filters/exams-error.filter';
 import { CreateExamDto } from './dtos/create-exam.dto';
 import { GenerateQuestionsDto } from './dtos/generate-questions.dto';
 import { AddExamQuestionDto } from './dtos/add-exam-question.dto';
@@ -118,6 +120,8 @@ function normalizeFromCorrectAnswerForUpdate(dto: {
 }
 
 @UseGuards(JwtAuthGuard)
+@UseFilters(ExamsErrorFilter)
+@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
 @Controller('api')
 export class ExamsController {
   constructor(
@@ -145,16 +149,16 @@ async create(@Body() dto: CreateExamDto, @Req() req: Request) {
     (dto.distribution?.open_exercise ?? 0);
 
   if (!dto.title?.trim()) {
-    return responseBadRequest('title es obligatorio.', cid(req), 'Error en validacion', pathOf(req));
+    throw new BadRequestError('title es obligatorio.');
   }
   if (!dto.classId?.trim()) {
-    return responseBadRequest('classId es obligatorio.', cid(req), 'Error en validacion', pathOf(req));
+    throw new BadRequestError('classId es obligatorio.');
   }
   if (dto.totalQuestions <= 0) {
-    return responseBadRequest('totalQuestions debe ser > 0.', cid(req), 'Error en validacion', pathOf(req));
+    throw new BadRequestError('totalQuestions debe ser > 0.');
   }
   if (dto.distribution && sum !== dto.totalQuestions) {
-    return responseBadRequest('La suma de distribution debe ser igual a totalQuestions.', cid(req), 'Error en validación', pathOf(req));
+    throw new BadRequestError('La suma de distribution debe ser igual a totalQuestions.');
   }
 
   const userId = (req as any).user?.sub as string;
@@ -162,7 +166,7 @@ async create(@Body() dto: CreateExamDto, @Req() req: Request) {
     where: { id: dto.classId, course: { teacherId: userId } }, 
   });
   if (!owns) {
-    throw new ForbiddenException('Acceso no autorizado: la clase no pertenece a este docente');
+    throw new ForbiddenError('Acceso no autorizado: la clase no pertenece a este docente');
   }
   const cmd = new CreateExamCommand(
     dto.title,
@@ -193,18 +197,13 @@ async generate(@Body() dto: GenerateQuestionsDto, @Req() req: Request) {
 
   const sum = sumDistribution(dto.distribution);
   if (!dto.subject?.trim()) {
-    return responseBadRequest('subject es obligatorio.', cid(req), 'Error en validacion', pathOf(req));
+    throw new BadRequestError('subject es obligatorio.');  
   }
   if (dto.totalQuestions <= 0) {
-    return responseBadRequest('totalQuestions debe ser > 0.', cid(req), 'Error en validacion', pathOf(req));
+    throw new BadRequestError('totalQuestions debe ser > 0.');
   }
   if (dto.distribution && sum !== dto.totalQuestions) {
-    return responseBadRequest(
-      'La suma de distribution debe ser igual a totalQuestions.',
-      cid(req),
-      'Error en validación',
-      pathOf(req)
-    );
+    throw new BadRequestError('La suma de distribution debe ser igual a totalQuestions.');
   }
 
   const userId = (req as any).user?.sub as string;
@@ -214,12 +213,7 @@ if (dto.examId) {
     where: { id: dto.examId, class: { is: { course: { teacherId: userId } } } },
   });
   if (!ownsExam) {
-    return responseForbidden(
-      'Acceso no autorizado: el examen no pertenece a este docente',
-      cid(req),
-      'Acceso denegado',
-      pathOf(req),
-    );
+    throw new ForbiddenError('Acceso no autorizado: el examen no pertenece a este docente');
   }
 }
 
@@ -228,12 +222,7 @@ else if (dto.classId) {
     where: { id: dto.classId, course: { teacherId: userId } },
   });
   if (!ownsClass) {
-    return responseForbidden(
-      'Acceso no autorizado: la clase no pertenece a este docente',
-      cid(req),
-      'Acceso denegado',
-      pathOf(req),
-    );
+    throw new ForbiddenError('Acceso no autorizado: la clase no pertenece a este docente');
   }
 }
   
@@ -279,20 +268,14 @@ async addQuestion(
     where: { id: examId, class: { is: { course: { teacherId: userId } } } },
   });
   if (!owns) {
-    return responseForbidden(
-      'Acceso no autorizado: el examen no pertenece a este docente',
-      cid(req),
-      'Acceso denegado',
-      pathOf(req),
-    );
+    throw new ForbiddenError('Acceso no autorizado: el examen no pertenece a este docente');
   }
 
-  const bad = (msg: string) =>
-    responseBadRequest(msg, cid(req), 'Error en validacion', pathOf(req));
+  const bad = (msg: string) => { throw new BadRequestError(msg); };
 
-  if (!dto.text?.trim()) return bad('text es obligatorio.');
+  if (!dto.text?.trim()) bad('text es obligatorio.');
   if (!['start', 'middle', 'end'].includes(dto.position)) {
-    return bad("position debe ser uno de: 'start' | 'middle' | 'end'.");
+    bad("position debe ser uno de: 'start' | 'middle' | 'end'.");
   }
 
   const norm = normalizeFromCorrectAnswerForCreate(dto);
@@ -364,12 +347,7 @@ async updateQuestion(
     dto.expectedAnswer === undefined &&
     (dto as any).correctAnswer === undefined
   ) {
-    return responseBadRequest(
-      'Debe enviar al menos un campo para actualizar.',
-      cid(req),
-      'Error en validacion',
-      pathOf(req),
-    );
+    throw new BadRequestError('Debe enviar al menos un campo para actualizar.');
   }
 
   const teacherId = (req as any).user?.sub as string;
@@ -396,31 +374,15 @@ async getExamById(@Param('examId') examId: string, @Req() req: Request) {
 
   const user = (req as any).user as { sub: string } | undefined;
   if (!user?.sub) {
-    return responseForbidden('Acceso no autorizado', cid(req), 'Falta token', pathOf(req));
+    throw new UnauthorizedError('Acceso no autorizado');
   }
   if (!examId?.trim()) {
-    return responseBadRequest('examId es obligatorio.', cid(req), 'Error en validación', pathOf(req));
+    throw new BadRequestError('examId es obligatorio.');
   }
 
-  try {
-    const data = await this.getByIdUseCase.execute({ examId, teacherId: user.sub });
-
-    if (!data) {
-      return responseNotFound('Examen no encontrado', cid(req), 'Examen no encontrado', pathOf(req));
-    }
-
-    this.logger.log(`[${cid(req)}] getExamById <- id=${data.id}`);
-    return responseSuccess(cid(req), data, 'Examen recuperado', pathOf(req));
-  } catch (e: any) {
-    const msg = (e?.message ?? '').toString();
-    if (msg.includes('Acceso no autorizado')) {
-      return responseForbidden('Acceso no autorizado', cid(req), msg, pathOf(req));
-    }
-    if (msg.includes('Examen no encontrado')) {
-      return responseNotFound('Examen no encontrado', cid(req), msg, pathOf(req));
-    }
-    return responseInternalServerError('Error interno', cid(req), msg || 'Error obteniendo examen', pathOf(req));
-  }
+  const data = await this.getByIdUseCase.execute({ examId, teacherId: user.sub });
+  this.logger.log(`[${cid(req)}] getExamById <- id=${data.id}`);
+  return responseSuccess(cid(req), data, 'Examen recuperado', pathOf(req));
 }
 
 @Get('classes/:classId/exams')
@@ -428,21 +390,24 @@ async getExamById(@Param('examId') examId: string, @Req() req: Request) {
 async byClass(@Param('classId') classId: string, @Req() req: Request) {
   const user = (req as any).user as { sub: string } | undefined;
   if (!user?.sub) {
-    return responseForbidden('Acceso no autorizado', cid(req), 'Falta token', pathOf(req));
+    throw new UnauthorizedError('Acceso no autorizado');
   }
   if (!classId?.trim()) {
-    return responseBadRequest('classId es obligatorio.', cid(req), 'Error en validacion', pathOf(req));
+    throw new BadRequestError('classId es obligatorio.');
   }
 
+  const data = await this.listClassExams.execute({ classId, teacherId: user.sub });
+  return responseSuccess(cid(req), data, 'Examenes de la clase', pathOf(req));
+}
+
+@Get('health/db')
+@HttpCode(200)
+async healthDb(@Req() req: Request) {
   try {
-    const data = await this.listClassExams.execute({ classId, teacherId: user.sub });
-    return responseSuccess(cid(req), data, 'Examenes de la clase', pathOf(req));
-  } catch (e: any) {
-    const msg = (e?.message ?? 'Error listando examenes').toString();
-    if (msg.includes('Acceso no autorizado')) {
-      return responseForbidden('Acceso no autorizado', cid(req), msg, pathOf(req));
-    }
-    return responseInternalServerError('Error interno', cid(req), msg, pathOf(req));
+    await this.prisma.$queryRaw`SELECT 1`;
+    return { ok: true, db: 'up' };
+  } catch {
+    throw new (require('src/shared/handler/errors').InternalServerError)('DB down');
   }
 }
 

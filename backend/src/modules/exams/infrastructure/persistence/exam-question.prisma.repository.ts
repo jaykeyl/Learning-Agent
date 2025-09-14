@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+
+import { ForbiddenError, NotFoundError, BadRequestError } from 'src/shared/handler/errors';
+
 import { PrismaService } from '../../../../core/prisma/prisma.service';
 import type {
   ExamQuestionRepositoryPort,
   UpdateExamQuestionPatch,
   DerivedCounts,
 } from '../../domain/ports/exam-question.repository.port';
-import { ExamQuestion, NewExamQuestion } from '../../domain/entities/exam-question.entity';
-import { Prisma } from '@prisma/client'; 
+import { ExamQuestion, NewExamQuestion } from '../../domain/entities/exam-question.entity'; 
 
 const map = (q: any): ExamQuestion => ({
   id: q.id,
@@ -65,7 +68,7 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
     position: 'start' | 'middle' | 'end',
   ): Promise<ExamQuestion> {
     const owned = await this.isExamOwnedByTeacher(examId, teacherId);
-    if (!owned) throw new Error('Examen no encontrado o acceso no autorizado');
+    if (!owned) throw new ForbiddenError('Acceso no autorizado');
 
     const count = await this.prisma.examQuestion.count({ where: { examId } });
     let newOrder = count;
@@ -112,10 +115,9 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
       where: { id },
       select: { examId: true, kind: true, options: true },
     });
-    if (!current) throw new Error('Pregunta no encontrada o acceso no autorizado');
-
+    if (!current) throw new NotFoundError('Pregunta no encontrada');
     const owned = await this.isExamOwnedByTeacher(current.examId, teacherId);
-    if (!owned) throw new Error('Pregunta no encontrada o acceso no autorizado');
+    if (!owned) throw new ForbiddenError('Acceso no autorizado');
 
     const kind = current.kind;
     const newOptions = patch.options ?? (current.options as any[] | null);
@@ -123,15 +125,15 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
     if (kind === 'MULTIPLE_CHOICE') {
       if (patch.correctOptionIndex != null) {
         if (!Number.isInteger(patch.correctOptionIndex)) {
-          throw new Error('correctAnswer inválido: se esperaba un índice entero para MULTIPLE_CHOICE.');
+          throw new BadRequestError('correctAnswer inválido: se esperaba un índice entero para MULTIPLE_CHOICE.');
         }
         if (!Array.isArray(newOptions) || patch.correctOptionIndex < 0 || patch.correctOptionIndex >= newOptions.length) {
-          throw new Error('correctAnswer fuera de rango: índice no corresponde a options.');
+          throw new BadRequestError('correctAnswer fuera de rango: índice no corresponde a options.');
         }
       }
     } else if (kind === 'TRUE_FALSE') {
       if (patch.correctBoolean != null && typeof patch.correctBoolean !== 'boolean') {
-        throw new Error('correctAnswer inválido: se esperaba boolean para TRUE_FALSE.');
+        throw new BadRequestError('correctAnswer inválido: se esperaba boolean para TRUE_FALSE.');
       }
     } else { // OPEN_*
       if (patch.expectedAnswer != null) {
@@ -157,9 +159,9 @@ export class ExamQuestionPrismaRepository implements ExamQuestionRepositoryPort 
     });
 
     const row = await this.prisma.examQuestion.findUnique({ where: { id } });
-    if (!row) throw new Error('Pregunta no encontrada o acceso no autorizado');
-    return map(row);
-  }
+    if (!row) throw new NotFoundError('Pregunta no encontrada');
+      return map(row);
+    }
 
   async countsByExamOwned(examId: string, teacherId: string): Promise<DerivedCounts> {
     const rows = await this.prisma.$queryRaw<Array<{ kind: string; count: number }>>`
