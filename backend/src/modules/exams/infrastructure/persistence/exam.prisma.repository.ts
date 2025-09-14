@@ -1,98 +1,91 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../core/prisma/prisma.service';
-import type { ExamRepositoryPort } from '../../domain/ports/exam.repository.port';
+import { ExamRepositoryPort } from '../../domain/ports/exam.repository.port';
 import { Exam } from '../../domain/entities/exam.entity';
-import { Difficulty } from '../../domain/entities/difficulty.vo';
-import { PositiveInt } from '../../domain/entities/positive-int.vo';
-
-const selectExam = {
-  id: true,
-  title: true,
-  status: true,
-  classId: true,
-  subject: true,
-  difficulty: true,      
-  attempts: true,        
-  totalQuestions: true,  
-  timeMinutes: true,     
-  reference: true,
-  mcqCount: true,
-  trueFalseCount: true,
-  openAnalysisCount: true,
-  openExerciseCount: true,
-  createdAt: true,
-  updatedAt: true,
-} as const;
-
-function unwrap<T>(x: any): T {
-  return typeof x?.getValue === 'function' ? x.getValue() : x;
-}
-
-function mapRowToDomain(r: any): Exam {
-  return new Exam(
-    r.id,
-    r.title,
-    r.status,
-    r.classId,
-    r.subject,
-    Difficulty.create(r.difficulty),
-    PositiveInt.create('attempts', r.attempts),
-    PositiveInt.create('totalQuestions', r.totalQuestions),
-    PositiveInt.create('timeMinutes', r.timeMinutes),
-    r.reference,
-    r.mcqCount,
-    r.trueFalseCount,
-    r.openAnalysisCount,
-    r.openExerciseCount,
-    r.createdAt,
-    r.updatedAt,
-  );
-}
+import { ExamFactory } from '../../domain/entities/exam.factory';
 
 @Injectable()
-export class ExamPrismaRepository implements ExamRepositoryPort {
+export class PrismaExamRepository implements ExamRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(exam: Exam): Promise<Exam> {
-    const row = await this.prisma.exam.create({
+    const created = await this.prisma.exam.create({
       data: {
         id: exam.id,
         title: exam.title,
-        status: exam.status as any,
+        status: exam.status as any, 
         classId: exam.classId,
-        subject: exam.subject,
-
-        difficulty: unwrap<string>(exam.difficulty),
-        attempts: unwrap<number>(exam.attempts),
-        totalQuestions: unwrap<number>(exam.totalQuestions),
-        timeMinutes: unwrap<number>(exam.timeMinutes),
-
+        difficulty: exam.difficulty.getValue(),
+        attempts: exam.attempts.getValue(),
+        timeMinutes: exam.timeMinutes.getValue(),
         reference: exam.reference,
-        mcqCount: exam.mcqCount,
-        trueFalseCount: exam.trueFalseCount,
-        openAnalysisCount: exam.openAnalysisCount,
-        openExerciseCount: exam.openExerciseCount,
       },
-      select: selectExam,
     });
-    return mapRowToDomain(row);
+
+    return ExamFactory.rehydrate({
+      id: created.id,
+      title: created.title,
+      status: created.status as any,
+      classId: created.classId,
+      difficulty: created.difficulty,
+      attempts: created.attempts,
+      timeMinutes: created.timeMinutes,
+      reference: created.reference,
+      createdAt: created.createdAt,
+      updatedAt: created.updatedAt,
+    });
   }
 
   async findByIdOwned(id: string, teacherId: string): Promise<Exam | null> {
-    const row = await this.prisma.exam.findFirst({
-      where: { id, class: { is: { course: { teacherId } } } }, 
-      select: selectExam,
+    const found = await this.prisma.exam.findFirst({
+      where: {
+        id,
+        class: {
+          course: {
+            teacherId,
+          },
+        },
+      },
     });
-    return row ? mapRowToDomain(row) : null;
+    if (!found) return null;
+
+    return ExamFactory.rehydrate({
+      id: found.id,
+      title: found.title,
+      status: found.status as any,
+      classId: found.classId,
+      difficulty: found.difficulty,
+      attempts: found.attempts,
+      timeMinutes: found.timeMinutes,
+      reference: found.reference,
+      createdAt: found.createdAt,
+      updatedAt: found.updatedAt,
+    });
   }
 
   async listByClassOwned(classId: string, teacherId: string): Promise<Exam[]> {
     const rows = await this.prisma.exam.findMany({
-      where: { classId, class: { is: { course: { teacherId } } } },
-      orderBy: { createdAt: 'desc' },
-      select: selectExam,
+      where: {
+        classId,
+        class: { course: { teacherId } },
+      },
+      orderBy: [{ createdAt: 'desc' }],
     });
-    return rows.map(mapRowToDomain);
+
+    return rows.map((r) =>
+      ExamFactory.rehydrate({
+        id: r.id,
+        title: r.title,
+        status: r.status as any,
+        classId: r.classId,
+        difficulty: r.difficulty,
+        attempts: r.attempts,
+        timeMinutes: r.timeMinutes,
+        reference: r.reference,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      }),
+    );
   }
 
   async updateMetaOwned(
@@ -100,8 +93,20 @@ export class ExamPrismaRepository implements ExamRepositoryPort {
     teacherId: string,
     patch: Partial<Pick<Exam, 'title' | 'status' | 'classId'>>,
   ): Promise<Exam> {
-    await this.prisma.exam.updateMany({
-      where: { id, class: { is: { course: { teacherId } } } },
+    if (patch.classId) {
+      const target = await this.prisma.classes.findFirst({
+        where: { id: patch.classId, course: { teacherId } },
+        select: { id: true },
+      });
+      if (!target) {
+        throw new Error('Target classId is not owned by teacher.');
+      }
+    }
+
+    const updated = await this.prisma.exam.update({
+      where: {
+        id,
+      },
       data: {
         ...(patch.title !== undefined ? { title: patch.title } : {}),
         ...(patch.status !== undefined ? { status: patch.status as any } : {}),
@@ -109,11 +114,24 @@ export class ExamPrismaRepository implements ExamRepositoryPort {
       },
     });
 
-    const row = await this.prisma.exam.findFirst({
-      where: { id, class: { is: { course: { teacherId } } } },
-      select: selectExam,
+    const isOwned = await this.prisma.exam.count({
+      where: { id, class: { course: { teacherId } } },
     });
-    if (!row) throw new Error('Examen no encontrado o acceso no autorizado');
-    return mapRowToDomain(row);
+    if (isOwned === 0) {
+      throw new Error('Exam not found or not owned by teacher.');
+    }
+
+    return ExamFactory.rehydrate({
+      id: updated.id,
+      title: updated.title,
+      status: updated.status as any,
+      classId: updated.classId,
+      difficulty: updated.difficulty,
+      attempts: updated.attempts,
+      timeMinutes: updated.timeMinutes,
+      reference: updated.reference,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    });
   }
 }
