@@ -84,8 +84,8 @@ function buildQuestionsDto(input: Record<string, unknown> = {}) {
     throw new Error('La distribución debe contener al menos 1 pregunta en total.');
   }
 
-  const reference =
-    input.reference != null ? String(input.reference) : undefined;
+  const reference = 
+  input.reference != null ? String(input.reference) : undefined;
 
   const instruction = [
     'RESPONDE EXCLUSIVAMENTE EN ESPAÑOL NEUTRO (es).',
@@ -97,9 +97,6 @@ function buildQuestionsDto(input: Record<string, unknown> = {}) {
     .filter(Boolean)
     .join('\n');
 
-  const examId = (input as any).examId ? String((input as any).examId) : undefined;
-  const classId = (input as any).classId ? String((input as any).classId) : undefined;
-
   return {
     subject,
     difficulty,
@@ -109,8 +106,6 @@ function buildQuestionsDto(input: Record<string, unknown> = {}) {
     language: 'es',
     strict: true,
     instruction,
-    ...(examId ? { examId } : {}),
-    ...(classId ? { classId } : {}),
   };
 }
 
@@ -254,7 +249,7 @@ export async function generateQuestions(input: Record<string, unknown>): Promise
   const wanted = dto.distribution;
   const subject = dto.subject;
 
-  const res = await api.post('/api/exams/questions', dto);
+  const res = await api.post('/exams/questions', dto);
   const payload = (res as any)?.data;
 
   const grouped =
@@ -317,19 +312,7 @@ export async function createExam(payload: any): Promise<any> {
   if (USE_MOCK) {
     return { ok: true, data: { id: `exam_${Date.now()}`, ...payload } };
   }
-
-  const classId = payload?.classId ?? null;
-  if (!classId) {
-    if (payload?.courseId) {
-      throw new Error('Desde ahora debes enviar classId (la clase/período) en lugar de courseId.');
-    }
-    throw new Error('classId es obligatorio para crear el examen.');
-  }
-
-  const difficulty = toSpanishDifficulty(payload?.difficulty);
-  const body = { ...payload, classId, difficulty };
-
-  const res = await api.post('/api/exams', body);
+  const res = await api.post('/exams', payload);
   return (res as any)?.data ?? res;
 }
 
@@ -422,8 +405,8 @@ export async function createExamApproved(input: CreateExamApprovedInput) {
   return createdExam?.data ?? createdExam;
 }
 
-export async function updateExamApproved(input: UpdateExamApprovedInput) {
-  const { examId, ...rest } = input;
+export async function updateExamApprovedFull(input: UpdateExamApprovedInput) {
+  const { examId } = input;
   
   const questions = await api.get(`/api/exams/${examId}/questions`);
   for (const question of questions.data) {
@@ -528,17 +511,29 @@ export type CourseExamRow = {
   updatedAt?: string;
 };
 
-export async function listClassExams(classId: string): Promise<CourseExamRow[]> {
-  const { data } = await api.get(`/api/classes/${classId}/exams`);
-  const rows = data?.data ?? data ?? [];
-  return Array.isArray(rows) ? rows : [];
+export async function updateExamApproved(
+  examId: string | number,
+  patch: Record<string, unknown>
+) {
+  const { data } = await api.patch(`/exams/approved/${examId}`, patch);
+  return data?.data ?? data;
 }
 
-export async function listCourseExams(courseId_as_classId: string): Promise<CourseExamRow[]> {
-  if (process?.env?.NODE_ENV !== 'production') {
-    console.warn('[DEPRECATION] listCourseExams ahora debe llamarse con classId. Ajusta el caller pronto.');
+export async function setExamVisibility(
+  examId: string | number,
+  next: 'visible' | 'hidden'
+) {
+  try {
+    return await updateExamApproved(examId, { visibility: next });
+  } catch (_) {
+    return await updateExamApproved(examId, { isVisible: next === 'visible' });
   }
-  return listClassExams(courseId_as_classId);
+}
+
+export async function listCourseExams(courseId: string): Promise<CourseExamRow[]> {
+  const { data } = await api.get(`/courses/${courseId}/exams`);
+  const rows = data?.data ?? data ?? [];
+  return Array.isArray(rows) ? rows : [];
 }
 
 async function exists(path: string) {
@@ -571,11 +566,10 @@ async function tryDelete(path: string) {
   }
 }
 
-async function tryAllDeleteCombos(classOrCourseId: string, id: string) {
+async function tryAllDeleteCombos(courseId: string, id: string) {
   const bases = [
-    `/classes/${classOrCourseId}/exams/${id}`,
-    `/courses/${classOrCourseId}/exams/${id}`,
-    `/courses/${classOrCourseId}/approved-exams/${id}`,
+    `/courses/${courseId}/exams/${id}`,
+    `/courses/${courseId}/approved-exams/${id}`,
     `/exams/${id}`,
     `/exams/approved/${id}`,
     `/approved-exams/${id}`,
@@ -593,12 +587,12 @@ async function tryAllDeleteCombos(classOrCourseId: string, id: string) {
   return false;
 }
 
-export async function deleteExamByCandidates(classId: string, candidates: Array<string | number>) {
+export async function deleteExamByCandidates(courseId: string, candidates: Array<string | number>) {
   const ids = Array.from(new Set((candidates || []).map((x) => String(x)).filter(Boolean)));
 
   for (const id of ids) {
-    const ok = await tryAllDeleteCombos(classId, id);
-    if (ok) return;
+    const ok = await tryAllDeleteCombos(courseId, id);
+    if (ok) return; 
   }
 
   const err = new Error(`No se encontró endpoint de borrado para ids: ${ids.join(', ')}`);
@@ -606,17 +600,13 @@ export async function deleteExamByCandidates(classId: string, candidates: Array<
   throw err;
 }
 
-export async function deleteCourseExam(classId: string, examId: string | number): Promise<void> {
-  await deleteExamByCandidates(classId, [examId]);
+export async function deleteCourseExam(courseId: string, examId: string | number): Promise<void> {
+  await deleteExamByCandidates(courseId, [examId]);
 }
 
 export async function deleteExamAny(examId: string | number): Promise<void> {
   const id = String(examId);
-  const bases = [
-    `/exams/${id}`,
-    `/exams/approved/${id}`,
-    `/approved-exams/${id}`,
-  ];
+  const bases = [`/exams/${id}`, `/exams/approved/${id}`, `/approved-exams/${id}`];
 
   for (const b of bases) {
     if (await exists(b)) {

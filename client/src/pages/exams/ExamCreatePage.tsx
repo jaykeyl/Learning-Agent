@@ -14,7 +14,7 @@ import AiResults from './AiResults';
 import { normalizeToQuestions, cloneQuestion, replaceQuestion, reorderQuestions } from './ai-utils';
 import { isValidGeneratedQuestion } from '../../utils/aiValidation';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { useExamsStore, type ExamsState } from '../../store/examsStore';
+import { useExamsStore } from '../../store/examsStore';
 
 
 const layoutStyle: CSSProperties = {
@@ -211,12 +211,19 @@ export default function ExamsCreatePage() {
   };
 
   const onSave = async () => {
+    // Validación inicial
+    if (!classId) {
+      pushToast('Abre el creador desde la materia (Crear examen) para asociarlo.', 'error');
+      return;
+    }
+
     const selected = aiQuestions.filter(q => q.include);
     if (!selected.length) {
       pushToast('Selecciona al menos una pregunta.', 'error');
       return;
     }
 
+    // Preparar las preguntas
     const ts = Date.now();
     const used = new Set<string>();
     const questions: GeneratedQuestion[] = selected.map((q, i) => {
@@ -233,33 +240,36 @@ export default function ExamsCreatePage() {
       } as GeneratedQuestion;
     });
 
+    // Preparar datos del examen
     const data = {
       title: aiMeta.subject || 'Examen',
-      className: classId || undefined,
+      className: classId,
       questions,
       publish: false
     };
 
     let summary;
     try {
+      // Modo edición
       if (editData?.id) {
+        // Limpiar localStorage
         localStorage.removeItem(`exam:content:${editData.id}`);
-        
         const examIndex = readJSON<string[]>('exam:content:index') || [];
         const newIndex = examIndex.filter(id => !id.includes(editData.id));
         saveJSON('exam:content:index', newIndex);
         
-        await updateExamApproved({
-          examId: editData.id,
-          title: aiMeta.subject || 'Examen',
-          questions: questions
-        });
+        // Actualizar en backend y store
+        await updateExamApproved(
+          editData.id,
+          {
+            title: aiMeta.subject || 'Examen',
+            questions: questions
+          }
+        );
         summary = updateExam(editData.id, data);
-      } else {
-        if (!classId) {
-          pushToast('Abre el creador desde la materia (Crear examen) para asociarlo.', 'error');
-          return;
-        }
+      } 
+      // Modo creación
+      else {
         await createExamApproved({
           classId,
           title: data.title,
@@ -267,35 +277,36 @@ export default function ExamsCreatePage() {
         });
         summary = addFromQuestions(data);
       }
+
+      // Guardar en localStorage con índice
+      const examKey = `exam:content:${summary.id}`;
+      saveJSON(examKey, {
+        examId: summary.id,
+        title: summary.title,
+        subject: data.title || summary.className || '—',
+        teacher: '—',
+        createdAt: summary.createdAt,
+        questions: questions.map((q, i) => ({
+          ...q,
+          n: i + 1,
+          source: q.id.startsWith('manual_') ? 'manual' : 'ai',
+          include: true
+        }))
+      });
+
+      // Actualizar índice
+      const examIndex = readJSON<string[]>('exam:content:index') || [];
+      if (!examIndex.includes(examKey)) {
+        examIndex.push(examKey);
+        saveJSON('exam:content:index', examIndex);
+      }
+
+      pushToast('Examen guardado exitosamente.', 'success');
+      navigate('/exams');
     } catch (error) {
       console.error('Error al guardar:', error);
       pushToast('Error al guardar el examen', 'error');
-      return;
     }
-
-    const examKey = `exam:content:${summary.id}`;
-    saveJSON(examKey, {
-      examId: summary.id,
-      title: summary.title,
-      subject: data.title || summary.className || '—',
-      teacher: '—',
-      createdAt: summary.createdAt,
-      questions: questions.map((q, i) => ({
-        ...q,
-        n: i + 1,
-        source: q.id.startsWith('manual_') ? 'manual' : 'ai',
-        include: true
-      }))
-    });
-
-    const examIndex = readJSON<string[]>('exam:content:index') || [];
-    if (!examIndex.includes(examKey)) {
-      examIndex.push(examKey);
-      saveJSON('exam:content:index', examIndex);
-    }
-
-    pushToast('Examen guardado exitosamente.', 'success');
-    navigate('/exams');
   };
 
   return (

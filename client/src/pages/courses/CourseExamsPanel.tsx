@@ -97,7 +97,6 @@ export default function CourseExamsPanel({ courseId }: Props) {
           <div id="tabla-examenes-curso">
             <ExamTable
               data={tableData}
-              onEdit={() => navigate(`/exams/create?courseId=${courseId}`)}
             />
           </div>
         </>
