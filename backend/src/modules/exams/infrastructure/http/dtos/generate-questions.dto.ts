@@ -13,16 +13,16 @@ import {
 import { Type } from 'class-transformer';
 
 class DistributionDto {
-  @IsInt() @Min(0)
+  @IsOptional() @IsInt() @Min(0)
   multiple_choice!: number;
 
-  @IsInt() @Min(0)
+  @IsOptional() @IsInt() @Min(0)
   true_false!: number;
 
-  @IsInt() @Min(0)
+  @IsOptional() @IsInt() @Min(0)
   open_analysis!: number;
 
-  @IsInt() @Min(0)
+  @IsOptional() @IsInt() @Min(0)
   open_exercise!: number;
 }
 

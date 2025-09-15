@@ -59,4 +59,3 @@ jobs:
           path: |
             client/dist/**
             client/junit.xml
-
