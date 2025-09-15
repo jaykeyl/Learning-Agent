@@ -1,4 +1,5 @@
 import {Body, Controller, Get, Delete, HttpCode, Logger, Param, Post, Put, Req, UseGuards, UseFilters, UsePipes, ValidationPipe, } from '@nestjs/common';
+import { QuestionKind } from '@prisma/client';
 import type { Request } from 'express';
 import { randomUUID } from 'crypto';
 
@@ -73,6 +74,74 @@ function normalizeFromCorrectAnswerForCreate(dto: {
   };
 }
 
+type AiQuestion = {
+  type: 'multiple_choice' | 'true_false' | 'open_analysis' | 'open_exercise';
+  text: string;
+  options?: string[] | null;
+
+  expectedAnswer?: string | null;     
+  answer?: number | boolean | string | null; 
+  correct?: number | boolean | null;  
+  correctOptionIndex?: number | null; 
+  correctBoolean?: boolean | null;   
+};
+
+function toNewExamQuestionFromAi(q: AiQuestion) {
+  const readExpected = () => {
+    const raw =
+      (q.expectedAnswer ?? (q as any).expected_answer ?? (q as any).expected ?? '')
+        .toString()
+        .trim();
+    return raw || 'Completar en corrección'; 
+  };
+
+  switch (q.type) {
+    case 'multiple_choice': {
+      const opts = Array.isArray(q.options) ? q.options : [];
+      let idx =
+        typeof q.correctOptionIndex === 'number' ? q.correctOptionIndex as number
+        : typeof q.answer === 'number' ? (q.answer as number)
+        : typeof (q as any).correct === 'number' ? ((q as any).correct as number)
+        : 0;
+      if (idx < 0 || idx >= opts.length) idx = 0;
+      return {
+        kind: QuestionKind.MULTIPLE_CHOICE,
+        text: q.text,
+        options: opts,
+        correctOptionIndex: idx,
+      };
+    }
+    case 'true_false': {
+      const tf =
+        typeof q.correctBoolean === 'boolean' ? q.correctBoolean as boolean
+        : typeof q.answer === 'boolean' ? (q.answer as boolean)
+        : typeof (q as any).correct === 'boolean' ? ((q as any).correct as boolean)
+        : false;
+      return {
+        kind: QuestionKind.TRUE_FALSE,
+        text: q.text,
+        correctBoolean: tf,
+      };
+    }
+    case 'open_analysis': {
+      return {
+        kind: QuestionKind.OPEN_ANALYSIS,
+        text: q.text,
+        expectedAnswer: readExpected(), 
+      };
+    }
+    case 'open_exercise': {
+      return {
+        kind: QuestionKind.OPEN_EXERCISE,
+        text: q.text,
+        expectedAnswer: readExpected(),   
+      };
+    }
+    default:
+      throw new Error(`Tipo de pregunta IA no soportado: ${(q as any)?.type}`);
+  }
+}
+
 function normalizeFromCorrectAnswerForUpdate(dto: {
   kind: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'OPEN_ANALYSIS' | 'OPEN_EXERCISE';
   options?: string[];
@@ -132,7 +201,7 @@ export class ExamsController {
   ) {}
 
   @Post('exams')
-  @HttpCode(200)
+  @HttpCode(201)
   async create(@Body() dto: CreateExamDto, @Req() req: Request) {
     this.logger?.log?.(
       `[${cid(req)}] createExam -> title=${dto.title}, classId=${dto.classId}, difficulty=${dto.difficulty}, attempts=${dto.attempts}, time=${dto.timeMinutes}`,
@@ -156,6 +225,62 @@ export class ExamsController {
     );
 
     const exam = await this.createExamHandler.execute(cmd);
+    const shouldGenerate = Number(dto.totalQuestions ?? 0) > 0 || !!dto.distribution;
+
+    if (shouldGenerate) {
+      const output: any = await this.generateQuestionsUseCase.execute({
+        teacherId: userId,
+        subject: dto.subject,
+        difficulty: dto.difficulty as any,
+        totalQuestions: dto.totalQuestions,
+        distribution: dto.distribution ?? undefined,
+        reference: dto.reference ?? null,
+        examId: exam.id,
+        classId: dto.classId,
+        language: (dto as any).language ?? 'es',
+        strict: (dto as any).strict ?? true,
+      });
+
+      let flat: AiQuestion[] = [];
+      if (output?.questions) {
+        flat = [
+          ...(output.questions.multiple_choice ?? []),
+          ...(output.questions.true_false ?? []),
+          ...(output.questions.open_analysis ?? []),
+          ...(output.questions.open_exercise ?? []),
+        ];
+      } else if (Array.isArray(output)) {
+        flat = output as AiQuestion[];
+      } else if (Array.isArray(output?.flat)) {
+        flat = output.flat as AiQuestion[];
+      }
+
+      let added = 0;
+      for (const q of flat) {
+        const mapped = toNewExamQuestionFromAi(q);
+        await this.addExamQuestionHandler.execute(
+          new AddExamQuestionCommand(
+            exam.id,
+            userId,
+            'end', 
+            mapped,
+          ),
+        );
+        added++;
+      }
+
+      this.logger?.log?.(
+        `[${cid(req)}] createExam+generate <- exam id=${exam.id}, persistedQuestions=${added}`,
+      );
+
+      return responseSuccess(
+        cid(req),
+        { exam, persistedQuestions: added },
+        'Examen creado y preguntas persistidas',
+        pathOf(req),
+      );
+    }
+
     this.logger?.log?.(`[${cid(req)}] createExam <- created exam id=${exam.id}`);
     return responseSuccess(cid(req), exam, 'Examen creado exitosamente', pathOf(req));
   }
@@ -278,17 +403,16 @@ export class ExamsController {
     return responseSuccess(cid(req), data, 'Exámenes de la clase', pathOf(req));
   }
 
-@Delete('exams/:examId')
-@HttpCode(204)
-async deleteExam(@Param('examId') examId: string, @Req() req: Request) {
-  const user = (req as any).user as { sub: string } | undefined;
-  if (!user?.sub) throw new UnauthorizedError('Acceso no autorizado');
-  if (!examId?.trim()) throw new BadRequestError('examId es obligatorio.');
+  @Delete('exams/:examId')
+  @HttpCode(204)
+  async deleteExam(@Param('examId') examId: string, @Req() req: Request) {
+    const user = (req as any).user as { sub: string } | undefined;
+    if (!user?.sub) throw new UnauthorizedError('Acceso no autorizado');
+    if (!examId?.trim()) throw new BadRequestError('examId es obligatorio.');
 
-  const cmd = new DeleteExamCommand(examId, user.sub);
-  await this.deleteExamHandler.execute(cmd);
+    const cmd = new DeleteExamCommand(examId, user.sub);
+    await this.deleteExamHandler.execute(cmd);
 
-  return;
-}
-
+    return;
+  }
 }

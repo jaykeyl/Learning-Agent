@@ -2,10 +2,10 @@ import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, Valid
 import { Type } from 'class-transformer';
 
 class DistributionDTO {
-  @IsInt() @Min(0) @Max(999) multiple_choice!: number;
-  @IsInt() @Min(0) @Max(999) true_false!: number;
-  @IsInt() @Min(0) @Max(999) open_analysis!: number;
-  @IsInt() @Min(0) @Max(999) open_exercise!: number;
+  @IsOptional() @IsInt() @Min(0) @Max(999) multiple_choice!: number;
+  @IsOptional() @IsInt() @Min(0) @Max(999) true_false!: number;
+  @IsOptional() @IsInt() @Min(0) @Max(999) open_analysis!: number;
+  @IsOptional() @IsInt() @Min(0) @Max(999) open_exercise!: number;
 }
 
 export class CreateExamDto {
