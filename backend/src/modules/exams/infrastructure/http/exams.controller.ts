@@ -1,5 +1,5 @@
 import {Body, Controller, Get, Delete, HttpCode, Logger, Param, Post, Put, Req, UseGuards, UseFilters, UsePipes, ValidationPipe, } from '@nestjs/common';
-import { QuestionKind } from '@prisma/client';
+import { QuestionKind, NewExamQuestion } from '../../domain/entities/exam-question.entity';
 import type { Request } from 'express';
 import { randomUUID } from 'crypto';
 
@@ -79,33 +79,35 @@ type AiQuestion = {
   text: string;
   options?: string[] | null;
 
-  expectedAnswer?: string | null;     
-  answer?: number | boolean | string | null; 
-  correct?: number | boolean | null;  
-  correctOptionIndex?: number | null; 
-  correctBoolean?: boolean | null;   
+  expectedAnswer?: string | null;
+  answer?: number | boolean | string | null;
+  correct?: number | boolean | null;
+  correctOptionIndex?: number | null;
+  correctBoolean?: boolean | null;
 };
 
-function toNewExamQuestionFromAi(q: AiQuestion) {
-  const readExpected = () => {
-    const raw =
-      (q.expectedAnswer ?? (q as any).expected_answer ?? (q as any).expected ?? '')
-        .toString()
-        .trim();
-    return raw || 'Completar en corrección'; 
-  };
+function readExpectedFrom(q: AiQuestion): string {
+  const raw =
+    (q.expectedAnswer ??
+     (q as any).expected_answer ??
+     (q as any).expected ??
+     '') + '';
+  const val = raw.trim();
+  return val || 'Completar en corrección';
+}
 
+function toNewExamQuestionFromAi(q: AiQuestion): NewExamQuestion {
   switch (q.type) {
     case 'multiple_choice': {
       const opts = Array.isArray(q.options) ? q.options : [];
       let idx =
-        typeof q.correctOptionIndex === 'number' ? q.correctOptionIndex as number
-        : typeof q.answer === 'number' ? (q.answer as number)
-        : typeof (q as any).correct === 'number' ? ((q as any).correct as number)
-        : 0;
+        typeof q.correctOptionIndex === 'number' ? q.correctOptionIndex :
+        typeof q.answer === 'number' ? (q.answer as number) :
+        typeof (q as any).correct === 'number' ? ((q as any).correct as number) :
+        0;
       if (idx < 0 || idx >= opts.length) idx = 0;
       return {
-        kind: QuestionKind.MULTIPLE_CHOICE,
+        kind: 'MULTIPLE_CHOICE' as QuestionKind,
         text: q.text,
         options: opts,
         correctOptionIndex: idx,
@@ -113,32 +115,29 @@ function toNewExamQuestionFromAi(q: AiQuestion) {
     }
     case 'true_false': {
       const tf =
-        typeof q.correctBoolean === 'boolean' ? q.correctBoolean as boolean
-        : typeof q.answer === 'boolean' ? (q.answer as boolean)
-        : typeof (q as any).correct === 'boolean' ? ((q as any).correct as boolean)
-        : false;
+        typeof q.correctBoolean === 'boolean' ? q.correctBoolean :
+        typeof q.answer === 'boolean' ? (q.answer as boolean) :
+        typeof (q as any).correct === 'boolean' ? ((q as any).correct as boolean) :
+        false;
+
       return {
-        kind: QuestionKind.TRUE_FALSE,
+        kind: 'TRUE_FALSE' as QuestionKind,
         text: q.text,
         correctBoolean: tf,
       };
     }
-    case 'open_analysis': {
+    case 'open_analysis':
       return {
-        kind: QuestionKind.OPEN_ANALYSIS,
+        kind: 'OPEN_ANALYSIS' as QuestionKind,
         text: q.text,
-        expectedAnswer: readExpected(), 
+        expectedAnswer: readExpectedFrom(q),
       };
-    }
-    case 'open_exercise': {
+    case 'open_exercise':
       return {
-        kind: QuestionKind.OPEN_EXERCISE,
+        kind: 'OPEN_EXERCISE' as QuestionKind,
         text: q.text,
-        expectedAnswer: readExpected(),   
+        expectedAnswer: readExpectedFrom(q),
       };
-    }
-    default:
-      throw new Error(`Tipo de pregunta IA no soportado: ${(q as any)?.type}`);
   }
 }
 
