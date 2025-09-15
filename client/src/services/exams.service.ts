@@ -84,8 +84,8 @@ function buildQuestionsDto(input: Record<string, unknown> = {}) {
     throw new Error('La distribución debe contener al menos 1 pregunta en total.');
   }
 
-  const reference = 
-  input.reference != null ? String(input.reference) : undefined;
+  const reference =
+    input.reference != null ? String(input.reference) : undefined;
 
   const examId = (input as any).examId ? String((input as any).examId) : undefined;
   const classId = (input as any).classId ? String((input as any).classId) : undefined;
@@ -244,7 +244,7 @@ export async function generateQuestions(input: Record<string, unknown>): Promise
   const wanted = dto.distribution;
   const subject = dto.subject;
 
-  const res = await api.post('/exams/questions', dto);
+  const res = await api.post('/api/exams/questions', dto);
   const payload = (res as any)?.data;
 
   const grouped =
@@ -307,7 +307,19 @@ export async function createExam(payload: any): Promise<any> {
   if (USE_MOCK) {
     return { ok: true, data: { id: `exam_${Date.now()}`, ...payload } };
   }
-  const res = await api.post('/exams', payload);
+
+  const classId = payload?.classId ?? null;
+  if (!classId) {
+    if (payload?.courseId) {
+      throw new Error('Desde ahora debes enviar classId (la clase/período) en lugar de courseId.');
+    }
+    throw new Error('classId es obligatorio para crear el examen.');
+  }
+
+  const difficulty = toSpanishDifficulty(payload?.difficulty);
+  const body = { ...payload, classId, difficulty };
+
+  const res = await api.post('/api/exams', body);
   return (res as any)?.data ?? res;
 }
 
@@ -536,4 +548,3 @@ export async function deleteExamByCandidates(classId: string, candidates: Array<
 }
 
 export default { generateQuestions, createExam, createExamApproved };
-
