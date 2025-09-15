@@ -11,4 +11,6 @@ export interface ExamRepositoryPort {
     teacherId: string,
     patch: Partial<Pick<Exam, 'title' | 'status' | 'classId'>>
   ): Promise<Exam>;
+  teacherOwnsClass(classId: string, teacherId: string): Promise<boolean>;
+  deleteOwned(id: string, teacherId: string): Promise<void>;
 }
