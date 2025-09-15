@@ -409,8 +409,8 @@ export class ExamsController {
     if (!user?.sub) throw new UnauthorizedError('Acceso no autorizado');
     if (!examId?.trim()) throw new BadRequestError('examId es obligatorio.');
 
-  const cmd = new DeleteExamCommand(examId, user.sub);
-  await this.deleteExamHandler.execute(cmd);
+    const cmd = new DeleteExamCommand(examId, user.sub);
+    await this.deleteExamHandler.execute(cmd);
 
     return;
   }
