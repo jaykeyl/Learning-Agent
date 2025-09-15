@@ -64,6 +64,7 @@ export default function ExamsCreatePage() {
   const [params] = useSearchParams();
   const classId = params.get('classId') || '';
   const navigate = useNavigate();
+  
   const location = useLocation();
   const editData = location.state?.examData;
   
@@ -79,7 +80,7 @@ export default function ExamsCreatePage() {
   const [aiMeta, setAiMeta] = useState<{ subject: string; difficulty: string; reference?: string }>({
     subject: editData?.subject || 'Tema general',
     difficulty: editData?.difficulty || 'medio',
-    reference: editData?.reference || '',
+    reference: editData?.reference || ''
   });
 
   const buildAiInputFromForm = (raw: Record<string, any>) => {
@@ -223,6 +224,7 @@ export default function ExamsCreatePage() {
       return;
     }
 
+    // Preparar las preguntas
     const ts = Date.now();
     const used = new Set<string>();
     const questions: GeneratedQuestion[] = selected.map((q, i) => {
@@ -237,6 +239,7 @@ export default function ExamsCreatePage() {
         options: (q as any).options ?? undefined,
         include: true
       } as GeneratedQuestion;
+        include: true
     });
 
     const data = {
