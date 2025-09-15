@@ -1,5 +1,4 @@
 import { Card, Typography, theme } from 'antd';
-import { useNavigate } from 'react-router-dom';
 import ExamTable from '../../../components/exams/ExamTable';
 import { useExamsStore } from '../../../store/examsStore';
 
@@ -7,7 +6,6 @@ const { Title, Text } = Typography;
 
 export default function TablePage() {
   const { token } = theme.useToken();
-  const navigate = useNavigate();
   const exams = useExamsStore((s) => s.exams) ?? [];
 
   const total = exams.length;
