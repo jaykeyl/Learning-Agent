@@ -29,6 +29,7 @@ type AddFromQuestionsArgs = {
   questions: GeneratedQuestion[];
   publish?: boolean;
   scheduleAt?: string;
+  id?: string;
 };
 
 export interface ExamsState {
@@ -41,7 +42,7 @@ export interface ExamsState {
   removeExam: (id: string) => void;
 }
 
-function buildSummary({ title, className, questions, publish, scheduleAt }: AddFromQuestionsArgs): ExamSummary {
+function buildSummary({ title, className, questions, publish, scheduleAt, id }: AddFromQuestionsArgs): ExamSummary {
   const counts = {
     multiple_choice: questions.filter(q => q.type === 'multiple_choice').length,
     true_false: questions.filter(q => q.type === 'true_false').length,
@@ -60,7 +61,7 @@ function buildSummary({ title, className, questions, publish, scheduleAt }: AddF
     publishedAt = scheduleAt;
   }
   return {
-    id: `exam_${Date.now()}`,
+    id: id ?? `exam_${Date.now()}`,
     title: title || 'Examen sin título',
     className,
     difficulty: 'Media',
@@ -85,8 +86,7 @@ export const useExamsStore = create(
       updateExam: (id, args) => {
         const oldExam = get().exams.find(e => e.id === id);
         const updatedSummary = {
-          ...buildSummary(args),
-          id,
+          ...buildSummary({ ...args, id }),
           createdAt: oldExam?.createdAt || new Date().toISOString(),
           status: oldExam?.status || 'draft',
           visibility: oldExam?.visibility || 'visible',
