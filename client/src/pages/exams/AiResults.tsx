@@ -47,6 +47,7 @@ export default function AiResults({
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   const addFromQuestions = useExamsStore((s) => s.addFromQuestions);
+  const updateExam = useExamsStore((s) => s.updateExam);
 
   const total = questions.length;
   const selected = questions.filter(q => q.include).length;
@@ -237,7 +238,22 @@ export default function AiResults({
     setSaveLoading(true);
     try {
       await onSave();
-      const summary = addFromQuestions({ title: subject || 'Examen', questions, publish: true });
+      const editData = (window.history.state && window.history.state.usr && window.history.state.usr.examData) || null;
+      let summary;
+      if (editData && editData.id) {
+        summary = updateExam(editData.id, {
+          title: subject || 'Examen',
+          questions,
+          publish: true,
+          id: editData.id
+        });
+      } else {
+        summary = addFromQuestions({
+          title: subject || 'Examen',
+          questions,
+          publish: true
+        });
+      }
 
       const printable = {
         examId: summary.id,

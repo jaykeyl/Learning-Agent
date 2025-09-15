@@ -84,8 +84,8 @@ function buildQuestionsDto(input: Record<string, unknown> = {}) {
     throw new Error('La distribución debe contener al menos 1 pregunta en total.');
   }
 
-  const reference =
-    input.reference != null ? String(input.reference) : undefined;
+  const reference = 
+  input.reference != null ? String(input.reference) : undefined;
 
   const examId = (input as any).examId ? String((input as any).examId) : undefined;
   const classId = (input as any).classId ? String((input as any).classId) : undefined;
@@ -244,7 +244,7 @@ export async function generateQuestions(input: Record<string, unknown>): Promise
   const wanted = dto.distribution;
   const subject = dto.subject;
 
-  const res = await api.post('/api/exams/questions', dto);
+  const res = await api.post('/exams/questions', dto);
   const payload = (res as any)?.data;
 
   const grouped =
@@ -307,23 +307,11 @@ export async function createExam(payload: any): Promise<any> {
   if (USE_MOCK) {
     return { ok: true, data: { id: `exam_${Date.now()}`, ...payload } };
   }
-
-  const classId = payload?.classId ?? null;
-  if (!classId) {
-    if (payload?.courseId) {
-      throw new Error('Desde ahora debes enviar classId (la clase/período) en lugar de courseId.');
-    }
-    throw new Error('classId es obligatorio para crear el examen.');
-  }
-
-  const difficulty = toSpanishDifficulty(payload?.difficulty);
-  const body = { ...payload, classId, difficulty };
-
-  const res = await api.post('/api/exams', body);
+  const res = await api.post('/exams', payload);
   return (res as any)?.data ?? res;
 }
 
-export type CreateExamApprovedInput = {
+export type ExamInput = {
   classId?: string;        
   courseId?: string;       
   title: string;
@@ -346,6 +334,9 @@ export type CreateExamApprovedInput = {
     options?: string[];
   }>;
 };
+
+export type CreateExamApprovedInput = ExamInput;
+export type UpdateExamApprovedInput = ExamInput & { examId: string };
 
 export async function createExamApproved(input: CreateExamApprovedInput) {
   const classId = input.classId ?? null;
@@ -407,6 +398,54 @@ export async function createExamApproved(input: CreateExamApprovedInput) {
   }
 
   return createdExam?.data ?? createdExam;
+}
+
+export async function updateExamApprovedFull(input: UpdateExamApprovedInput) {
+  const { examId } = input;
+  
+  const questions = await api.get(`/api/exams/${examId}/questions`);
+  for (const question of questions.data) {
+    await api.delete(`/api/exams/${examId}/questions/${question.id}`);
+  }
+
+  await api.put(`/api/exams/${examId}`, {
+    title: input.title,
+    subject: input.content?.subject ?? 'Tema general',
+    difficulty: toSpanishDifficulty(input.content?.difficulty ?? 'medio'),
+    attempts: 1,
+    totalQuestions: Math.max(1, (input.questions?.length || 1)),
+    timeMinutes: 45,
+  });
+
+  const newQuestions = input.content?.questions ?? input.questions ?? [];
+  for (const q of newQuestions) {
+    const kind =
+      q.type === 'multiple_choice' ? 'MULTIPLE_CHOICE'
+      : q.type === 'true_false' ? 'TRUE_FALSE'
+      : q.type === 'open_analysis' ? 'OPEN_ANALYSIS'
+      : 'OPEN_EXERCISE';
+
+    const dto: any = {
+      kind,
+      text: String(q.text ?? ''),
+      position: 'end',
+    };
+
+    if (q.type === 'multiple_choice') {
+      dto.options = Array.isArray(q.options) ? q.options.map(String) : ['Opción A','Opción B'];
+      dto.correctOptionIndex = 0;
+    }
+    if (q.type === 'true_false') {
+      dto.correctBoolean = true;
+    }
+    if (q.type === 'open_analysis' || q.type === 'open_exercise') {
+      dto.expectedAnswer = undefined;
+    }
+
+    await api.post(`/api/exams/${examId}/questions`, dto);
+  }
+
+  return { id: examId };
 }
 
 export async function quickSaveExam(p: { title: string; questions: any[]; content?: any; classId?: string; courseId?: string; teacherId?: string }) {

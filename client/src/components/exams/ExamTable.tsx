@@ -5,6 +5,7 @@ import type { Dayjs } from 'dayjs';
 import { useState } from 'react';
 import { useExamsStore, type ExamSummary, type ExamsState } from '../../store/examsStore';
 import { readJSON } from '../../services/storage/localStorage';
+import { useNavigate } from 'react-router-dom';
 
 const { Text } = Typography;
 
@@ -199,8 +200,21 @@ function openPrint(html: string) {
 }
 
 function loadPrintableExam(exam: ExamSummary): PrintableExam | null {
-  const stored = readJSON<PrintableExam>(`exam:content:${exam.id}`);
-  if (!stored || !Array.isArray(stored.questions) || stored.questions.length === 0) return null;
+  let stored = readJSON<PrintableExam>(`exam:content:${exam.id}`);
+  
+  if (!stored) {
+    const index = readJSON<string[]>('exam:content:index') || [];
+    const examId = index.find(id => id.includes(exam.id));
+    if (examId) {
+      stored = readJSON<PrintableExam>(`exam:content:${examId}`);
+    }
+  }
+
+  if (!stored || !Array.isArray(stored.questions) || stored.questions.length === 0) {
+    console.log('No se encontró el examen:', exam.id);
+    return null;
+  }
+
   return {
     examId: stored.examId || exam.id,
     title: stored.title || exam.title,
@@ -228,6 +242,7 @@ export default function ExamTable({ data, onEdit, onDelete, disableStatusControl
   const setStatus = useExamsStore((s: ExamsState) => s.setStatus);
   const removeExam = useExamsStore((s: ExamsState) => s.removeExam);
   const { token } = theme.useToken();
+  const navigate = useNavigate();
 
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishMode, setPublishMode] = useState<'now' | 'schedule' | 'draft'>('now');
@@ -305,7 +320,56 @@ export default function ExamTable({ data, onEdit, onDelete, disableStatusControl
         return (
           <Space size={6} wrap={false} style={{ whiteSpace: 'nowrap' }}>
             <Tooltip title="Editar">
-              <Button type="text" style={{ paddingInline: 6 }} icon={<EditOutlined style={{ fontSize: 18 }} />} onClick={() => onEdit?.(record)} aria-label="Editar" />
+              <Button 
+                type="text" 
+                style={{ paddingInline: 6 }} 
+                icon={<EditOutlined style={{ fontSize: 18 }} />} 
+                onClick={() => {
+                  const examContent = loadPrintableExam(record);
+                  if (!examContent) {
+                    message.error('No se encontró el contenido del examen. Vuelve a guardarlo desde la pantalla de resultados.');
+                    return;
+                  }
+
+                  console.log('Examen encontrado:', examContent);
+
+                  const mcCount = examContent.questions.filter(q => q.type === 'multiple_choice').length;
+                  const tfCount = examContent.questions.filter(q => q.type === 'true_false').length;
+                  const anCount = examContent.questions.filter(q => q.type === 'open_analysis').length;
+                  const oeCount = examContent.questions.filter(q => q.type === 'open_exercise').length;
+
+                  const formData = {
+                    id: record.id,
+                    title: record.title,
+                    subject: examContent.subject,
+                    difficulty: 'medio',
+                    timeMinutes: 45,
+                    attempts: '1',
+                    multipleChoice: String(mcCount),
+                    trueFalse: String(tfCount),
+                    analysis: String(anCount),
+                    openEnded: String(oeCount),
+                    questions: examContent.questions.map(q => ({
+                      id: q.id,
+                      type: q.type,
+                      text: q.text,
+                      options: q.options || [],
+                      correctOptionIndex: q.correctOptionIndex,
+                      correctBoolean: q.correctBoolean,
+                      expectedAnswer: q.expectedAnswer,
+                      answer: q.answer
+                    }))
+                  };
+
+                  navigate('/exams/create', { 
+                    state: { 
+                      editMode: true,
+                      examData: formData
+                    } 
+                  });
+                }} 
+                aria-label="Editar" 
+              />
             </Tooltip>
             <Tooltip title="Publicar / Programar / Borrador">
               <Button type="text" style={{ paddingInline: 6 }} icon={<UploadOutlined style={{ fontSize: 18 }} />} onClick={() => openPublishModal(record)} aria-label="Estado" />

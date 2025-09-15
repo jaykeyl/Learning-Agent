@@ -444,9 +444,6 @@ model Classes {
 
   courseId      String            
   course        Course            @relation(fields: [courseId], references: [id])
-
-  // relation 1:N
-  exams         Exam[]            @relation("ClassExams")
   
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt @default(now())

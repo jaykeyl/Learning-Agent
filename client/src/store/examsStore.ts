@@ -12,6 +12,7 @@ export interface ExamSummary {
   status: ExamStatus;
   visibility: ExamVisibility;
   totalQuestions: number;
+  difficulty?: string;
   counts: {
     multiple_choice: number;
     true_false: number;
@@ -28,18 +29,20 @@ type AddFromQuestionsArgs = {
   questions: GeneratedQuestion[];
   publish?: boolean;
   scheduleAt?: string;
+  id?: string;
 };
 
 export interface ExamsState {
   exams: ExamSummary[];
   addFromQuestions: (args: AddFromQuestionsArgs) => ExamSummary;
+  updateExam: (id: string, args: AddFromQuestionsArgs) => ExamSummary;
   toggleVisibility: (id: string) => void;
   setVisibility: (id: string, v: ExamVisibility) => void;
   setStatus: (id: string, status: ExamStatus, publishedAt?: string) => void;
   removeExam: (id: string) => void;
 }
 
-function buildSummary({ title, className, questions, publish, scheduleAt }: AddFromQuestionsArgs): ExamSummary {
+function buildSummary({ title, className, questions, publish, scheduleAt, id }: AddFromQuestionsArgs): ExamSummary {
   const counts = {
     multiple_choice: questions.filter(q => q.type === 'multiple_choice').length,
     true_false: questions.filter(q => q.type === 'true_false').length,
@@ -58,9 +61,10 @@ function buildSummary({ title, className, questions, publish, scheduleAt }: AddF
     publishedAt = scheduleAt;
   }
   return {
-    id: `exam_${Date.now()}`,
+    id: id ?? `exam_${Date.now()}`,
     title: title || 'Examen sin título',
     className,
+    difficulty: 'Media',
     status,
     visibility: 'visible',
     totalQuestions: total,
@@ -78,6 +82,20 @@ export const useExamsStore = create(
         const summary = buildSummary(args);
         set({ exams: [summary, ...get().exams] });
         return summary;
+      },
+      updateExam: (id, args) => {
+        const oldExam = get().exams.find(e => e.id === id);
+        const updatedSummary = {
+          ...buildSummary({ ...args, id }),
+          createdAt: oldExam?.createdAt || new Date().toISOString(),
+          status: oldExam?.status || 'draft',
+          visibility: oldExam?.visibility || 'visible',
+          publishedAt: oldExam?.publishedAt
+        };
+        set({
+          exams: get().exams.map(e => e.id === id ? updatedSummary : e)
+        });
+        return updatedSummary;
       },
       toggleVisibility: (id) => {
         set({
