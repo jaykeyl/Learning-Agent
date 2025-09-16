@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { CreateCourseForm } from "./CreateCourseForm";
 import { PlusOutlined, SolutionOutlined } from "@ant-design/icons";
 import { useUserStore } from "../../store/userStore";
+import GlobalScrollbar from '../../components/GlobalScrollbar';
 import AccessDenied from "../../components/shared/AccessDenied";
 import CustomCard from "../../components/shared/CustomCard";
 
@@ -62,17 +63,17 @@ export function TeacherCoursePage() {
   }, [searchTerm, courses]);
 
   const goToCourse = (id: string) => {
-    navigate(`/courses/${id}/periods`);
+    navigate(`${id}/periods`);
   };
 
-  const goToExams = (e: React.MouseEvent) => {
+  const goToExams = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/exams/`);
+    navigate(`${id}/exams`);
   };
 
   const goToMaterials = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/materials/${id}`);
+    navigate(`${id}/documents`);
   };
 
   const handleAddCourse = async (values: CreateCourseDTO) => {
@@ -96,6 +97,7 @@ export function TeacherCoursePage() {
           subtitle="Revisa a detalle las materias que dictaste en algún momento."
           breadcrumbs={[{ label: "Home", href: "/" }, { label: "Materias" }]}
         >
+          <GlobalScrollbar />
           <div
             style={{
               maxWidth: '100%',
@@ -150,12 +152,12 @@ export function TeacherCoursePage() {
                       title={course.name}
                     />
                     <CustomCard.Description>
-                      {`Vea a detalle los periodos que ha dictado en ${course.name}`}
+                      {`Vea a detalle los períodos que ha dictado en ${course.name}`}
                     </CustomCard.Description>
                     <CustomCard.Actions>
                       <Button
                         type="primary"
-                        onClick={(e) => goToExams(e)}
+                        onClick={(e) => goToExams(course.id, e)}
                       >
                         Exámenes
                       </Button>

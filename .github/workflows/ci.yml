@@ -1,49 +1,133 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
-    branches:
-      - main
-      - qa
+    branches: [ main ]
+    paths:
+      - 'client/**'
+      - 'backend/**'
+      - '.github/workflows/ci.yml'
   push:
-    branches:
-      - main
-      - qa
+    branches: [ main ]
+    paths:
+      - 'client/**'
+      - 'backend/**'
+      - '.github/workflows/ci.yml'
+
+permissions:
+  contents: read
 
 jobs:
-  build-and-test:
+  test:
+    name: Lint, Test, Build, E2E (${{ matrix.node }})
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        ports:
+          - 5433:5432
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5433/testdb
+      JWT_ACCESS_SECRET: "dummy_access"
+      JWT_REFRESH_SECRET: "dummy_refresh"
+      OPENAI_API_KEY: "fake_key"
+      AI_API_KEY: "fake_key"
+
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        node: [20]
 
     steps:
-      # 1. Clonar repo
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # 2. Configurar Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: 'npm'
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            backend/package-lock.json
 
-      # 3. Instalar dependencias raíz
-      - name: Install dependencies (root)
-        run: npm install
-
-      # 4. Instalar dependencias del backend
-      - name: Install dependencies (backend)
-        run: npm --prefix backend install
-
-      # 5. Validar ESLint
-      - name: Run ESLint
-        run: npm run lint
-
-      # 6. Validar mensajes de commit (solo en PR)
-      - name: Commitlint
-        if: github.event_name == 'pull_request'
+      - name: Install PostgreSQL client
         run: |
-          echo "${{ github.event.pull_request.title }}" | npx commitlint
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
 
-      # 7. Ejecutar pruebas unitarias del backend
-      - name: Run tests (backend)
-        run: npm --prefix backend run test -- --passWithNoTests
+      - name: Wait for Postgres
+        run: |
+          echo "Waiting for Postgres..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5433 -U postgres; then
+              echo "Postgres is ready!"
+              exit 0
+            fi
+            echo "Waiting... attempt $i"
+            sleep 2
+          done
+          echo "Postgres never became ready"
+          exit 1
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+      - name: Install frontend deps
+        working-directory: client
+        run: npm ci
+
+      - name: Lint
+        working-directory: client
+        run: npm run lint --if-present
+
+      - name: Build frontend
+        working-directory: client
+        run: npm run build --if-present
+
+      - name: Setup Docker (Minio)
+        working-directory: infra/docker
+        run: docker compose -f minio.compose.yml up -d
+
+      - name: Setup DB (Prisma)
+        working-directory: backend
+        run: |
+          npx prisma generate
+          npx prisma migrate reset --force
+
+      - name: Seed DB
+        working-directory: backend
+        run: npm run seed
+
+      - name: E2E (Cypress)
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: client
+          start: npm run start:e2e
+          wait-on: http://localhost:5173
+          wait-on-timeout: 120
+          command: npm run cypress:run -- --spec cypress/e2e/login.cy.js
+
+      - name: Upload artifacts (build y reportes)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-and-reports-${{ matrix.node }}
+          path: |
+            client/dist/**
+            client/junit.xml

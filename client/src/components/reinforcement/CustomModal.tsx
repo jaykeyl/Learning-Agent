@@ -151,7 +151,7 @@ const Root: React.FC<CustomModalProps> & {
 } = ({
   status = "default",
   width = 580,
-  height = 240,
+
   padding = 24,
   className,
   style,

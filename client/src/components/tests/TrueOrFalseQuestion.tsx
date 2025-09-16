@@ -1,98 +1,79 @@
-import { Card, Typography, theme, Alert, Button } from "antd";
+import { Card, Typography, theme } from "antd";
 
 const { Title } = Typography;
 
 interface TrueOrFalseQuestionProps {
+  questionData: {
+    question: string;
+    correctIndex: number;
+  };
   onNext: (isCorrect: boolean) => void;
-  question?: string;
 }
 
-export default function TrueOrFalseQuestion({
-  onNext,
-  question = "",
-}: TrueOrFalseQuestionProps) {
+export default function TrueOrFalseQuestion({ questionData, onNext }: TrueOrFalseQuestionProps) {
   const { token } = theme.useToken();
+  const { question, correctIndex } = questionData;
 
-  const handleSelect = (_value: boolean) => {
-    if (onNext) {
+  const options = ["Verdadero", "Falso"];
 
-      onNext();
-    } else {
-      window.location.reload();
-
-    }
-
+  const handleSelect = (index: number) => {
+    const isCorrect = index === correctIndex;
+    setTimeout(() => onNext(isCorrect), parseInt(token.motionDurationMid) || 300);
   };
 
-  if (!question) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: token.marginLG,
-          padding: token.paddingLG,
-          backgroundColor: token.colorBgLayout,
-          minHeight: "100%",
-        }}
-      >
-        <Card
-          style={{
-            width: "100%",
-            maxWidth: 800,
-            textAlign: "center",
-            borderRadius: token.borderRadiusLG,
-            backgroundColor: token.colorBgContainer,
-            boxShadow: token.boxShadow,
-          }}
-        >
-          <Title level={3} style={{ margin: 0, color: token.colorTextHeading }}>
-            Pregunta no disponible
-          </Title>
-        </Card>
+  const containerStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: token.marginLG,
+    padding: token.paddingXL,
+    backgroundColor: token.colorBgLayout,
+    minHeight: "100%",
+  };
 
-        <Alert
-          message="No se encontró la pregunta"
-          description={
-            <div>
-              Esta vista espera recibir la pregunta desde el backend. Usa <strong>TestRunner</strong> para obtener preguntas generadas.
-            </div>
-          }
-          type="info"
-          showIcon
-        />
+  const questionCardStyle: React.CSSProperties = {
+    borderRadius: token.borderRadiusLG,
+    backgroundColor: token.colorBgContainer,
+    borderLeft: `${token.lineWidth * 4}px solid ${token.colorPrimary}`,
+    padding: token.paddingLG,
+    textAlign: "center",
+    maxWidth: token.screenLG,
+    width: "100%",
+    minHeight: 120,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
 
-        <div style={{ marginTop: 8 }}>
-          <Button onClick={() => onNext(false)}>Recargar</Button>
-        </div>
-      </div>
-    );
-  }
+  const optionStyle: React.CSSProperties = {
+    borderRadius: token.borderRadiusLG,
+    backgroundColor: token.colorPrimary,
+    color: token.colorTextLightSolid,
+    fontWeight: token.fontWeightStrong,
+    fontSize: token.fontSizeLG,
+    textAlign: "center",
+    cursor: "pointer",
+    transition: `transform ${token.motionDurationMid} ${token.motionEaseOut}, box-shadow ${token.motionDurationMid} ${token.motionEaseOut}`,
+    boxShadow: token.boxShadow,
+    userSelect: "none",
+    padding: token.paddingMD,
+    minHeight: 72,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: token.marginLG,
-        padding: token.paddingLG,
-        backgroundColor: token.colorBgLayout,
-        minHeight: "100%",
-      }}
-    >
-      <Card
-        style={{
-          width: "100%",
-          maxWidth: 800,
-          textAlign: "center",
-          borderRadius: token.borderRadiusLG,
-          backgroundColor: token.colorBgContainer,
-          boxShadow: token.boxShadow,
-        }}
-      >
-        <Title level={3} style={{ margin: 0, color: token.colorTextHeading }}>
+    <div style={containerStyle}>
+      <Card style={questionCardStyle}>
+        <Title
+          level={4}
+          style={{
+            margin: 0,
+            color: token.colorPrimary,
+            fontWeight: token.fontWeightStrong,
+          }}
+        >
           {question}
         </Title>
       </Card>
@@ -101,48 +82,28 @@ export default function TrueOrFalseQuestion({
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          gap: token.marginLG,
+          gap: token.marginMD,
           width: "100%",
-          maxWidth: 800,
+          maxWidth: token.screenLG,
         }}
       >
-        <div
-          onClick={() => handleSelect(true)}
-          style={{
-            backgroundColor: token.colorPrimary,
-            color: token.colorTextLightSolid,
-            padding: token.paddingLG,
-            borderRadius: token.borderRadiusLG,
-            fontWeight: 600,
-            fontSize: token.fontSizeLG,
-            textAlign: "center",
-            cursor: "pointer",
-            transition: "transform 0.15s ease, box-shadow 0.15s ease",
-            boxShadow: token.boxShadow,
-            userSelect: "none",
-          }}
-        >
-          Verdadero
-        </div>
-
-        <div
-          onClick={() => handleSelect(false)}
-          style={{
-            backgroundColor: token.colorPrimaryHover,
-            color: token.colorTextLightSolid,
-            padding: token.paddingLG,
-            borderRadius: token.borderRadiusLG,
-            fontWeight: 600,
-            fontSize: token.fontSizeLG,
-            textAlign: "center",
-            cursor: "pointer",
-            transition: "transform 0.15s ease, box-shadow 0.15s ease",
-            boxShadow: token.boxShadow,
-            userSelect: "none",
-          }}
-        >
-          Falso
-        </div>
+        {options.map((label, index) => (
+          <div
+            key={index}
+            onClick={() => handleSelect(index)}
+            style={optionStyle}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.02)";
+              e.currentTarget.style.boxShadow = token.boxShadowSecondary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.boxShadow = token.boxShadow;
+            }}
+          >
+            {label}
+          </div>
+        ))}
       </div>
     </div>
   );

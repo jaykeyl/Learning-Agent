@@ -8,6 +8,7 @@ import useClasses from "../../hooks/useClasses";
 import type { Clase, CreateClassDTO } from "../../interfaces/claseInterface";
 import { useUserStore } from "../../store/userStore";
 import dayjs from "dayjs";
+import GlobalScrollbar from '../../components/GlobalScrollbar';
 import AccessDenied from "../../components/shared/AccessDenied";
 import CustomCard from "../../components/shared/CustomCard";
 import useCourses from "../../hooks/useCourses";
@@ -83,7 +84,7 @@ export function CoursePeriodsPage() {
   };
 
   const goToPeriod = (periodId: string) => {
-    navigate(`/courses/${courseId}/periods/${periodId}`);
+    navigate(`${periodId}`);
   };
 
   const handleModalCancel = () => {
@@ -97,10 +98,11 @@ export function CoursePeriodsPage() {
         subtitle="Cargando información..."
         breadcrumbs={[
           { label: "Home", href: "/" },
-          { label: "Materias", href: "/courses" },
+          { label: "Materias", href: "/professor/courses" },
           { label: "Cargando..." }
         ]}
       >
+        <GlobalScrollbar />        
         <div style={{ textAlign: "center", padding: "50px" }}>
           <div>Cargando curso y períodos...</div>
         </div>
@@ -115,13 +117,14 @@ export function CoursePeriodsPage() {
         subtitle="No se pudo cargar la información del curso"
         breadcrumbs={[
           { label: "Home", href: "/" },
-          { label: "Materias", href: "/courses" },
+          { label: "Materias", href: "/professor/courses" },
           { label: "Error" }
         ]}
       >
+        <GlobalScrollbar />                
         <div style={{ textAlign: "center", padding: "50px" }}>
           <Empty description="Curso no encontrado" />
-          <Button type="primary" onClick={() => navigate("/courses")}>
+          <Button type="primary" onClick={() => navigate(-1)}>
             Volver a Materias
           </Button>
         </div>
@@ -137,10 +140,11 @@ export function CoursePeriodsPage() {
           subtitle="Períodos en los que se dictó esta materia"
           breadcrumbs={[
             { label: "Home", href: "/" },
-            { label: "Materias", href: "/courses" },
+            { label: "Materias", href: "/professor/courses" },
             { label: actualCourse.name }
           ]}
         >
+        <GlobalScrollbar />        
           <div
             style={{
               maxWidth: '100%',

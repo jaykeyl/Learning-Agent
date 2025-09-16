@@ -52,7 +52,7 @@ export function ClassMenu() {
   }, [searchTerm, classes]);
 
   const goToReinforcement = (id: string) => {
-    navigate(`/reinforcement/${id}`)
+    navigate(`/student/classes/${id}/reinforcement`)
   }
 
   return (
@@ -60,7 +60,7 @@ export function ClassMenu() {
       {user?.roles.includes("estudiante") ? (
         <PageTemplate
           title="Clases"
-          subtitle="Consulta a detalle información acerca de las clases en las que te encuentras inscrito"
+          subtitle="Consulta a detalle información acerca de las clases en las que te inscribiste"
           breadcrumbs={[{ label: "Home", href: "/" }, { label: "Clases" }]}
         >
           <div
@@ -80,7 +80,7 @@ export function ClassMenu() {
             >
               <Space>
                 <Input
-                  placeholder="Buscar curso"
+                  placeholder="Search course"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   allowClear

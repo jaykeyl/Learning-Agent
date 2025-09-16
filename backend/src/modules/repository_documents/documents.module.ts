@@ -70,7 +70,7 @@ import { ContextualLoggerService } from './infrastructure/services/contextual-lo
     // servicios de configuración
     AiConfigService,
 
-    // servicios de logging
+    // Servicios de logging
     ContextualLoggerService,
 
     // adaptadores de infraestructura
@@ -347,6 +347,8 @@ import { ContextualLoggerService } from './infrastructure/services/contextual-lo
 })
 export class DocumentsModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
+    consumer
+
     consumer
       .apply(LoggingMiddleware)
       .forRoutes(

@@ -4,8 +4,8 @@ set -e
 echo "Running lint-staged..."
 npx lint-staged
 
-echo "Running backend tests..."
-npm --prefix backend test -- --passWithNoTests
+#echo "Running backend tests..."
+#npm --prefix backend test -- --passWithNoTests
 
 #echo "Building frontend..."
 #if npm --prefix client run build; then

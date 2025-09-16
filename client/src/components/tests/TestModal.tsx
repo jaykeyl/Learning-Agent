@@ -1,7 +1,6 @@
-import { Modal, Button, Typography, Space, Divider, theme } from "antd";
+import { Alert, Button, Space, theme } from "antd";
 import { BookOutlined } from "@ant-design/icons";
-
-const { Text, Title } = Typography;
+import CustomModal from "../reinforcement/CustomModal";
 
 interface TestModalProps {
   open: boolean;
@@ -13,93 +12,73 @@ export default function TestModal({ open, onClose, onSelectDifficulty }: TestMod
   const { token } = theme.useToken();
 
   return (
-    <Modal
-      open={open}
-      onCancel={onClose}
-      footer={null}
-      centered
-      width={500}
-      bodyStyle={{
-        padding: 28,
-        background: token.colorBgElevated,
-        borderRadius: token.borderRadiusLG,
-      }}
-    >
-      <Space direction="vertical" size="large" style={{ width: "100%" }}>
-        <div style={{ textAlign: "center" }}>
-          <Title
-            level={4}
-            style={{
-              marginBottom: 4,
-              color: token.colorTextHeading,
-              fontWeight: 600,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-            }}
-          >
-            <BookOutlined style={{ color: token.colorPrimary }} />
-            Creación de examen
-          </Title>
-          <Text style={{ fontSize: 15, color: token.colorTextSecondary }}>
-            Selecciona la dificultad para comenzar tu prueba
-          </Text>
-        </div>
-
-        <Divider style={{ margin: "12px 0", borderColor: token.colorBorder }} />
-
+    <CustomModal visible={open} onClose={onClose} status="default" width={500} padding={24}>
+      <CustomModal.Header icon={<BookOutlined />} title="Creación de examen" />
+      <CustomModal.Description>
+        Selecciona la dificultad para comenzar tu prueba
+      </CustomModal.Description>
+      <CustomModal.Body>
+        <Alert
+          message="Se asignará un tiempo de 30 segundos por pregunta"
+          type="warning"
+          showIcon
+          style={{
+            marginBottom: token.marginLG,
+            borderRadius: token.borderRadiusLG,
+          }}
+        />
         <Space
           direction="horizontal"
           size="middle"
           style={{ width: "100%", justifyContent: "center" }}
         >
           <Button
-            size="middle"
+            size="large"
+            icon={<BookOutlined />}
             style={{
               background: token.colorPrimary,
               color: token.colorTextLightSolid,
               border: "none",
               borderRadius: token.borderRadius,
               fontWeight: 500,
+              minWidth: 140,
             }}
-            icon={<BookOutlined />}
             onClick={() => onSelectDifficulty(5)}
           >
             Fácil — 5
           </Button>
-
           <Button
-            size="middle"
+            size="large"
+            icon={<BookOutlined />}
             style={{
               background: token.colorPrimary,
               color: token.colorTextLightSolid,
               border: "none",
               borderRadius: token.borderRadius,
               fontWeight: 500,
+              minWidth: 140,
             }}
-            icon={<BookOutlined />}
             onClick={() => onSelectDifficulty(7)}
           >
             Medio — 7
           </Button>
-
           <Button
-            size="middle"
+            size="large"
+            icon={<BookOutlined />}
             style={{
               background: token.colorPrimary,
               color: token.colorTextLightSolid,
               border: "none",
               borderRadius: token.borderRadius,
               fontWeight: 500,
+              minWidth: 140,
             }}
-            icon={<BookOutlined />}
             onClick={() => onSelectDifficulty(10)}
           >
             Difícil — 10
           </Button>
         </Space>
-      </Space>
-    </Modal>
+      </CustomModal.Body>
+    </CustomModal>
   );
 }

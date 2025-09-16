@@ -118,6 +118,7 @@ export default function StudentPreviewModal({
           dataSource={data}
           pagination={{ pageSize: 8 }}
           bordered
+          scroll={{ x: 'max-content' }}
         />
       </div>
     </Modal>

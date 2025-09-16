@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import '../../components/exams/ExamForm.css';
 import '../../components/shared/Toast.css';
@@ -14,6 +14,7 @@ import AiResults from './AiResults';
 import { normalizeToQuestions, cloneQuestion, replaceQuestion, reorderQuestions } from './ai-utils';
 import { isValidGeneratedQuestion } from '../../utils/aiValidation';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import useCourses from '../../hooks/useCourses';
 
 
 const layoutStyle: CSSProperties = {
@@ -62,6 +63,31 @@ export default function ExamsCreatePage() {
   const [params] = useSearchParams();
   const courseId = params.get('courseId') || '';
   const navigate = useNavigate();
+  
+  // Hook para obtener información del curso
+  const { actualCourse, getCourseByID } = useCourses();
+
+  // Obtener información del curso si tenemos courseId
+  useEffect(() => {
+    if (courseId && !actualCourse) {
+      getCourseByID(courseId);
+    }
+  }, [courseId, actualCourse, getCourseByID]);
+
+  // Breadcrumbs dinámicos basados en si viene de un curso específico
+  const breadcrumbs = courseId 
+    ? [
+        { label: 'Home', href: '/' },
+        { label: 'Materias', href: '/professor/courses' },
+        { label: actualCourse?.name || 'Curso', href: `/professor/courses/${courseId}/periods` },
+        { label: 'Exámenes', href: `/professor/courses/${courseId}/exams` },
+        { label: 'Crear examen' },
+      ]
+    : [
+        { label: 'Home', href: '/' },
+        { label: 'Materias', href: '/professor/courses' },
+        { label: 'Crear examen' },
+      ];
 
   const [aiOpen, setAiOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -243,11 +269,7 @@ export default function ExamsCreatePage() {
     <PageTemplate
       title="Exámenes"
       subtitle="Creación de exámenes"
-      breadcrumbs={[
-        { label: 'Home', href: '/' },
-        { label: 'Gestión de Exámenes', href: '/exams' },
-        { label: 'Crear examen' },
-      ]}
+      breadcrumbs={breadcrumbs}
     >
       <GlobalScrollbar />
       <div>

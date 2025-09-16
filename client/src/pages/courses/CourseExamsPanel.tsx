@@ -81,7 +81,7 @@ export default function CourseExamsPanel({ courseId }: Props) {
   const Header = (
     <div className="flex items-center justify-between mb-2">
       <Title level={4} style={{ margin: 0 }}>Exámenes de esta materia</Title>
-      <Button type="primary" onClick={() => navigate(`/exams/create?courseId=${courseId}`)}>
+      <Button type="primary" onClick={() => navigate(`/professor/exams/create?courseId=${courseId}`)}>
         Crear examen
       </Button>
     </div>
@@ -97,7 +97,7 @@ export default function CourseExamsPanel({ courseId }: Props) {
           <div id="tabla-examenes-curso">
             <ExamTable
               data={tableData}
-              onEdit={() => navigate(`/exams/create?courseId=${courseId}`)}
+              onEdit={() => navigate(`/professor/exams/create?courseId=${courseId}`)}
             />
           </div>
         </>
@@ -106,7 +106,7 @@ export default function CourseExamsPanel({ courseId }: Props) {
           <Empty description="Aún no hay exámenes para este curso">
             <Text style={{ fontSize: 14 }}>Los exámenes creados aparecerán aquí para su gestión.</Text>
           </Empty>
-          <Button type="primary" style={{ marginTop: 16 }} onClick={() => navigate(`/exams/create?courseId=${courseId}`)}>
+          <Button type="primary" style={{ marginTop: 16 }} onClick={() => navigate(`/professor/exams/create?courseId=${courseId}`)}>
             Crear examen
           </Button>
         </div>

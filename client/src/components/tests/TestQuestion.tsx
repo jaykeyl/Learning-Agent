@@ -1,112 +1,79 @@
-
-import React from "react";
-
-import { Card, Typography, theme, Alert, Button } from "antd";
+import { Card, Typography, theme } from "antd";
 
 const { Title } = Typography;
 
+
 interface TestQuestionProps {
+  questionData: {
+    question: string;
+    options: string[];
+    correctIndex: number;
+  };
   onNext: (isCorrect: boolean) => void;
-  question?: string;
-  options?: string[];
 }
 
-export default function TestQuestion({ onNext, question = "", options }: TestQuestionProps) {
+export default function TestQuestion({ questionData, onNext }: TestQuestionProps) {
   const { token } = theme.useToken();
+  const { question, options = [], correctIndex } = questionData;
 
-
-  const safeOptions = Array.isArray(options) ? options : [];
-
-  const handleSelect = (_value: string) => {
-    if (onNext) {
-      onNext();
-    } else {
-      window.location.reload();
-    }
-
+  const handleSelect = (index: number) => {
+    const isCorrect = index === correctIndex;
+    setTimeout(() => onNext(isCorrect), parseInt(token.motionDurationMid) || 300);
   };
 
-  if (safeOptions.length === 0) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: token.marginLG,
-          padding: token.paddingLG,
-          backgroundColor: token.colorBgLayout,
-          minHeight: "100%",
-        }}
-      >
-        <Card
-          style={{
-            width: "100%",
-            maxWidth: 800,
-            textAlign: "center",
-            borderRadius: token.borderRadiusLG,
-            backgroundColor: token.colorBgContainer,
-            boxShadow: token.boxShadow,
-          }}
-        >
-          <Title level={3} style={{ margin: 0, color: token.colorTextHeading }}>
-            {question || "Pregunta no disponible"}
-          </Title>
-        </Card>
+  const containerStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: token.marginLG,
+    padding: token.paddingXL,
+    backgroundColor: token.colorBgLayout,
+    minHeight: "100%",
+  };
 
-        <Alert
-          message="No hay opciones disponibles"
-          description={
-            <div>
+  const questionCardStyle: React.CSSProperties = {
+    borderRadius: token.borderRadiusLG,
+    backgroundColor: token.colorBgContainer,
+    borderLeft: `${token.lineWidth * 4}px solid ${token.colorPrimary}`,
+    padding: token.paddingLG,
+    textAlign: "center",
+    maxWidth: token.screenLG,
+    width: "100%",
+    minHeight: 120,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
 
-
-              Esta vista espera recibir <code>options</code> desde el backend. Usa{" "}
-              <strong>TestRunner</strong> para obtener preguntas generadas.
-
-
-            </div>
-          }
-          type="info"
-          showIcon
-        />
-
-        <div style={{ marginTop: 8 }}>
-          <Button onClick={() => onNext(false)}>Intentar cargar / recargar</Button>
-        </div>
-      </div>
-    );
-  }
-
-  const optionColors = [
-    token.colorPrimary,
-    token.colorPrimaryHover,
-    token.colorInfo,
-    token.colorInfoHover,
-  ];
+  const optionStyle: React.CSSProperties = {
+    borderRadius: token.borderRadiusLG,
+    backgroundColor: token.colorPrimary,
+    color: token.colorTextLightSolid,
+    fontWeight: token.fontWeightStrong,
+    fontSize: token.fontSizeLG,
+    textAlign: "center",
+    cursor: "pointer",
+    transition: `transform ${token.motionDurationMid} ${token.motionEaseOut}, box-shadow ${token.motionDurationMid} ${token.motionEaseOut}`,
+    boxShadow: token.boxShadow,
+    userSelect: "none",
+    padding: token.paddingMD,
+    minHeight: 72,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: token.marginLG,
-        padding: token.paddingLG,
-        backgroundColor: token.colorBgLayout,
-        minHeight: "100%",
-      }}
-    >
-      <Card
-        style={{
-          width: "100%",
-          maxWidth: 800,
-          textAlign: "center",
-          borderRadius: token.borderRadiusLG,
-          backgroundColor: token.colorBgContainer,
-          boxShadow: token.boxShadow,
-        }}
-      >
-        <Title level={3} style={{ margin: 0, color: token.colorTextHeading }}>
+    <div style={containerStyle}>
+      <Card style={questionCardStyle}>
+        <Title
+          level={4}
+          style={{
+            margin: 0,
+            color: token.colorPrimary,
+            fontWeight: token.fontWeightStrong,
+          }}
+        >
           {question}
         </Title>
       </Card>
@@ -115,29 +82,25 @@ export default function TestQuestion({ onNext, question = "", options }: TestQue
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          gap: token.marginLG,
+          gap: token.marginMD,
           width: "100%",
-          maxWidth: 800,
+          maxWidth: token.screenLG,
         }}
       >
-        {safeOptions.map((label, index) => (
+        {options.map((label, index) => (
           <div
             key={index}
 
-            onClick={() => handleSelect(String(index))}
 
-            style={{
-              backgroundColor: optionColors[index % optionColors.length],
-              color: token.colorTextLightSolid,
-              padding: token.paddingLG,
-              borderRadius: token.borderRadiusLG,
-              fontWeight: 600,
-              fontSize: token.fontSizeLG,
-              textAlign: "center",
-              cursor: "pointer",
-              transition: "transform 0.15s ease, box-shadow 0.15s ease",
-              boxShadow: token.boxShadow,
-              userSelect: "none",
+            onClick={() => handleSelect(index)}
+            style={optionStyle}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.02)";
+              e.currentTarget.style.boxShadow = token.boxShadowSecondary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.boxShadow = token.boxShadow;
             }}
 
           >

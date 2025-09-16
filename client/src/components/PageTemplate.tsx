@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import { Avatar, Breadcrumb, Typography } from "antd";
 import { SunOutlined, MoonOutlined } from "@ant-design/icons";
+import { Link } from "react-router-dom";
 import { useThemeStore } from "../store/themeStore";
 
 const { Title, Text } = Typography;
@@ -41,7 +42,7 @@ export default function PageTemplate({
                 className="mb-1"
                 items={breadcrumbs.map((b) => ({
                   title: b.href ? (
-                    <a href={b.href as string}>{b.label}</a>
+                    <Link to={b.href as string}>{b.label}</Link>
                   ) : (
                     b.label
                   ),
