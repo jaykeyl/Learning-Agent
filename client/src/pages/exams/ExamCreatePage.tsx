@@ -1,20 +1,26 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import '../../components/exams/ExamForm.css';
 import '../../components/shared/Toast.css';
 import { ExamForm } from '../../components/exams/ExamForm';
 import type { ExamFormHandle } from '../../components/exams/ExamForm';
 import { Toast, useToast } from '../../components/shared/Toast';
-import { readJSON } from '../../services/storage/localStorage';
+import { readJSON, saveJSON } from '../../services/storage/localStorage';
 import PageTemplate from '../../components/PageTemplate';
 import GlobalScrollbar from '../../components/GlobalScrollbar';
 import './ExamCreatePage.css';
-import { generateQuestions, createExamApproved, type GeneratedQuestion } from '../../services/exams.service';
+import { generateQuestions, createExamApproved, updateExamApprovedFull,type GeneratedQuestion } from '../../services/exams.service';
 import AiResults from './AiResults';
 import { normalizeToQuestions, cloneQuestion, replaceQuestion, reorderQuestions } from './ai-utils';
 import { isValidGeneratedQuestion } from '../../utils/aiValidation';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useExamsStore } from '../../store/examsStore';
+import type { ExamSummary } from '../../store/examsStore';
+import { Alert, Badge, Space, Typography, theme } from 'antd';
+import { classService } from '../../services/classes.service';
+import { courseService } from '../../services/course.service';
 
+const { Text } = Typography;
 
 const layoutStyle: CSSProperties = {
   display: 'flex',
@@ -60,18 +66,62 @@ export default function ExamsCreatePage() {
   const { toasts, pushToast, removeToast } = useToast();
   const formRef = useRef<ExamFormHandle>(null!);
   const [params] = useSearchParams();
+  const classId = params.get('classId') || '';
   const courseId = params.get('courseId') || '';
   const navigate = useNavigate();
+  
+  const location = useLocation();
+  const editData = location.state?.examData;
+  
+  const updateExam = useExamsStore(state => state.updateExam);
+  const addFromQuestions = useExamsStore(state => state.addFromQuestions);
 
-  const [aiOpen, setAiOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(!!editData);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [aiQuestions, setAiQuestions] = useState<GeneratedQuestion[]>([]);
+  const [aiQuestions, setAiQuestions] = useState<GeneratedQuestion[]>(
+    (editData?.questions || []).map((q: GeneratedQuestion) => ({...q, include: true}))
+  );
   const [aiMeta, setAiMeta] = useState<{ subject: string; difficulty: string; reference?: string }>({
-    subject: 'Tema general',
-    difficulty: 'medio',
-    reference: '',
+    subject: editData?.subject || 'Tema general',
+    difficulty: editData?.difficulty || 'medio',
+    reference: editData?.reference || ''
   });
+
+  const { token } = theme.useToken();
+  const [contextLoading, setContextLoading] = useState(false);
+  const [contextError, setContextError] = useState<string | null>(null);
+  const [contextNames, setContextNames] = useState<{ courseName?: string; className?: string }>({});
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!classId && !courseId) {
+        setContextNames({});
+        return;
+      }
+      setContextLoading(true);
+      setContextError(null);
+      try {
+        const [classResp, courseResp] = await Promise.all([
+          classId ? classService.getClassById(classId) : Promise.resolve(null),
+          courseId ? courseService.getCourseById(courseId) : Promise.resolve(null),
+        ]);
+        if (!mounted) return;
+        setContextNames({
+          courseName: courseResp?.data?.name || undefined,
+          className: classResp?.data?.name || undefined,
+        });
+      } catch {
+        if (!mounted) return;
+        setContextError('No se pudo cargar el contexto del curso/período.');
+      } finally {
+        if (mounted) setContextLoading(false);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [classId, courseId]);
 
   const buildAiInputFromForm = (raw: Record<string, any>) => {
     const difficultyMap: Record<string, 'fácil' | 'medio' | 'difícil'> = {
@@ -203,7 +253,7 @@ export default function ExamsCreatePage() {
   };
 
   const onSave = async () => {
-    if (!courseId) {
+    if (!classId) {
       pushToast('Abre el creador desde la materia (Crear examen) para asociarlo.', 'error');
       return;
     }
@@ -216,7 +266,7 @@ export default function ExamsCreatePage() {
 
     const ts = Date.now();
     const used = new Set<string>();
-    const questions = selected.map((q, i) => {
+    const questions: GeneratedQuestion[] = selected.map((q, i) => {
       const baseId = q.id || `q_${ts}_${q.type}_${i}`;
       let id = baseId;
       while (used.has(id)) id = `${id}_${Math.random().toString(36).slice(2,6)}`;
@@ -226,18 +276,126 @@ export default function ExamsCreatePage() {
         type: q.type,
         text: (q as any).text,
         options: (q as any).options ?? undefined,
-      };
+        include: true
+      } as GeneratedQuestion;
     });
 
-    await createExamApproved({
-      courseId,
+    const data = {
       title: aiMeta.subject || 'Examen',
+      className: classId,
       questions,
-    });
+      publish: false,
+      id: editData?.id 
+    };
 
-    pushToast('Examen guardado en la base de datos.', 'success');
-    navigate(`/courses/${courseId}`);
+    let summary: ExamSummary | undefined;
+    const saveLocally = () => {
+      if (!summary) return;
+      const examKey = `exam:content:${summary.id}`;
+      saveJSON(examKey, {
+        examId: summary.id,
+        title: summary.title,
+        subject: data.title || summary.className || '—',
+        teacher: '—',
+        createdAt: summary.createdAt,
+        questions: questions.map((q, i) => ({
+          ...q,
+          n: i + 1,
+          source: q.id.startsWith('manual_') ? 'manual' : 'ai',
+          include: true
+        }))
+      });
+      const examIndex = readJSON<string[]>('exam:content:index') || [];
+      if (!examIndex.includes(examKey)) {
+        examIndex.push(examKey);
+        saveJSON('exam:content:index', examIndex);
+      }
+    };
+
+    const trySave = async () => {
+      try {
+        if (editData?.id) {
+          localStorage.removeItem(`exam:content:${editData.id}`);
+          const examIndex = readJSON<string[]>('exam:content:index') || [];
+          const newIndex = examIndex.filter(id => !id.includes(editData.id));
+          saveJSON('exam:content:index', newIndex);
+          await updateExamApprovedFull({
+            examId: editData.id,
+            title: aiMeta.subject || 'Examen',
+            questions, 
+          });
+          summary = updateExam(editData.id, { ...data, id: editData.id });
+        } else {
+          await createExamApproved({
+            classId,
+            title: data.title,
+            questions,
+          });
+          summary = addFromQuestions(data);
+        }
+        saveLocally();
+        pushToast('Examen guardado exitosamente.', 'success');
+        navigate(courseId ? `/courses/${courseId}/periods/${classId}` : `/courses/${classId}`);
+      } catch (error) {
+        console.error('Error al guardar:', error);
+        saveLocally();
+        if (typeof pushToast === 'function' && pushToast.length > 0) {
+          pushToast('Error al guardar el examen', 'error');
+        }
+      }
+    };
+    await trySave();
   };
+
+  const contextOk = Boolean(classId);
+  const banner = (
+    <div
+      className="mb-4 p-3 rounded-md"
+      style={{
+        background: token.colorFillQuaternary,
+        border: `1px dashed ${token.colorBorderSecondary}`,
+      }}
+    >
+      <Space wrap>
+        <Badge status={contextOk ? 'processing' : 'warning'} />
+        <Text strong>Contexto actual</Text>
+        <Text type="secondary">·</Text>
+        <Text>
+          Curso:{' '}
+          <b>{
+            contextLoading && (courseId || classId) ? 'Cargando…'
+            : (contextNames.courseName || (courseId ? '—' : '—'))
+          }</b>
+        </Text>
+        <Text type="secondary">·</Text>
+        <Text>
+          Período:{' '}
+          <b>{
+            contextLoading && (courseId || classId) ? 'Cargando…'
+            : (contextNames.className || (classId ? '—' : '—'))
+          }</b>
+        </Text>
+      </Space>
+      {!contextOk && (
+        <Alert
+          className="mt-3"
+          type="warning"
+          showIcon
+          message="Esta página necesita un curso."
+          description="Vuelve a Gestión de exámenes desde el menú. El guardado permanecerá deshabilitado para evitar crear exámenes sin curso."
+        />
+      )}
+      {contextError && contextOk && (
+        <Alert
+          className="mt-3"
+          type="info"
+          showIcon
+          message="No se pudo cargar el nombre del curso/período"
+          description="Se seguirá usando el contexto por IDs, puedes continuar."
+        />
+      )}
+    </div>
+  );
 
   return (
     <PageTemplate
@@ -251,6 +409,8 @@ export default function ExamsCreatePage() {
     >
       <GlobalScrollbar />
       <div>
+        {banner}
+
         <section
           className="card subtle readable-card"
           style={{ display: aiOpen ? 'none' : 'block' }}
@@ -260,6 +420,7 @@ export default function ExamsCreatePage() {
               ref={formRef}
               onToast={pushToast}
               onGenerateAI={handleAIPropose}
+              initialData={editData}
             />
           </div>
         </section>
@@ -302,6 +463,8 @@ export default function ExamsCreatePage() {
               }}
               onSave={onSave}
               onReorder={onReorderQuestion}
+              canSave={Boolean(classId)}
+              saveDisabledReason="Esta página necesita un curso. Vuelve a Gestión de exámenes desde el menú."
             />
           </section>
         )}
