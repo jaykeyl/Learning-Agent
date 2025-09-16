@@ -2,9 +2,10 @@ import { Button, Table, Tag, Tooltip, Typography, theme, Modal, DatePicker, Radi
 import { EyeOutlined, EyeInvisibleOutlined, EditOutlined, UploadOutlined, FilePdfOutlined, DeleteOutlined, DownOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { Dayjs } from 'dayjs';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useExamsStore, type ExamSummary, type ExamsState } from '../../store/examsStore';
 import { readJSON } from '../../services/storage/localStorage';
+import { updateExamStatus, deleteExamAny } from '../../services/exams.service';
 import { useNavigate } from 'react-router-dom';
 
 const { Text } = Typography;
@@ -13,7 +14,6 @@ type Props = {
   data: ExamSummary[];
   onEdit?: (exam?: ExamSummary) => void;
   onDelete?: (id: string) => Promise<void> | void;
-  disableStatusControls?: boolean;
 };
 
 function fmt(dateIso?: string) {
@@ -109,9 +109,7 @@ function renderQuestion(q: PrintableQuestion, withAnswers: boolean): string {
 
   if (q.type === 'multiple_choice' && Array.isArray(q.options) && q.options.length) {
     html += `<ol class="q-options">`;
-    q.options.forEach((opt) => {
-      html += `<li>${escapeHtml(opt)}</li>`;
-    });
+    q.options.forEach((opt) => { html += `<li>${escapeHtml(opt)}</li>`; });
     html += `</ol>`;
   }
 
@@ -201,7 +199,7 @@ function openPrint(html: string) {
 
 function loadPrintableExam(exam: ExamSummary): PrintableExam | null {
   let stored = readJSON<PrintableExam>(`exam:content:${exam.id}`);
-  
+
   if (!stored) {
     const index = readJSON<string[]>('exam:content:index') || [];
     const examId = index.find(id => id.includes(exam.id));
@@ -211,7 +209,6 @@ function loadPrintableExam(exam: ExamSummary): PrintableExam | null {
   }
 
   if (!stored || !Array.isArray(stored.questions) || stored.questions.length === 0) {
-    console.log('No se encontró el examen:', exam.id);
     return null;
   }
 
@@ -234,15 +231,18 @@ function handleDownloadPdf(exam: ExamSummary, mode: PrintMode) {
   const html = buildPlantillaHtml(printable, mode);
   openPrint(html);
 }
+
 /* =========================== FIN helpers =========================== */
 
-export default function ExamTable({ data, onEdit, onDelete, disableStatusControls = true }: Props) {
-  const toggleVisibility = useExamsStore((s: ExamsState) => s.toggleVisibility);
+export default function ExamTable({ data, onEdit, onDelete }: Props) {
   const setVisibility = useExamsStore((s: ExamsState) => s.setVisibility);
-  const setStatus = useExamsStore((s: ExamsState) => s.setStatus);
-  const removeExam = useExamsStore((s: ExamsState) => s.removeExam);
-  const { token } = theme.useToken();
-  const navigate = useNavigate();
+  const setStatus     = useExamsStore((s: ExamsState) => s.setStatus);
+  const removeExam    = useExamsStore((s: ExamsState) => s.removeExam);
+  const { token }     = theme.useToken();
+  const navigate      = useNavigate();
+
+  const [rows, setRows] = useState<ExamSummary[]>(data);
+  useEffect(() => { setRows(data); }, [data]);
 
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishMode, setPublishMode] = useState<'now' | 'schedule' | 'draft'>('now');
@@ -259,23 +259,72 @@ export default function ExamTable({ data, onEdit, onDelete, disableStatusControl
   const handleConfirmPublish = () => {
     if (!target) return;
     if (publishMode === 'now') {
-      setStatus(target.id, 'published', new Date().toISOString());
+      const ts = new Date().toISOString();
+      setStatus(target.id, 'published', ts);
       setVisibility(target.id, 'visible');
+      setRows(prev => prev.map(r => r.id === target.id ? { ...r, status: 'published', visibility: 'visible', publishedAt: ts } : r));
       message.success('Examen publicado');
     } else if (publishMode === 'schedule') {
       if (!scheduleAt) {
         message.warning('Selecciona una fecha y hora');
         return;
       }
-      setStatus(target.id, 'scheduled', scheduleAt.toDate().toISOString());
+      const when = scheduleAt.toDate().toISOString();
+      setStatus(target.id, 'scheduled', when);
       setVisibility(target.id, 'visible');
+      setRows(prev => prev.map(r => r.id === target.id ? { ...r, status: 'scheduled', visibility: 'visible', publishedAt: when } : r));
       message.success('Examen programado');
     } else {
       setStatus(target.id, 'draft', undefined);
+      setRows(prev => prev.map(r => r.id === target.id ? { ...r, status: 'draft' } : r));
       message.success('Examen guardado como borrador');
     }
     setPublishOpen(false);
     setTarget(null);
+  };
+
+  const handleToggleVisibility = async (record: ExamSummary) => {
+    const to: ExamSummary['visibility'] = record.visibility === 'visible' ? 'hidden' : 'visible';
+    const nextStatus: ExamSummary['status'] =
+      to === 'visible' ? (record.status === 'scheduled' ? 'scheduled' : 'published') : 'draft';
+    const publishedAt = to === 'visible' ? new Date().toISOString() : undefined;
+
+    setRows(prev => prev.map(r => r.id === record.id ? { ...r, visibility: to, status: nextStatus, publishedAt } : r));
+    setVisibility(record.id, to);
+    setStatus(record.id, nextStatus, publishedAt);
+
+    try {
+      await updateExamStatus(record.id, to);
+      message.success(to === 'visible' ? 'Examen hecho público' : 'Examen marcado como privado');
+    } catch {
+      message.warning('No se pudo actualizar en el servidor. Se mantuvo el cambio local.');
+    }
+  };
+
+  const handleDelete = async (record: ExamSummary) => {
+    Modal.confirm({
+      title: 'Eliminar examen',
+      content: `¿Seguro que deseas eliminar "${record.title || 'este examen'}"? Esta acción no se puede deshacer.`,
+      okText: 'Eliminar',
+      okButtonProps: { danger: true },
+      cancelText: 'Cancelar',
+      onOk: async () => {
+        let serverOk = false;
+        try {
+          await deleteExamAny(record.id); 
+          serverOk = true;
+        } catch {
+          serverOk = false;
+        }
+
+        removeExam(record.id); 
+        setRows(prev => prev.filter(r => r.id !== record.id));
+        if (onDelete) { try { await onDelete(record.id); } catch {} }
+
+        if (serverOk) message.success('Examen eliminado');
+        else message.warning('No se pudo eliminar en el servidor. Se eliminó localmente en esta sesión.');
+      },
+    });
   };
 
   const columns: ColumnsType<ExamSummary> = [
@@ -289,7 +338,7 @@ export default function ExamTable({ data, onEdit, onDelete, disableStatusControl
             {title}
           </Text>
           <div style={{ textAlign: 'center' }} className="text-[12px] text-[var(--app-color-text-tertiary)]">
-            {record.totalQuestions} preguntas • Creado: {fmt(record.createdAt)}
+            {(record.totalQuestions ?? 0)} preguntas • Creado: {fmt(record.createdAt)}
           </div>
         </div>
       ),
@@ -320,66 +369,28 @@ export default function ExamTable({ data, onEdit, onDelete, disableStatusControl
         return (
           <Space size={6} wrap={false} style={{ whiteSpace: 'nowrap' }}>
             <Tooltip title="Editar">
-              <Button 
-                type="text" 
-                style={{ paddingInline: 6 }} 
-                icon={<EditOutlined style={{ fontSize: 18 }} />} 
+              <Button
+                type="text"
+                style={{ paddingInline: 6 }}
+                icon={<EditOutlined style={{ fontSize: 18 }} />}
                 onClick={() => {
-                  const examContent = loadPrintableExam(record);
-                  if (!examContent) {
-                    message.error('No se encontró el contenido del examen. Vuelve a guardarlo desde la pantalla de resultados.');
-                    return;
-                  }
-
-                  console.log('Examen encontrado:', examContent);
-
-                  const mcCount = examContent.questions.filter(q => q.type === 'multiple_choice').length;
-                  const tfCount = examContent.questions.filter(q => q.type === 'true_false').length;
-                  const anCount = examContent.questions.filter(q => q.type === 'open_analysis').length;
-                  const oeCount = examContent.questions.filter(q => q.type === 'open_exercise').length;
-
-                  const formData = {
-                    id: record.id,
-                    title: record.title,
-                    subject: examContent.subject,
-                    difficulty: 'medio',
-                    timeMinutes: 45,
-                    attempts: '1',
-                    multipleChoice: String(mcCount),
-                    trueFalse: String(tfCount),
-                    analysis: String(anCount),
-                    openEnded: String(oeCount),
-                    questions: examContent.questions.map(q => ({
-                      id: q.id,
-                      type: q.type,
-                      text: q.text,
-                      options: q.options || [],
-                      correctOptionIndex: q.correctOptionIndex,
-                      correctBoolean: q.correctBoolean,
-                      expectedAnswer: q.expectedAnswer,
-                      answer: q.answer
-                    }))
-                  };
-
-                  navigate('/exams/create', { 
-                    state: { 
-                      editMode: true,
-                      examData: formData
-                    } 
-                  });
-                }} 
-                aria-label="Editar" 
+                  if (onEdit) return onEdit(record);
+                  navigate('/exams/create', { state: { editMode: true, examData: record } });
+                }}
+                aria-label="Editar"
               />
             </Tooltip>
+
             <Tooltip title="Publicar / Programar / Borrador">
               <Button type="text" style={{ paddingInline: 6 }} icon={<UploadOutlined style={{ fontSize: 18 }} />} onClick={() => openPublishModal(record)} aria-label="Estado" />
             </Tooltip>
+
             <Tooltip title={record.visibility === 'visible' ? 'Hacer privado' : 'Hacer público'}>
               <Button
                 type="text"
                 style={{ paddingInline: 6 }}
                 icon={record.visibility === 'visible' ? <EyeInvisibleOutlined style={{ fontSize: 18 }} /> : <EyeOutlined style={{ fontSize: 18 }} />}
-                onClick={() => toggleVisibility(record.id)}
+                onClick={() => handleToggleVisibility(record)}
                 aria-label="Visibilidad"
               />
             </Tooltip>
@@ -394,7 +405,7 @@ export default function ExamTable({ data, onEdit, onDelete, disableStatusControl
                   <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
                 </Button>
               </Tooltip>
-            </Dropdown>            
+            </Dropdown>
 
             <Popconfirm
               title="Eliminar examen"
@@ -402,7 +413,7 @@ export default function ExamTable({ data, onEdit, onDelete, disableStatusControl
               okText="Eliminar"
               cancelText="Cancelar"
               okButtonProps={{ danger: true }}
-              onConfirm={async () => { if (onDelete) { await onDelete(record.id); } else { removeExam(record.id); } message.success('Examen eliminado'); }}
+              onConfirm={() => handleDelete(record)}
             >
               <Tooltip title="Eliminar">
                 <Button type="text" danger style={{ paddingInline: 6 }} icon={<DeleteOutlined style={{ fontSize: 18 }} />} aria-label="Eliminar" />
@@ -419,9 +430,9 @@ export default function ExamTable({ data, onEdit, onDelete, disableStatusControl
       <Table
         rowKey="id"
         className="shadow-sm rounded-lg"
-        style={{ background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}` ,padding:10 }}
+        style={{ background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}`, padding: 10 }}
         columns={columns}
-        dataSource={data}
+        dataSource={rows}
         pagination={{ pageSize: 8, showSizeChanger: false }}
         locale={{
           emptyText: 'Sin datos',

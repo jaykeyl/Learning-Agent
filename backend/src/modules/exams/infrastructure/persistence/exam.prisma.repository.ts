@@ -36,6 +36,39 @@ export class PrismaExamRepository implements ExamRepositoryPort {
     });
   }
 
+  async deleteOwned(id: string, teacherId: string): Promise<void> {
+    const found = await this.prisma.exam.findFirst({
+      where: { id, class: { course: { teacherId } } },
+      select: { id: true },
+    });
+    if (!found) {
+      throw new NotFoundException('Examen no encontrado o no pertenece al docente');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const qIds = (
+        await tx.examQuestion.findMany({
+          where: { examId: id },
+          select: { id: true },
+        })
+      ).map((q) => q.id);
+
+      if (qIds.length > 0) {
+        await tx.mCQOption.deleteMany({ where: { mcq: { questionId: { in: qIds } } } });
+
+        await tx.trueFalse.deleteMany({ where: { questionId: { in: qIds } } });
+        await tx.openAnalysis.deleteMany({ where: { questionId: { in: qIds } } });
+        await tx.openExercise.deleteMany({ where: { questionId: { in: qIds } } });
+
+        await tx.mCQ.deleteMany({ where: { questionId: { in: qIds } } });
+        await tx.examQuestion.deleteMany({ where: { examId: id } });
+      }
+
+      await tx.exam.delete({ where: { id } });
+    });
+  }
+
+
   async findByIdOwned(id: string, teacherId: string): Promise<Exam | null> {
     const found = await this.prisma.exam.findFirst({
       where: {
@@ -135,25 +168,10 @@ export class PrismaExamRepository implements ExamRepositoryPort {
     });
   }
 
-    async teacherOwnsClass(classId: string, teacherId: string): Promise<boolean> {
+  async teacherOwnsClass(classId: string, teacherId: string): Promise<boolean> {
     const owns = await this.prisma.classes.count({
       where: { id: classId, course: { teacherId } },
     });
     return owns > 0;
-  }
-
-    async deleteOwned(id: string, teacherId: string): Promise<void> {
-    const found = await this.prisma.exam.findFirst({
-      where: {
-        id,
-        class: { course: { teacherId } },
-      },
-      select: { id: true },
-    });
-
-    if (!found) {
-      throw new NotFoundException('Examen no encontrado');
-    }
-    await this.prisma.exam.delete({ where: { id } });
   }
 }

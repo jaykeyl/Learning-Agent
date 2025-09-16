@@ -1,10 +1,10 @@
-import {Body, Controller, Get, Delete, HttpCode, Logger, Param, Post, Put, Req, UseGuards, UseFilters, UsePipes, ValidationPipe, } from '@nestjs/common';
+import {Body, Controller, Get, Delete, HttpCode, Logger, Param, Post, Put, Req, UseGuards, UseFilters, UsePipes, ValidationPipe, Inject} from '@nestjs/common';
 import { QuestionKind, NewExamQuestion } from '../../domain/entities/exam-question.entity';
 import type { Request } from 'express';
 import { randomUUID } from 'crypto';
 
 import { JwtAuthGuard } from 'src/shared/guards/jwt-auth.guard';
-import { responseSuccess, } from 'src/shared/handler/http.handler';
+import { responseSuccess } from 'src/shared/handler/http.handler';
 import { BadRequestError, UnauthorizedError, } from 'src/shared/handler/errors';
 
 import { ExamsErrorFilter } from './filters/exams-error.filter';
@@ -13,6 +13,8 @@ import { GenerateQuestionsDto } from './dtos/generate-questions.dto';
 import { AddExamQuestionDto } from './dtos/add-exam-question.dto';
 import { UpdateExamQuestionDto } from './dtos/update-exam-question.dto';
 
+import type { ExamRepositoryPort } from '../../domain/ports/exam.repository.port';
+import { EXAM_REPO } from '../../tokens';
 import { CreateExamCommand } from '../../application/commands/create-exam.command';
 import { CreateExamCommandHandler } from '../../application/commands/create-exam.handler';
 
@@ -197,6 +199,7 @@ export class ExamsController {
     private readonly listClassExams: ListClassExamsUseCase,
     private readonly getByIdUseCase: GetExamByIdUseCase,
     private readonly generateQuestionsUseCase: GenerateQuestionsUseCase,
+    @Inject(EXAM_REPO) private readonly examRepo: ExamRepositoryPort,
   ) {}
 
   @Post('exams')
@@ -375,6 +378,30 @@ export class ExamsController {
     const updated = await this.updateExamQuestionHandler.execute(cmd);
     this.logger.log(`[${cid(req)}] updateQuestion <- id=${updated.id}`);
     return responseSuccess(cid(req), updated, 'Pregunta editada correctamente', pathOf(req));
+  }
+
+  @Put('exams/:examId/status')
+  @HttpCode(200)
+  async updateExamStatus(
+    @Param('examId') examId: string,
+    @Body('status') status: 'Guardado' | 'Publicado',
+    @Req() req: Request
+  ) {
+    const user = (req as any).user as { sub: string } | undefined;
+    if (!user?.sub) throw new UnauthorizedError('Acceso no autorizado');
+    if (!examId?.trim()) throw new BadRequestError('examId es obligatorio.');
+    if (status !== 'Guardado' && status !== 'Publicado') {
+      throw new BadRequestError('status inválido (use "Guardado" o "Publicado")');
+    }
+
+    const updated = await this.examRepo.updateMetaOwned(examId, user.sub, { status });
+
+    return responseSuccess(
+      cid(req),
+      (updated as any)?.toJSON?.() ?? updated,
+      'Estado del examen actualizado',
+      pathOf(req)
+    );
   }
 
   @Get('exams/:examId')
