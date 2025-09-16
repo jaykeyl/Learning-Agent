@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import '../../components/exams/ExamForm.css';
 import '../../components/shared/Toast.css';
@@ -16,7 +16,11 @@ import { isValidGeneratedQuestion } from '../../utils/aiValidation';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useExamsStore } from '../../store/examsStore';
 import type { ExamSummary } from '../../store/examsStore';
+import { Alert, Badge, Space, Typography, theme } from 'antd';
+import { classService } from '../../services/classes.service';
+import { courseService } from '../../services/course.service';
 
+const { Text } = Typography;
 
 const layoutStyle: CSSProperties = {
   display: 'flex',
@@ -83,6 +87,41 @@ export default function ExamsCreatePage() {
     difficulty: editData?.difficulty || 'medio',
     reference: editData?.reference || ''
   });
+
+  const { token } = theme.useToken();
+  const [contextLoading, setContextLoading] = useState(false);
+  const [contextError, setContextError] = useState<string | null>(null);
+  const [contextNames, setContextNames] = useState<{ courseName?: string; className?: string }>({});
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!classId && !courseId) {
+        setContextNames({});
+        return;
+      }
+      setContextLoading(true);
+      setContextError(null);
+      try {
+        const [classResp, courseResp] = await Promise.all([
+          classId ? classService.getClassById(classId) : Promise.resolve(null),
+          courseId ? courseService.getCourseById(courseId) : Promise.resolve(null),
+        ]);
+        if (!mounted) return;
+        setContextNames({
+          courseName: courseResp?.data?.name || undefined,
+          className: classResp?.data?.name || undefined,
+        });
+      } catch {
+        if (!mounted) return;
+        setContextError('No se pudo cargar el contexto del curso/período.');
+      } finally {
+        if (mounted) setContextLoading(false);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [classId, courseId]);
 
   const buildAiInputFromForm = (raw: Record<string, any>) => {
     const difficultyMap: Record<string, 'fácil' | 'medio' | 'difícil'> = {
@@ -214,7 +253,6 @@ export default function ExamsCreatePage() {
   };
 
   const onSave = async () => {
-    // Validación inicial
     if (!classId) {
       pushToast('Abre el creador desde la materia (Crear examen) para asociarlo.', 'error');
       return;
@@ -226,7 +264,6 @@ export default function ExamsCreatePage() {
       return;
     }
 
-    // Preparar las preguntas
     const ts = Date.now();
     const used = new Set<string>();
     const questions: GeneratedQuestion[] = selected.map((q, i) => {
@@ -251,7 +288,7 @@ export default function ExamsCreatePage() {
       id: editData?.id 
     };
 
-  let summary: ExamSummary | undefined;
+    let summary: ExamSummary | undefined;
     const saveLocally = () => {
       if (!summary) return;
       const examKey = `exam:content:${summary.id}`;
@@ -274,6 +311,7 @@ export default function ExamsCreatePage() {
         saveJSON('exam:content:index', examIndex);
       }
     };
+
     const trySave = async () => {
       try {
         if (editData?.id) {
@@ -309,6 +347,56 @@ export default function ExamsCreatePage() {
     await trySave();
   };
 
+  const contextOk = Boolean(classId);
+  const banner = (
+    <div
+      className="mb-4 p-3 rounded-md"
+      style={{
+        background: token.colorFillQuaternary,
+        border: `1px dashed ${token.colorBorderSecondary}`,
+      }}
+    >
+      <Space wrap>
+        <Badge status={contextOk ? 'processing' : 'warning'} />
+        <Text strong>Contexto actual</Text>
+        <Text type="secondary">·</Text>
+        <Text>
+          Curso:{' '}
+          <b>{
+            contextLoading && (courseId || classId) ? 'Cargando…'
+            : (contextNames.courseName || (courseId ? '—' : '—'))
+          }</b>
+        </Text>
+        <Text type="secondary">·</Text>
+        <Text>
+          Período:{' '}
+          <b>{
+            contextLoading && (courseId || classId) ? 'Cargando…'
+            : (contextNames.className || (classId ? '—' : '—'))
+          }</b>
+        </Text>
+      </Space>
+      {!contextOk && (
+        <Alert
+          className="mt-3"
+          type="warning"
+          showIcon
+          message="Esta página necesita un curso."
+          description="Vuelve a Gestión de exámenes desde el menú. El guardado permanecerá deshabilitado para evitar crear exámenes sin curso."
+        />
+      )}
+      {contextError && contextOk && (
+        <Alert
+          className="mt-3"
+          type="info"
+          showIcon
+          message="No se pudo cargar el nombre del curso/período"
+          description="Se seguirá usando el contexto por IDs, puedes continuar."
+        />
+      )}
+    </div>
+  );
+
   return (
     <PageTemplate
       title="Exámenes"
@@ -321,6 +409,8 @@ export default function ExamsCreatePage() {
     >
       <GlobalScrollbar />
       <div>
+        {banner}
+
         <section
           className="card subtle readable-card"
           style={{ display: aiOpen ? 'none' : 'block' }}
@@ -373,6 +463,8 @@ export default function ExamsCreatePage() {
               }}
               onSave={onSave}
               onReorder={onReorderQuestion}
+              canSave={Boolean(classId)}
+              saveDisabledReason="Esta página necesita un curso. Vuelve a Gestión de exámenes desde el menú."
             />
           </section>
         )}

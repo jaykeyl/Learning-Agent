@@ -23,6 +23,8 @@ export type AiResultsProps = {
   onAddManual: (type: GeneratedQuestion['type']) => void;
   onSave: () => Promise<void> | void;
   onReorder: (from: number, to: number) => void;
+  canSave?: boolean;
+  saveDisabledReason?: string;
 };
 
 export default function AiResults({
@@ -38,6 +40,8 @@ export default function AiResults({
   onAddManual,
   onSave,
   onReorder,
+  canSave = true,
+  saveDisabledReason,
 }: AiResultsProps) {
   const { token } = theme.useToken();
   const navigate = useNavigate();
@@ -134,6 +138,17 @@ export default function AiResults({
   };
   const handleDragEnd = () => setDragIndex(null);
 
+  const saveDisabled =
+    !!loading || !!error || questions.length === 0 || selected === 0 || !canSave;
+
+  const saveDisabledTitle =
+    loading ? 'Espera mientras se genera el examen' :
+    error ? 'Hay errores que necesitan ser corregidos' :
+    questions.length === 0 ? 'No hay preguntas generadas' :
+    selected === 0 ? 'Selecciona al menos una pregunta' :
+    !canSave ? (saveDisabledReason || 'Falta contexto de curso/período') :
+    'Guardar y finalizar el examen';
+
   return (
     <div className="ai-results-wrap" style={{ background: token.colorBgContainer, borderRadius: token.borderRadiusLG, color: token.colorText }}>
       <div className="ai-results card-like" style={{ background: token.colorBgContainer }}>
@@ -153,6 +168,16 @@ export default function AiResults({
             </div>
           )}
         </div>
+
+        {!canSave && (
+          <Alert
+            className="mb-4"
+            type="warning"
+            showIcon
+            message="Esta página necesita un curso."
+            description={saveDisabledReason || 'Vuelve a Gestión de exámenes desde el menú para seleccionar el curso y período correctos.'}
+          />
+        )}
 
         <div className="flex flex-wrap justify-center gap-3 mb-6">
           <Card size="small"><Text strong>MC:</Text> <Text>{mc}</Text></Card>
@@ -206,16 +231,10 @@ export default function AiResults({
               type="primary"
               icon={<SaveOutlined />}
               loading={saveLoading}
-              disabled={loading || !!error || questions.length === 0 || selected === 0}
+              disabled={saveDisabled}
               onClick={handleSave}
               aria-label="Guardar y Finalizar"
-              title={
-                loading ? 'Espera mientras se genera el examen' :
-                error ? 'Hay errores que necesitan ser corregidos' :
-                questions.length === 0 ? 'No hay preguntas generadas' :
-                selected === 0 ? 'Selecciona al menos una pregunta' :
-                'Guardar y finalizar el examen'
-              }
+              title={saveDisabledTitle}
             >
             Guardar y Finalizar
           </Button>
