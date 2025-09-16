@@ -92,17 +92,16 @@ function buildQuestionsDto(input: Record<string, unknown> = {}) {
 
   const dto: any = {
     subject,
-    difficulty,        
-    totalQuestions,   
-    reference,         
-    distribution,      
+    difficulty,
+    totalQuestions,
+    reference,
+    distribution,
   };
   if (examId) dto.examId = examId;
   if (classId) dto.classId = classId;
 
   return dto;
 }
-
 
 function looksSpanish(text: string): boolean {
   const t = (text || '').toLowerCase();
@@ -324,8 +323,8 @@ export async function createExam(payload: any): Promise<any> {
 }
 
 export type ExamInput = {
-  classId?: string;        
-  courseId?: string;       
+  classId?: string;
+  courseId?: string;
   title: string;
   status?: 'Guardado' | 'Publicado';
   content?: {
@@ -377,10 +376,10 @@ export async function createExamApproved(input: CreateExamApprovedInput) {
 
   const createdExam = await createExam(createBody);
   const examId =
-  createdExam?.id ??
-  createdExam?.data?.id ??
-  createdExam?.exam?.id ??
-  createdExam?.data?.exam?.id; 
+    createdExam?.id ??
+    createdExam?.data?.id ??
+    createdExam?.exam?.id ??
+    createdExam?.data?.exam?.id;
 
   if (!examId) {
     throw new Error('No se pudo crear el examen (sin id).');
@@ -418,7 +417,7 @@ export async function createExamApproved(input: CreateExamApprovedInput) {
 
 export async function updateExamApprovedFull(input: UpdateExamApprovedInput) {
   const { examId } = input;
-  
+
   const questions = await api.get(`/api/exams/${examId}/questions`);
   for (const question of questions.data) {
     await api.delete(`/api/exams/${examId}/questions/${question.id}`);
@@ -512,6 +511,26 @@ export async function quickSaveExam(p: { title: string; questions: any[]; conten
   }
 
   return created?.data ?? created;
+}
+
+function isLocalExamId(id: string) {
+  return /^exam_\d+$/.test(id);
+}
+
+export async function updateExamStatus(
+  examId: string | number,
+  next: 'visible' | 'hidden' | 'Publicado' | 'Guardado'
+): Promise<void> {
+  const id = String(examId);
+
+  if (USE_MOCK || isLocalExamId(id)) {
+    return; 
+  }
+
+  const status: 'Guardado' | 'Publicado' =
+    next === 'visible' || next === 'Publicado' ? 'Publicado' : 'Guardado';
+
+  await api.put(`/api/exams/${id}/status`, { status });
 }
 
 export type CourseExamRow = {
