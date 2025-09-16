@@ -235,9 +235,8 @@ function handleDownloadPdf(exam: ExamSummary, mode: PrintMode) {
   const html = buildPlantillaHtml(printable, mode);
   openPrint(html);
 }
-/* =========================== FIN helpers =========================== */
 
-export default function ExamTable({ data, onEdit, onDelete, disableStatusControls = true }: Props) {
+export default function ExamTable({ data, onDelete, disableStatusControls = true }: Props) {
   const toggleVisibility = useExamsStore((s: ExamsState) => s.toggleVisibility);
   const setVisibility    = useExamsStore((s: ExamsState) => s.setVisibility);
   const setStatus        = useExamsStore((s: ExamsState) => s.setStatus);

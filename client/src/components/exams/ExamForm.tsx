@@ -2,7 +2,6 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { useExamForm } from '../../hooks/useExamForm.ts';
 import { createExam } from '../../services/exams.service';
 import { Button, theme, Tag, Tooltip, message } from 'antd';
-
 import { SelectIndicesDialog, type IndexNode } from './SelectIndicesDialog';
 
 import type { ToastKind } from '../shared/Toast';
@@ -91,7 +90,7 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
   });
 
   const [step, setStep] = useState(0);
-  const steps = ['Datos generales', 'Cantidad de preguntas', 'Tiempo y referencia'];
+  const steps = ['Datos generales', 'Cantidad de preguntas', 'Tiempo e índices'];
 
   useEffect(() => {
     if (step === 2) {
@@ -221,7 +220,7 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
       setValue('reference', '');
       setSelectedIndices([]);
       setValue('indices' as any, []);
-      onToast('Tiempo, referencia e índices limpiados.', 'info');
+      onToast('Tiempo e índices limpiados.', 'info');
     }
     touchAndValidate();
   };
@@ -265,13 +264,9 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
   };
 
   const handleGenerateAIWithIndices = async () => {
-    if (!canGenerateExam) {
-      message.warning('Debes elegir al menos un índice para generar el examen.');
-      setSelectIndicesOpen(true);
-      return;
-    }
-
+    const ref = selectedIndices.map((id) => `#${id}`).join(' | ');
     setValue('indices' as any, selectedIndices);
+    setValue('reference', ref);
     try {
       await onGenerateAI?.();
       message.success('Solicitud de generación enviada.');
@@ -668,43 +663,13 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                 </div>
               </div>
 
-              <div className="form-group sm:col-span-2">
-                <label htmlFor="reference" className="block text-sm font-medium mb-1">
-                  Material de referencia (opcional)
-                </label>
-                <textarea
-                  id="reference"
-                  name="reference"
-                  rows={3}
-                  placeholder="..."
-                  className="
-                    input-hover w-full rounded-lg border-2 px-3 py-2
-                    text-[clamp(0.95rem,0.7vw+0.75rem,1.05rem)]
-                    outline-none transition focus:ring-2
-                  "
-                  value={values.reference || ''}
-                  onChange={(e) => onChange('reference', e.target.value)}
-                  style={{
-                    background: token.colorBgContainer,
-                    color: token.colorText,
-                    borderColor: token.colorBorder,
-                    borderWidth: 2,
-                    borderStyle: 'solid',
-                  }}
-                />
-                <small className="help">Máx. 1000 caracteres</small>
-                {touched.reference && errors.reference && (
-                  <small className="error block mt-1 text-xs text-red-500">{errors.reference}</small>
-                )}
-              </div>
-
               <div className="form-group sm:col-span-2" style={{ margin: '12px 0' }}>
                 <label className="block text-sm font-medium mb-1">Índices del curso</label>
                 <div>
                   <span>Índices seleccionados: </span>
                   {selectedIndices.length === 0 ? (
                     <Tooltip title="Debes elegir al menos un índice">
-                      <Tag color="red">Ninguno</Tag>
+                      <Tag>Ninguno</Tag>
                     </Tooltip>
                   ) : (
                     selectedIndices.map((id) => <Tag key={id}>{id}</Tag>)
@@ -718,7 +683,7 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
                     Elegir índices
                   </Button>
                   {selectedIndices.length > 0 && (
-                    <span style={{ marginLeft: 8, color: '#888' }}>
+                    <span style={{ marginLeft: 8, color: token.colorTextTertiary }}>
                       ({selectedIndices.length} seleccionados)
                     </span>
                   )}
@@ -751,7 +716,7 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
             disabled={
               (step === 0 && !values.subject && !values.difficulty && !values.attempts) ||
               (step === 1 && !values.multipleChoice && !values.trueFalse && !values.analysis && !values.openEnded) ||
-              (step === 2 && !values.timeMinutes && !values.reference && selectedIndices.length === 0)
+              (step === 2 && !values.timeMinutes && selectedIndices.length === 0)
             }
             style={{ marginLeft: 8 }}
           >
@@ -772,17 +737,21 @@ export const ExamForm = forwardRef<ExamFormHandle, Props>(function ExamForm(
             </Button>
           )}
           {step === 2 && onGenerateAI && (
-            <Button
-              type="primary"
-              disabled={sending || !validStep()}
-              onClick={() => {
-                if (validStep()) {
-                  handleGenerateAIWithIndices();
-                }
-              }}
-            >
-              Generar preguntas con IA
-            </Button>
+            <Tooltip title={!canGenerateExam ? 'Selecciona al menos un índice' : ''}>
+              <span>
+                <Button
+                  type="primary"
+                  disabled={sending || !validStep() || !canGenerateExam}
+                  onClick={() => {
+                    if (validStep() && canGenerateExam) {
+                      handleGenerateAIWithIndices();
+                    }
+                  }}
+                >
+                  Generar preguntas con IA
+                </Button>
+              </span>
+            </Tooltip>
           )}
         </div>
       </div>

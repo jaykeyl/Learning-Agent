@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Modal, Tree, Tag } from "antd";
+import React, { useState, useEffect } from 'react';
+import { Modal, Tree, Tag } from 'antd';
 
 export type IndexNode = {
   id: string;
@@ -23,10 +23,7 @@ export const SelectIndicesDialog: React.FC<SelectIndicesDialogProps> = ({
   onConfirm,
 }) => {
   const [checked, setChecked] = useState<string[]>(selectedIds);
-
-  useEffect(() => {
-    setChecked(selectedIds);
-  }, [selectedIds, open]);
+  useEffect(() => { setChecked(selectedIds); }, [selectedIds, open]);
 
   const toTreeData = (nodes: IndexNode[]): any[] =>
     nodes.map((n) => ({
@@ -55,14 +52,16 @@ export const SelectIndicesDialog: React.FC<SelectIndicesDialogProps> = ({
         style={{ marginBottom: 16 }}
       />
       <div>
-        <strong>Seleccionados:</strong>{" "}
-        {checked.length === 0
-          ? <span style={{ color: "#999" }}>Ninguno</span>
-          : checked.map((id) => (
-              <Tag key={id} color="blue" style={{ marginBottom: 4 }}>
-                {id}
-              </Tag>
-            ))}
+        <strong>Seleccionados:</strong>{' '}
+        {checked.length === 0 ? (
+          <span style={{ color: '#999' }}>Ninguno</span>
+        ) : (
+          checked.map((id) => (
+            <Tag key={id} style={{ marginBottom: 4 }}>
+              {id}
+            </Tag>
+          ))
+        )}
       </div>
     </Modal>
   );
