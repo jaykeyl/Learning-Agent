@@ -28,6 +28,7 @@ import { DeleteExamCommandHandler } from '../../application/commands/delete-exam
 import { GenerateQuestionsUseCase } from '../../application/commands/generate-questions.usecase';
 import { ListClassExamsUseCase } from '../../application/queries/list-class-exams.usecase';
 import { GetExamByIdUseCase } from '../../application/queries/get-exam-by-id.usecase';
+import { GetCourseIndexUseCase } from '../../application/queries/get-course-index.usecase';
 
 
 const cid = (req: Request) => req.header('x-correlation-id') ?? randomUUID();
@@ -89,9 +90,9 @@ type AiQuestion = {
 function readExpectedFrom(q: AiQuestion): string {
   const raw =
     (q.expectedAnswer ??
-     (q as any).expected_answer ??
-     (q as any).expected ??
-     '') + '';
+      (q as any).expected_answer ??
+      (q as any).expected ??
+    '') + '';
   const val = raw.trim();
   return val || 'Completar en corrección';
 }
@@ -197,6 +198,7 @@ export class ExamsController {
     private readonly listClassExams: ListClassExamsUseCase,
     private readonly getByIdUseCase: GetExamByIdUseCase,
     private readonly generateQuestionsUseCase: GenerateQuestionsUseCase,
+    private readonly getCourseIndexUseCase: GetCourseIndexUseCase,
   ) {}
 
   @Post('exams')
@@ -414,4 +416,30 @@ export class ExamsController {
 
     return;
   }
+
+  @Get('courses/:id/index')
+  @HttpCode(200)
+  async getCourseIndexForPopup(
+    @Param('id') id: string,
+    @Req() req: Request,
+) {
+    const user = (req as any)?.user as { sub?: string } | undefined;
+    const teacherId = user?.sub;
+    if (!teacherId) throw new UnauthorizedError('Acceso no autorizado');
+    if (!id?.trim()) throw new BadRequestError('id es obligatorio');
+
+    const { nodes } = await this.getCourseIndexUseCase.execute({
+      courseIdOrClassId: id,
+      teacherId,
+    });
+
+    return responseSuccess(
+      (req.headers['x-correlation-id'] as string) || '',
+      { nodes },
+      'Índice del curso obtenido correctamente',
+      req.url,
+    );
+  }
+
+
 }
