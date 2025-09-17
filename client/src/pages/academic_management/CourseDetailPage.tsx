@@ -299,10 +299,6 @@ export function CourseDetailPage() {
     setSafetyModalOpen(false);
   };
 
-  const goToExams = () => {
-    navigate(`/exams`);
-  };
-
   const studentsColumns = [
     {
       title: "Código",
