@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import '../../components/exams/ExamForm.css';
 import '../../components/shared/Toast.css';
@@ -11,6 +11,7 @@ import GlobalScrollbar from '../../components/GlobalScrollbar';
 import './ExamCreatePage.css';
 import { generateQuestions, createExamApproved, updateExamApprovedFull,type GeneratedQuestion } from '../../services/exams.service';
 import AiResults from './AiResults';
+import { getExamById, snapshotHash } from '../../services/exams.service';
 import { normalizeToQuestions, cloneQuestion, replaceQuestion, reorderQuestions } from './ai-utils';
 import { isValidGeneratedQuestion } from '../../utils/aiValidation';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -84,6 +85,40 @@ export default function ExamsCreatePage() {
     reference: editData?.reference || ''
   });
 
+  useEffect(() => {
+    try {
+      const storedId = readJSON<string>('exam:lastSavedId') || editData?.id;
+      if (!storedId) return;
+      (async () => {
+        try {
+          const be = await getExamById(storedId);
+          setAiMeta({
+            subject: be.subject || 'Tema general',
+            difficulty: be.difficulty || 'medio',
+            reference: '',
+          });
+          const qs = (be.questions || []).map((q, i) => ({
+            ...q,
+            include: q.include !== false,
+            id: q.id || `${q.type}_${i}`,
+          }));
+          setAiQuestions(qs);
+          const hash = snapshotHash({
+            title: be.title,
+            subject: be.subject,
+            difficulty: be.difficulty,
+            questions: qs,
+          });
+          localStorage.setItem('exam:lastSavedId', storedId);
+          localStorage.setItem(`exam:snapshotHash:${storedId}`, hash);
+          localStorage.setItem(`exam:dirty:${storedId}`, '0');
+        } catch (err) {
+          console.warn('[Editor Refresh] No se pudo hidratar desde BE, se mantiene estado local.', err);
+        }
+      })();
+    } catch {}
+  }, []);
+
   const buildAiInputFromForm = (raw: Record<string, any>) => {
     const difficultyMap: Record<string, 'fácil' | 'medio' | 'difícil'> = {
       facil: 'fácil', 'fácil': 'fácil', easy: 'fácil',
@@ -152,11 +187,33 @@ export default function ExamsCreatePage() {
   };
 
   const onChangeQuestion = (q: GeneratedQuestion) => {
-    setAiQuestions(prev => replaceQuestion(prev, q));
+    setAiQuestions(prev => {
+      const next = replaceQuestion(prev, q);
+      try {
+        const id = readJSON<string>('exam:lastSavedId') || editData?.id;
+        if (id) {
+          const h = snapshotHash({ title: aiMeta?.subject || 'Examen', subject: aiMeta?.subject, difficulty: aiMeta?.difficulty, questions: next });
+          const base = localStorage.getItem(`exam:snapshotHash:${id}`) || '';
+          localStorage.setItem(`exam:dirty:${id}`, h !== base ? '1' : '0');
+        }
+      } catch {}
+      return next;
+    });
   };
 
   const onReorderQuestion = (from: number, to: number) => {
-    setAiQuestions(prev => reorderQuestions(prev, from, to));
+    setAiQuestions(prev => { 
+      const next = reorderQuestions(prev, from, to); 
+      try { 
+        const id = readJSON<string>('exam:lastSavedId') || editData?.id; 
+        if (id) { 
+          const h = snapshotHash({ title: aiMeta?.subject || 'Examen', subject: aiMeta?.subject, difficulty: aiMeta?.difficulty, questions: next }); 
+          const base = localStorage.getItem(`exam:snapshotHash:${id}`) || ''; 
+          localStorage.setItem(`exam:dirty:${id}`, h !== base ? '1' : '0'); 
+        } 
+      } catch {} 
+      return next; 
+    }); 
   };
 
   const onRegenerateAll = async () => {
@@ -297,6 +354,13 @@ export default function ExamsCreatePage() {
         }
         saveLocally();
         pushToast('Examen guardado exitosamente.', 'success');
+        try {
+          const id = String(summary.id);
+          localStorage.setItem('exam:lastSavedId', id);
+          const hash = snapshotHash({ title: aiMeta?.subject || 'Examen', subject: aiMeta?.subject, difficulty: aiMeta?.difficulty, questions });
+          localStorage.setItem(`exam:snapshotHash:${id}`, hash);
+          localStorage.setItem(`exam:dirty:${id}`, '0');
+        } catch {}
         navigate(courseId ? `/courses/${courseId}/periods/${classId}` : `/courses/${classId}`);
       } catch (error) {
         console.error('Error al guardar:', error);

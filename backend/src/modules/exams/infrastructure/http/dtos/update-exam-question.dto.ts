@@ -23,6 +23,9 @@ export class UpdateExamQuestionDto {
   @IsOptional() @IsString()
   expectedAnswer?: string;
 
+  @IsOptional() @IsInt() @Min(0)
+  order?: number;
+
   @IsOptional()
     @ValidateIf(o => o.kind === 'MULTIPLE_CHOICE')
     @IsInt()

@@ -523,4 +523,78 @@ export async function deleteExamByCandidates(classId: string, candidates: Array<
   }
 }
 
+export function normalizeExamFromBE(be: any): {
+  id: string; title: string; subject?: string; difficulty?: string; createdAt?: string;
+  questions: GeneratedQuestion[];
+} {
+  const exam = be?.data?.exam ?? be?.exam ?? be;
+  const qs   = be?.data?.questions ?? be?.questions ?? [];
+  const mapKind = (k: string) =>
+    (k === 'MULTIPLE_CHOICE' ? 'multiple_choice'
+      : k === 'TRUE_FALSE' ? 'true_false'
+      : k === 'OPEN_ANALYSIS' ? 'open_analysis'
+      : 'open_exercise') as GeneratedQuestion['type'];
+
+  const questions: GeneratedQuestion[] = (qs || []).map((q: any, i: number) => {
+    const type = mapKind(q.kind);
+    const base = { id: String(q.id ?? i), type, text: String(q.text ?? ''), include: true } as GeneratedQuestion;
+    if (type === 'multiple_choice') {
+      const opts = Array.isArray(q.options) ? q.options.map(String) : [];
+      return { ...base, options: opts };
+    }
+    if (type === 'open_analysis') {
+      const opts = Array.isArray(q.options) ? q.options.map(String) : undefined;
+      return { ...base, options: opts };
+    }
+    return base;
+  });
+
+  return {
+    id: String(exam?.id ?? ''),
+    title: String(exam?.title ?? 'Examen'),
+    subject: String(exam?.subject ?? ''),
+    difficulty: String(exam?.difficulty ?? ''),
+    createdAt: String(exam?.createdAt ?? ''),
+    questions,
+  };
+}
+
+export async function getExamById(examId: string) {
+  const { data } = await api.get(`/api/exams/${examId}`);
+  return normalizeExamFromBE(data ?? {});
+}
+
+function stableStringify(obj: any): string {
+  const seen = new WeakSet();
+  return JSON.stringify(obj, function (_k, value) {
+    if (value && typeof value === 'object') {
+      if (seen.has(value)) return;
+      seen.add(value);
+      const keys = Object.keys(value).sort();
+      const out: any = {};
+      for (const k of keys) out[k] = (value as any)[k];
+      return out;
+    }
+    return value;
+  });
+}
+
+export function snapshotHash(payload: { title?: string; subject?: string; difficulty?: string; questions: GeneratedQuestion[] }): string {
+  const minimal = {
+    title: payload.title ?? '',
+    subject: payload.subject ?? '',
+    difficulty: payload.difficulty ?? '',
+    questions: (payload.questions || []).map(q => ({
+      type: q.type,
+      text: q.text,
+      options: q.type === 'multiple_choice' || q.type === 'open_analysis' ? (q.options ?? []) : undefined,
+      include: q.include !== false,
+    })),
+  };
+  const s = stableStringify(minimal);
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
+  return (h >>> 0).toString(16);
+}
+
 export default { generateQuestions, createExam, createExamApproved };

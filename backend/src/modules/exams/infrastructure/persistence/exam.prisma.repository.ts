@@ -69,7 +69,7 @@ export class PrismaExamRepository implements ExamRepositoryPort {
         classId,
         class: { course: { teacherId } },
       },
-      orderBy: [{ createdAt: 'desc' }],
+      orderBy: [{ updatedAt: 'desc' }],
     });
 
     return rows.map((r) =>

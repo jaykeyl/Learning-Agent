@@ -370,6 +370,7 @@ export class ExamsController {
       correctOptionIndex: norm.correctOptionIndex ?? undefined,
       correctBoolean: norm.correctBoolean ?? undefined,
       expectedAnswer: norm.expectedAnswer ?? undefined,
+      order: dto.order ?? undefined,
     });
 
     const updated = await this.updateExamQuestionHandler.execute(cmd);

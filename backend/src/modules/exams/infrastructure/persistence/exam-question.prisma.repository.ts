@@ -286,6 +286,34 @@ export class PrismaExamQuestionRepository implements ExamQuestionRepositoryPort 
       });
       if (!current) throw new Error('Question not found or not owned by teacher.');
 
+      if (patch.order != null && Number.isFinite(patch.order)) {
+        const newOrder = Math.max(0, Math.trunc(patch.order as number));
+        if (newOrder !== current.order) {
+          const maxAgg = await tx.examQuestion.aggregate({
+            where: { examId: current.examId },
+            _max: { order: true },
+          });
+          const maxOrder = maxAgg._max.order ?? 0;
+          const target = Math.min(newOrder, maxOrder);
+
+          if (target < current.order) {
+            await tx.examQuestion.updateMany({
+              where: { examId: current.examId, order: { gte: target, lt: current.order } },
+              data: { order: { increment: 1 } },
+            });
+          } else {
+            await tx.examQuestion.updateMany({
+              where: { examId: current.examId, order: { gt: current.order, lte: target } },
+              data: { order: { decrement: 1 } },
+            });
+          }
+          await tx.examQuestion.update({
+            where: { id },
+            data: { order: target },
+          });
+        }
+      }
+
       if (patch.text !== undefined) {
         await tx.examQuestion.update({
           where: { id },
