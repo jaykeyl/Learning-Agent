@@ -1,6 +1,5 @@
-import { useRef, useState } from 'react';
-import { Typography, theme } from 'antd';
-import type { CSSProperties } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
+import { Button, Typography, theme } from 'antd';
 import '../../components/exams/ExamForm.css';
 import '../../components/shared/Toast.css';
 import { ExamForm } from '../../components/exams/ExamForm';
@@ -14,21 +13,12 @@ import AiResults from './AiResults';
 import {
   normalizeToQuestions,
   cloneQuestion,
-  replaceQuestion,
   reorderQuestions,
   ensureUniqueIds,
 } from './ai-utils';
 import { isValidGeneratedQuestion } from '../../utils/aiValidation';
 
 const { Title } = Typography;
-
-const layoutStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 30,
-  alignItems: 'center',
-  padding: 'clamp(24px, 3.2vw, 40px) 16px',
-};
 
 async function repairInvalidQuestions(
   list: GeneratedQuestion[],
@@ -49,15 +39,16 @@ async function repairInvalidQuestions(
     const oneDto = { ...baseDto, totalQuestions: 1, distribution };
 
     let replacement: GeneratedQuestion | undefined;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const res = await generateFn(oneDto);
-      const [candidate] = normalizeToQuestions(res);
-      if (candidate && isValidGeneratedQuestion(candidate)) {
-        replacement = candidate;
-        break;
-      }
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await generateFn(oneDto);
+        const [candidate] = normalizeToQuestions(res);
+        if (candidate && isValidGeneratedQuestion(candidate)) {
+          replacement = candidate;
+          break;
+        }
+      } catch {}
     }
-
     if (replacement) {
       fixed[i] = { ...replacement, id: q.id, include: q.include };
     }
@@ -65,10 +56,10 @@ async function repairInvalidQuestions(
   return fixed;
 }
 
-export default function ExamsCreatePage() {
-  const { token } = theme.useToken();
+export default function (): JSX.Element {
   const { toasts, pushToast, removeToast } = useToast();
   const formRef = useRef<ExamFormHandle>(null!);
+  const { token } = theme.useToken();
 
   const [aiOpen, setAiOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -79,6 +70,16 @@ export default function ExamsCreatePage() {
     difficulty: 'medio',
     reference: '',
   });
+
+  const cssVars: CSSProperties = {
+    ['--app-colorBgContainer' as any]: token.colorBgContainer,
+    ['--app-colorBgElevated' as any]: token.colorBgElevated,
+    ['--app-colorBorder' as any]: token.colorBorder,
+    ['--app-colorBorderSecondary' as any]: token.colorBorderSecondary,
+    ['--app-colorText' as any]: token.colorText,
+    ['--app-colorTextSecondary' as any]: token.colorTextSecondary,
+    ['--app-colorPrimary' as any]: token.colorPrimary,
+  };
 
   const buildAiInputFromForm = (raw: Record<string, any>) => {
     const difficultyMap: Record<string, 'fácil' | 'medio' | 'difícil'> = {
@@ -104,7 +105,10 @@ export default function ExamsCreatePage() {
       subject: raw.subject ?? raw.topic ?? 'Tema general',
       difficulty,
       totalQuestions,
-      reference: raw.reference ?? '',
+      reference:
+        Array.isArray((raw as any).indices) && (raw as any).indices.length > 0
+          ? `Índices: ${((raw as any).indices as string[]).join(' | ')}`
+          : raw.reference ?? '',
       distribution,
       language: 'es',
     };
@@ -114,57 +118,43 @@ export default function ExamsCreatePage() {
     const snap = formRef.current?.getSnapshot?.();
     const draft = readJSON('exam:draft');
     const data = snap?.values?.subject ? snap.values : draft;
-
     if (!data) {
       pushToast('Completa y guarda el formulario primero.', 'warn');
       return;
     }
-
     setAiMeta({
       subject: data.subject ?? 'Tema general',
       difficulty: data.difficulty ?? 'medio',
-      reference: data.reference ?? '',
+      reference:
+        Array.isArray((data as any).indices) && (data as any).indices.length > 0
+          ? `Índices: ${((data as any).indices as string[]).join(' | ')}`
+          : data.reference ?? '',
     });
-
-    const dto = buildAiInputFromForm(data);
-    if (dto.totalQuestions <= 0) {
-      setAiOpen(true);
-      setAiQuestions([]);
-      setAiError('La suma de la distribución debe ser al menos 1.');
-      return;
-    }
-
     setAiOpen(true);
     setAiLoading(true);
     setAiError(null);
 
     try {
+      const dto = buildAiInputFromForm(data);
       const res = await generateQuestions(dto as any);
       const list = ensureUniqueIds(normalizeToQuestions(res).map(cloneQuestion));
       const fixed = await repairInvalidQuestions(list, dto, (p) => generateQuestions(p as any));
       setAiQuestions(fixed);
-      if (!fixed.length) {
-        setAiError('No se generaron preguntas. Revisa el backend y/o el DTO.');
-      }
+      if (!fixed.length) setAiError('No se pudieron regenerar preguntas.');
     } catch {
-      setAiError('Error inesperado generando preguntas.');
+      setAiError('No se pudo regenerar el set completo.');
     } finally {
       setAiLoading(false);
     }
   };
 
-  const onChangeQuestion = (q: GeneratedQuestion) => {
-    setAiQuestions((prev) => replaceQuestion(prev, q));
-  };
-
   const onRegenerateAll = async () => {
     const snap = formRef.current?.getSnapshot?.();
     const data = snap?.values ?? {};
-    const dto = buildAiInputFromForm(data);
-
     setAiLoading(true);
     setAiError(null);
     try {
+      const dto = buildAiInputFromForm(data);
       const res = await generateQuestions(dto as any);
       const list = ensureUniqueIds(normalizeToQuestions(res).map(cloneQuestion));
       const fixed = await repairInvalidQuestions(list, dto, (p) => generateQuestions(p as any));
@@ -178,7 +168,6 @@ export default function ExamsCreatePage() {
   };
 
   const onRegenerateOne = async (q: GeneratedQuestion) => {
-    // Si es manual, no regenerar (en UI también ocultamos el botón)
     if (q.id?.startsWith('manual_')) return;
 
     const snap = formRef.current?.getSnapshot?.();
@@ -205,8 +194,9 @@ export default function ExamsCreatePage() {
         }
       }
       if (only) {
-        const replacement = cloneQuestion({ ...only, id: q.id, include: q.include } as GeneratedQuestion);
-        setAiQuestions((prev) => replaceQuestion(prev, replacement));
+        setAiQuestions((prev) =>
+          prev.map((x) => (x.id === q.id ? { ...only, id: q.id, include: q.include } : x)),
+        );
       } else {
         setAiError('No se pudo regenerar esa pregunta (intentos agotados).');
       }
@@ -218,25 +208,46 @@ export default function ExamsCreatePage() {
   const onAddManual = (type: GeneratedQuestion['type']) => {
     const id = `manual_${Date.now()}`;
     if (type === 'multiple_choice') {
-      setAiQuestions((prev) => ([
+      setAiQuestions((prev) => [
         ...prev,
-        cloneQuestion({ id, type, text: 'Escribe aquí tu pregunta de opción múltiple…', options: ['Opción A','Opción B','Opción C','Opción D'], include: true } as GeneratedQuestion),
-      ]));
+        cloneQuestion({
+          id,
+          type,
+          text: 'Escribe aquí el enunciado de la pregunta de opción múltiple…',
+          options: ['Opción A', 'Opción B', 'Opción C', 'Opción D'],
+          include: true,
+        } as GeneratedQuestion),
+      ]);
     } else if (type === 'true_false') {
-      setAiQuestions((prev) => ([
+      setAiQuestions((prev) => [
         ...prev,
-        cloneQuestion({ id, type, text: 'Enuncia aquí tu afirmación para Verdadero/Falso…', include: true } as GeneratedQuestion),
-      ]));
+        cloneQuestion({
+          id,
+          type,
+          text: 'Enuncia aquí tu afirmación para Verdadero/Falso…',
+          include: true,
+        } as GeneratedQuestion),
+      ]);
     } else if (type === 'open_exercise') {
-      setAiQuestions((prev) => ([
+      setAiQuestions((prev) => [
         ...prev,
-        cloneQuestion({ id, type, text: 'Describe aquí el enunciado del ejercicio abierto…', include: true } as GeneratedQuestion),
-      ]));
+        cloneQuestion({
+          id,
+          type,
+          text: 'Describe aquí el enunciado del ejercicio abierto…',
+          include: true,
+        } as GeneratedQuestion),
+      ]);
     } else {
-      setAiQuestions((prev) => ([
+      setAiQuestions((prev) => [
         ...prev,
-        cloneQuestion({ id, type, text: 'Escribe aquí tu consigna de análisis abierto…', include: true } as GeneratedQuestion),
-      ]));
+        cloneQuestion({
+          id,
+          type,
+          text: 'Escribe aquí tu consigna de análisis abierto…',
+          include: true,
+        } as GeneratedQuestion),
+      ]);
     }
   };
 
@@ -258,26 +269,15 @@ export default function ExamsCreatePage() {
     >
       <div
         className="pantalla-scroll w-full lg:max-w-6xl lg:mx-auto space-y-4 sm:space-y-6"
-        style={{ maxWidth: 1200, margin: '0 auto', padding: '30px 30px', background: token.colorBgLayout, color: token.colorText }}
+        style={{
+          maxWidth: 1200,
+          margin: '0 auto',
+          padding: '30px 30px',
+          background: token.colorBgLayout,
+          color: token.colorText,
+        }}
       >
-        <section
-          className="card"
-          style={{
-            background: token.colorBgContainer,
-            border: `1px solid ${token.colorBorderSecondary}`,
-            borderRadius: token.borderRadiusLG,
-            boxShadow: token.boxShadowSecondary,
-            maxWidth: 'clamp(720px, 92vw, 1000px)',
-            margin: '0 auto',
-          }}
-        >
-          <Title level={4} style={{ margin: 0, color: token.colorPrimary }}>Crear nuevo examen</Title>
-          <div style={layoutStyle}>
-            <ExamForm ref={formRef} onToast={pushToast} onGenerateAI={handleAIPropose} />
-          </div>
-        </section>
-
-        {aiOpen && (
+        {!aiOpen && (
           <section
             className="card"
             style={{
@@ -285,19 +285,49 @@ export default function ExamsCreatePage() {
               border: `1px solid ${token.colorBorderSecondary}`,
               borderRadius: token.borderRadiusLG,
               boxShadow: token.boxShadowSecondary,
-              width: '100%',
-              maxWidth: 1000,
+              maxWidth: 'clamp(720px, 92vw, 1000px)',
               margin: '0 auto',
+              ...cssVars,
             }}
           >
+            <Title level={4} style={{ margin: 0, color: token.colorPrimary }}>
+              Crear nuevo examen
+            </Title>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 30,
+                alignItems: 'center',
+                padding: 'clamp(24px, 3.2vw, 40px) 16px',
+              }}
+            >
+              <ExamForm ref={formRef} onToast={pushToast} onGenerateAI={handleAIPropose} />
+            </div>
+          </section>
+        )}
+
+        {aiOpen && (
+          <div className="flex justify-end mb-2">
+            <Button type="link" onClick={() => setAiOpen(false)}>
+              Editar configuración
+            </Button>
+          </div>
+        )}
+
+        {aiOpen && (
+          <section className="card subtle readable-card" aria-label="Preguntas propuestas por IA">
             <AiResults
               subject={aiMeta.subject}
               difficulty={aiMeta.difficulty}
               createdAt={new Date().toLocaleDateString('es-ES')}
+              reference={aiMeta.reference}
               questions={aiQuestions}
               loading={aiLoading}
               error={aiError}
-              onChange={onChangeQuestion}
+              onChange={(q) =>
+                setAiQuestions((prev) => prev.map((x) => (x.id === q.id ? q : x)))
+              }
               onRegenerateAll={onRegenerateAll}
               onRegenerateOne={onRegenerateOne}
               onAddManual={onAddManual}
