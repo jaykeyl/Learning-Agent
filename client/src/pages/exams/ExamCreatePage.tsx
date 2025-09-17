@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import '../../components/exams/ExamForm.css';
 import '../../components/shared/Toast.css';
@@ -16,6 +16,7 @@ import { isValidGeneratedQuestion } from '../../utils/aiValidation';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useExamsStore } from '../../store/examsStore';
 import type { ExamSummary } from '../../store/examsStore';
+
 
 
 const layoutStyle: CSSProperties = {
@@ -71,7 +72,6 @@ export default function ExamsCreatePage() {
   
   const updateExam = useExamsStore(state => state.updateExam);
   const addFromQuestions = useExamsStore(state => state.addFromQuestions);
-
   const [aiOpen, setAiOpen] = useState(!!editData);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -313,11 +313,7 @@ export default function ExamsCreatePage() {
     <PageTemplate
       title="Exámenes"
       subtitle="Creación de exámenes"
-      breadcrumbs={[
-        { label: 'Home', href: '/' },
-        { label: 'Gestión de Exámenes', href: '/exams' },
-        { label: 'Crear examen' },
-      ]}
+      breadcrumbs={breadcrumbs}
     >
       <GlobalScrollbar />
       <div>

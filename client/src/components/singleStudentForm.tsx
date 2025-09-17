@@ -16,16 +16,31 @@ export const SingleStudentForm = ({ open, onClose, onSubmit }: UploadStudentForm
       .required('Nombre requerido')
       .matches(/^[^!@$%^&*?{}|<>]*$/, "El nombre no puede contener caracteres especiales")
       .matches(/^[^0-9]*$/, "El nombre no puede contener números")
-      .max(30, "El nombre no puede tener más de 30 caracteres"),
+      .max(30, "El nombre no puede tener más de 30 caracteres")
+      .test(
+        'no-only-spaces',
+        'El nombre no puede estar vacío o contener solo espacios',
+        value => value.trim().length > 0
+      ),
     studentLastname: Yup.string()
       .required('Apellido requerido')
       .matches(/^[^!@$%^&*?{}|<>]*$/, "El apellido no puede contener caracteres especiales")
       .matches(/^[^0-9]*$/, "El apellido no puede contener números")
-      .max(30, "El apellido no puede tener más de 30 caracteres"),
+      .max(30, "El apellido no puede tener más de 30 caracteres")
+      .test(
+        'no-only-spaces',
+        'El nombre no puede estar vacío o contener solo espacios',
+        value => value.trim().length > 0
+      ),
     studentCode: Yup.string()
       .required('Código de estudiante requerido')
       .matches(/^[^!@$%^&*?{}|<>]*$/, "El código no puede contener caracteres especiales")
       .max(8, "El código no puede tener más de 8 dígitos")
+      .test(
+        'no-only-spaces',
+        'El nombre no puede estar vacío o contener solo espacios',
+        value => value.trim().length > 0
+      )
   });
 
   const formik = useFormik({

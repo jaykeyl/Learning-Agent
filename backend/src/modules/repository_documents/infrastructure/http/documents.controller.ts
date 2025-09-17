@@ -242,6 +242,19 @@ export class DocumentsController {
     @Req() req: AuthenticatedRequest,
   ): Promise<UnifiedUploadResponseDto> {
     try {
+      console.log(' Upload request received:', {
+        hasFile: !!file,
+        fileInfo: file ? {
+          originalname: file.originalname,
+          size: file.size,
+          mimetype: file.mimetype,
+          fieldname: file.fieldname,
+        } : null,
+        hasUser: !!req.user,
+        userId: req.user?.id,
+        headers: req.headers,
+      });
+
       if (!file) {
         throw new BadRequestException('No se ha proporcionado ningún archivo');
       }
@@ -250,6 +263,13 @@ export class DocumentsController {
       if (!userId) {
         throw new BadRequestException('Usuario no autenticado');
       }
+
+      this.logger.setContext({ userId });
+      this.logger.logDocumentOperation('upload', undefined, {
+        fileName: file.originalname,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+      });
 
       this.logger.setContext({ userId });
       this.logger.logDocumentOperation('upload', undefined, {

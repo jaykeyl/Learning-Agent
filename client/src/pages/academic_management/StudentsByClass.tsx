@@ -19,6 +19,7 @@ import { SafetyModal } from "../../components/safetyModal";
 import StudentPreviewModal from "../../components/StudentPreviewModal";
 import type { EnrollGroupRow } from "../../interfaces/enrollmentInterface";
 import useStudents from "../../hooks/useStudents";
+import useCourses from "../../hooks/useCourses";
 
 export function StudentsByClass() {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export function StudentsByClass() {
   const { fetchClassById, actualClass, updateClass, softDeleteClass } = useClasses();
   const { enrollSingleStudent, enrollGroupStudents } = useEnrollment();
   const { students, fetchStudentsByClass } = useStudents();
+  const { actualCourse, getCourseByID } = useCourses();
 
   const [formOpen, setFormOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>();
@@ -50,6 +52,13 @@ export function StudentsByClass() {
     })();
     return () => { active = false; };
   }, [id]);
+
+  // Obtener información del curso cuando tenemos la clase
+  useEffect(() => {
+    if (actualClass?.courseId && !actualCourse) {
+      getCourseByID(actualClass.courseId);
+    }
+  }, [actualClass?.courseId, actualCourse, getCourseByID]);
 
   const handleSubmit = async (values: createEnrollmentInterface) => {
     try {
@@ -89,7 +98,7 @@ export function StudentsByClass() {
       }
       message.success("Curso eliminado correctamente");
       setTimeout(() => {
-        navigate(`/classes`);
+        navigate(`/professor/courses`);
       }, 3000);
     } catch {
       handleSoftDeleteError();
@@ -195,8 +204,9 @@ export function StudentsByClass() {
       subtitle={`Lista de datos del curso ${actualClass?.name}`}
       breadcrumbs={[
         { label: "Home", href: "/" },
-        { label: "Clases", href: "/classes" },
-        { label: `${actualClass?.name}`, href: `/classes/${actualClass?.id}` },
+        { label: "Materias", href: "/professor/courses" },
+        { label: actualCourse?.name || "Curso", href: `/professor/courses/${actualClass?.courseId}/periods` },
+        { label: `${actualClass?.name}` },
       ]}
     >
       <div style={{ padding: "1rem" }}>
@@ -211,7 +221,7 @@ export function StudentsByClass() {
           <Button
             type="primary"
             icon={<FolderOutlined />}
-            onClick={() => navigate(`/curso/${id}/documents`)}
+            onClick={() => navigate(`documents`)}
             style={{ margin: 4, width: 150 }}
           >
             Documentos
@@ -361,4 +371,4 @@ export function StudentsByClass() {
       />
     </PageTemplate>
   );
-}
+} 

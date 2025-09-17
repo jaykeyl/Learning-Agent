@@ -50,5 +50,12 @@ jobs:
       - name: Build
         working-directory: client
         run: npm run build --if-present
-
-
+      
+      - name: Upload artifacts (build y reportes)
+        if: always()
+        uses: actions/upload-artifact@834d307f3a2f3c78a219c1a5b2dede422a8767b0
+        with:
+          name: build-and-reports-${{ matrix.node }}
+          path: |
+            client/dist/**
+            client/junit.xml
