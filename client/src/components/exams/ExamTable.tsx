@@ -5,6 +5,7 @@ import type { Dayjs } from 'dayjs';
 import { useState } from 'react';
 import { useExamsStore, type ExamSummary, type ExamsState } from '../../store/examsStore';
 import { readJSON } from '../../services/storage/localStorage';
+import { updateExamStatus, deleteExamAny } from '../../services/exams.service'; // ← integrado
 import { useNavigate } from 'react-router-dom';
 
 const { Text } = Typography;
@@ -234,15 +235,14 @@ function handleDownloadPdf(exam: ExamSummary, mode: PrintMode) {
   const html = buildPlantillaHtml(printable, mode);
   openPrint(html);
 }
-/* =========================== FIN helpers =========================== */
 
-export default function ExamTable({ data, onEdit, onDelete, disableStatusControls = true }: Props) {
+export default function ExamTable({ data, onDelete, disableStatusControls = true }: Props) {
   const toggleVisibility = useExamsStore((s: ExamsState) => s.toggleVisibility);
-  const setVisibility = useExamsStore((s: ExamsState) => s.setVisibility);
-  const setStatus = useExamsStore((s: ExamsState) => s.setStatus);
-  const removeExam = useExamsStore((s: ExamsState) => s.removeExam);
-  const { token } = theme.useToken();
-  const navigate = useNavigate();
+  const setVisibility    = useExamsStore((s: ExamsState) => s.setVisibility);
+  const setStatus        = useExamsStore((s: ExamsState) => s.setStatus);
+  const removeExam       = useExamsStore((s: ExamsState) => s.removeExam);
+  const { token }        = theme.useToken();
+  const navigate         = useNavigate();
 
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishMode, setPublishMode] = useState<'now' | 'schedule' | 'draft'>('now');
@@ -276,6 +276,17 @@ export default function ExamTable({ data, onEdit, onDelete, disableStatusControl
     }
     setPublishOpen(false);
     setTarget(null);
+  };
+
+  const handleToggleVisibility = async (record: ExamSummary) => {
+    toggleVisibility(record.id);
+    try {
+      const to = record.visibility === 'visible' ? 'hidden' : 'visible';
+      await updateExamStatus(record.id, to);
+      message.success(to === 'visible' ? 'Examen hecho público' : 'Examen marcado como privado');
+    } catch {
+      message.warning('No se pudo actualizar en el servidor. Cambio local aplicado.');
+    }
   };
 
   const columns: ColumnsType<ExamSummary> = [
@@ -314,8 +325,8 @@ export default function ExamTable({ data, onEdit, onDelete, disableStatusControl
       align: 'right',
       render: (_, record) => {
         const menuItems = [
-          { key: 'q', label: 'Descargar — Solo preguntas', onClick: () => handleDownloadPdf(record, 'questions_only') },
-          { key: 'qa', label: 'Descargar — Preguntas y respuestas', onClick: () => handleDownloadPdf(record, 'questions_answers') },
+          { key: 'q',  label: 'Descargar — Solo preguntas',           onClick: () => handleDownloadPdf(record, 'questions_only') },
+          { key: 'qa', label: 'Descargar — Preguntas y respuestas',   onClick: () => handleDownloadPdf(record, 'questions_answers') },
         ];
         return (
           <Space size={6} wrap={false} style={{ whiteSpace: 'nowrap' }}>
@@ -330,8 +341,6 @@ export default function ExamTable({ data, onEdit, onDelete, disableStatusControl
                     message.error('No se encontró el contenido del examen. Vuelve a guardarlo desde la pantalla de resultados.');
                     return;
                   }
-
-                  console.log('Examen encontrado:', examContent);
 
                   const mcCount = examContent.questions.filter(q => q.type === 'multiple_choice').length;
                   const tfCount = examContent.questions.filter(q => q.type === 'true_false').length;
@@ -379,8 +388,9 @@ export default function ExamTable({ data, onEdit, onDelete, disableStatusControl
                 type="text"
                 style={{ paddingInline: 6 }}
                 icon={record.visibility === 'visible' ? <EyeInvisibleOutlined style={{ fontSize: 18 }} /> : <EyeOutlined style={{ fontSize: 18 }} />}
-                onClick={() => toggleVisibility(record.id)}
+                onClick={() => handleToggleVisibility(record)}
                 aria-label="Visibilidad"
+                disabled={disableStatusControls === true ? false : false} 
               />
             </Tooltip>
 
@@ -402,7 +412,22 @@ export default function ExamTable({ data, onEdit, onDelete, disableStatusControl
               okText="Eliminar"
               cancelText="Cancelar"
               okButtonProps={{ danger: true }}
-              onConfirm={async () => { if (onDelete) { await onDelete(record.id); } else { removeExam(record.id); } message.success('Examen eliminado'); }}
+              onConfirm={async () => {
+                let serverOk = false;
+                try {
+                  await deleteExamAny(record.id); 
+                  serverOk = true;
+                } catch {
+                  serverOk = false;
+                }
+                if (onDelete) {
+                  try { await onDelete(record.id); } catch {}
+                } else {
+                  removeExam(record.id); 
+                }
+                if (serverOk) message.success('Examen eliminado');
+                else message.warning('No se pudo eliminar en el servidor. Se eliminó localmente en esta sesión.');
+              }}
             >
               <Tooltip title="Eliminar">
                 <Button type="text" danger style={{ paddingInline: 6 }} icon={<DeleteOutlined style={{ fontSize: 18 }} />} aria-label="Eliminar" />
