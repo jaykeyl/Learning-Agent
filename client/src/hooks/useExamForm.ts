@@ -6,6 +6,7 @@ type Values = {
   attempts: string | number;
   timeMinutes: string | number;
   reference?: string;
+  indices?: string[];
   multipleChoice: string | number;
   trueFalse: string | number;
   analysis: string | number;     

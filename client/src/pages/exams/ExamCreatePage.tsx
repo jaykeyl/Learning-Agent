@@ -147,7 +147,8 @@ export default function ExamsCreatePage() {
       subject: raw.subject ?? raw.topic ?? 'Tema general',
       difficulty,
       totalQuestions,
-      reference: raw.reference ?? '',
+      reference: (Array.isArray((raw as any).indices) && (raw as any).indices.length > 0)
+      ? `Índices: ${((raw as any).indices as string[]).join(' | ')}`: (raw.reference ?? ''),
       distribution,
       language: 'es',
     };
