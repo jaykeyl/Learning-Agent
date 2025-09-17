@@ -8,6 +8,7 @@ export type UpdateExamQuestionPatch = {
   correctOptionIndex?: number | null;
   correctBoolean?: boolean | null;
   expectedAnswer?: string | null;
+  order?: number | null;
 };
 
 export type DerivedCounts = {
