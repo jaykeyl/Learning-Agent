@@ -18,19 +18,28 @@ import { DeleteExamCommandHandler } from './application/commands/delete-exam.han
 import { GenerateQuestionsUseCase } from './application/commands/generate-questions.usecase';
 import { ListClassExamsUseCase } from './application/queries/list-class-exams.usecase';
 import { GetExamByIdUseCase } from './application/queries/get-exam-by-id.usecase';
+import { GetCourseIndexUseCase } from './application/queries/get-course-index.usecase';
+
+import { IndexContextBuilder } from './application/services/index-context.builder';
 
 import { LlmAiQuestionGenerator } from './infrastructure/ai/llm-ai-question.generator';
 import { LLM_PORT } from '../llm/tokens';
 import { GeminiAdapter } from '../llm/infrastructure/adapters/gemini.adapter';
 import { PromptTemplateModule } from '../prompt-template/prompt-template.module';
 
+import { AcademicManagementModule } from '../academic_management/academic_management.module';
+import { DocumentsModule } from '../repository_documents/documents.module';
+
 import { ExamsStartupCheck } from './infrastructure/startup/exams-startup.check';
 
 @Module({
   imports: [
     PrismaModule,
+    AcademicManagementModule,   
+    DocumentsModule, 
     forwardRef(() => IdentityModule),
     PromptTemplateModule,
+    
   ],
   providers: [
     { provide: EXAM_REPO, useClass: PrismaExamRepository },
@@ -48,9 +57,11 @@ import { ExamsStartupCheck } from './infrastructure/startup/exams-startup.check'
     DeleteExamCommandHandler, 
     ListClassExamsUseCase,
     GetExamByIdUseCase,
+    GetCourseIndexUseCase, 
 
     ExamsStartupCheck,
 
+    IndexContextBuilder,
     
   ],
   controllers: [ExamsController],

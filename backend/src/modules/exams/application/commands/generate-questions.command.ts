@@ -5,5 +5,6 @@ export class GenerateQuestionsCommand {
     public readonly language: 'es' | 'en' = 'es',
     public readonly difficulty?: string,
     public readonly reference?: string | null,
+    indexIds?: string[],
   ) {}
 }
