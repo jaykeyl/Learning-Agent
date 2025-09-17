@@ -1,5 +1,6 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { EXAM_AI_GENERATOR, EXAM_REPO } from '../../tokens';
+import { IndexContextBuilder } from '../services/index-context.builder';
 import type { AIQuestionGeneratorPort } from '../../domain/ports/ai-question-generator.port';
 import type { ExamRepositoryPort } from '../../domain/ports/exam.repository.port';
 import type { Distribution } from '../../domain/entities/distribution.vo';
@@ -14,26 +15,27 @@ type Input = {
     examId?: string;
     classId?: string;
     language?: 'es' | 'en';
-    strict?: boolean; 
-    };
+    strict?: boolean;
+    indexIds?: string[];
+};
 
-    type Output = {
+type Output = {
     questions: {
         multiple_choice: any[];
         true_false: any[];
         open_analysis: any[];
         open_exercise: any[];
     };
-    };
+};
 
-    @Injectable()
-    export class GenerateQuestionsUseCase {
+@Injectable()
+export class GenerateQuestionsUseCase {
     private readonly logger = new Logger(GenerateQuestionsUseCase.name);
 
     constructor(
         @Inject(EXAM_REPO) private readonly examRepo: ExamRepositoryPort,
-        @Inject(EXAM_AI_GENERATOR)
-        private readonly aiGenerator: AIQuestionGeneratorPort,
+        @Inject(EXAM_AI_GENERATOR) private readonly aiGenerator: AIQuestionGeneratorPort,
+        private readonly indexContextBuilder: IndexContextBuilder,
     ) {}
 
     async execute(input: Input): Promise<Output> {
@@ -47,25 +49,50 @@ type Input = {
         if (!owns) throw new Error('Acceso no autorizado: la clase no pertenece a este docente');
         }
 
-        const flat = await this.aiGenerator.generate({
+        let finalReference: string | null = input.reference ?? null;
+
+        if (Array.isArray(input.indexIds)) {
+        if (input.indexIds.length === 0) {
+            throw new BadRequestException(
+            'Debe seleccionar al menos un índice o no enviar "indexIds" para usar todo el contenido.',
+            );
+        }
+
+        const selectedContext = await this.indexContextBuilder.buildFromIndexIds(input.subject, input.indexIds);
+
+        this.logger.log(
+            `[gen-questions] context=selected-indexes count=${input.indexIds.length} exam=${examId ?? '-'} class=${classId ?? '-'} teacher=${teacherId}`,
+        );
+
+        if (selectedContext && selectedContext.trim().length > 0) {
+            const sep = finalReference ? '\n\n=== CONTEXTO SELECCIONADO ===\n' : '=== CONTEXTO SELECCIONADO ===\n';
+            finalReference = (finalReference ?? '') + sep + selectedContext;
+        }
+        } else {
+        this.logger.log(
+            `[gen-questions] context=all exam=${examId ?? '-'} class=${classId ?? '-'} teacher=${teacherId}`,
+        );
+    }
+
+    const flat = await this.aiGenerator.generate({
         subject: input.subject,
         difficulty: input.difficulty,
         totalQuestions: input.totalQuestions,
         distribution: input.distribution,
-        reference: input.reference ?? null,
-        });
+        reference: finalReference,    
+    });
 
-        const grouped = {
+    const grouped = {
         multiple_choice: flat.filter((q: any) => q.type === 'multiple_choice'),
-        true_false: flat.filter((q: any) => q.type === 'true_false'),
-        open_analysis: flat.filter((q: any) => q.type === 'open_analysis'),
-        open_exercise: flat.filter((q: any) => q.type === 'open_exercise'),
-        };
+        true_false:      flat.filter((q: any) => q.type === 'true_false'),
+        open_analysis:   flat.filter((q: any) => q.type === 'open_analysis'),
+        open_exercise:   flat.filter((q: any) => q.type === 'open_exercise'),
+    };
 
-        this.logger.log(
+    this.logger.log(
         `generated: mcq=${grouped.multiple_choice.length} tf=${grouped.true_false.length} oa=${grouped.open_analysis.length} oe=${grouped.open_exercise.length}`,
-        );
+    );
 
-        return { questions: grouped };
+    return { questions: grouped };
     }
 }

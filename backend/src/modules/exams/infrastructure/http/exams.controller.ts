@@ -290,7 +290,7 @@ export class ExamsController {
   @HttpCode(200)
   async generate(@Body() dto: GenerateQuestionsDto, @Req() req: Request) {
     this.logger.log(
-      `[${cid(req)}] generateQuestions -> subject=${dto.subject}, difficulty=${dto.difficulty}, total=${dto.totalQuestions}`,
+      `[${cid(req)}] generateQuestions -> subject=${dto.subject}, difficulty=${dto.difficulty}, total=${dto.totalQuestions}, indexIds=${Array.isArray(dto.indexIds) ? dto.indexIds.length : 'ALL'}`,
     );
 
     if (!dto.subject?.trim()) throw new BadRequestError('subject es obligatorio.');
@@ -312,10 +312,12 @@ export class ExamsController {
       classId: dto.classId,
       language: (dto as any).language ?? 'es',
       strict: (dto as any).strict ?? true,
+      indexIds: dto.indexIds,
     });
 
     return responseSuccess(cid(req), output, 'Preguntas generadas', pathOf(req));
   }
+
 
   @Post('exams/:examId/questions')
   @HttpCode(200)
